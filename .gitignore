@@ -1,7 +1,9 @@
 .venv/
+.idea/
 __pycache__/
 *.py[cod]
 
+auth_state.json
 availability.json
 availability.csv
 discovered_links.json

@@ -19,12 +19,31 @@ pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
-## 1. Discover hidden XHR/fetch endpoints
+## 1. Save a Local Login Session
+
+Do not paste credentials into scripts or chats. Instead, open a real browser, log in normally, and manually accept any waiver/conditions only if you genuinely agree.
+
+```powershell
+python save_session.py
+```
+
+When the actual availability page is visible, return to the terminal and press Enter. This writes `auth_state.json`, which is gitignored.
+
+Use that local session with the Playwright scripts:
+
+```powershell
+python discover_endpoints.py --storage-state auth_state.json --headful
+python scrape_dynamic.py --storage-state auth_state.json --headful
+```
+
+Do not use this helper to automate payment, checkout, or an actual booking.
+
+## 2. Discover hidden XHR/fetch endpoints
 
 Start here. This opens the target page, listens for Fetch/XHR traffic, and clicks safe weekday-looking controls only.
 
 ```powershell
-python discover_endpoints.py --headful
+python discover_endpoints.py --storage-state auth_state.json --headful
 ```
 
 Useful options:
@@ -46,7 +65,7 @@ $env:PROPPICKLE_COOKIE_HEADER = "name=value; other=value"
 python discover_endpoints.py --headful
 ```
 
-## 2. Scrape public static HTML
+## 3. Scrape public static HTML
 
 ```powershell
 python scrape_static.py
@@ -64,7 +83,7 @@ Outputs:
 - `availability.csv`
 - `discovered_links.json`
 
-## 3. Fallback dynamic DOM scraping
+## 4. Fallback dynamic DOM scraping
 
 If no clean JSON endpoint is usable, scrape visible availability after day clicks:
 
