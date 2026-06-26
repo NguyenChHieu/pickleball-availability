@@ -49,6 +49,20 @@ async def run() -> int:
 
         print(f"Opening {args.url}")
         await page.goto(args.url, wait_until="domcontentloaded", timeout=args.timeout_ms)
+        await page.wait_for_timeout(3000)
+
+        body_text = ""
+        try:
+            body_text = await page.locator("body").inner_text(timeout=5000)
+        except Exception:
+            body_text = ""
+
+        if "performing security verification" in body_text.lower() or "cloudflare" in body_text.lower():
+            print()
+            print("This looks like Cloudflare/security verification.")
+            print("If it stays stuck, do not try to bypass it with automation.")
+            print("Use normal Chrome instead, then save the loaded availability page as HTML")
+            print("and parse it with scrape_saved_html.py.")
         print()
         print("Use the browser window to log in normally.")
         print("If a waiver/conditions page appears, only accept it manually if you genuinely agree.")

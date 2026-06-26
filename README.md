@@ -38,6 +38,20 @@ python scrape_dynamic.py --storage-state auth_state.json --headful
 
 Do not use this helper to automate payment, checkout, or an actual booking.
 
+### If Cloudflare/security verification gets stuck
+
+Do not try to bypass bot protection. Open the page in normal Chrome instead, log in manually, accept any waiver/conditions manually if you genuinely agree, then save the visible availability page:
+
+1. Press `Ctrl+S`.
+2. Save as `availability.html` inside this project folder.
+3. Parse the saved file:
+
+```powershell
+python scrape_saved_html.py --input availability.html
+```
+
+This fallback makes no network requests.
+
 ## 2. Discover hidden XHR/fetch endpoints
 
 Start here. This opens the target page, listens for Fetch/XHR traffic, and clicks safe weekday-looking controls only.
