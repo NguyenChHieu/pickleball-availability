@@ -52,6 +52,27 @@ python scrape_saved_html.py --input availability.html
 
 This fallback makes no network requests.
 
+For the "remaining hours" view, save one HTML file per day after clicking that day in the booking calendar:
+
+```text
+day-fri.html
+day-sat.html
+day-sun.html
+day-mon.html
+```
+
+Then parse all of them at once:
+
+```powershell
+python scrape_saved_html.py --input day-fri.html day-sat.html day-sun.html day-mon.html --source-url "https://book.propickle.com.au/book/ProPickle?skip_waivers=true"
+```
+
+Outputs:
+
+- `availability.json`: raw hourly slot rows.
+- `availability_intervals.json`: merged open slot intervals.
+- `remaining_hours.json`: one summary per saved day, including total remaining open hours.
+
 ## 2. Discover hidden XHR/fetch endpoints
 
 Start here. This opens the target page, listens for Fetch/XHR traffic, and clicks safe weekday-looking controls only.

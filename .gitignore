@@ -8,5 +8,8 @@ auth_state.json
 *_files/
 availability.json
 availability.csv
+availability_intervals.json
+availability_intervals.csv
+remaining_hours.json
 discovered_links.json
 endpoints_log.json

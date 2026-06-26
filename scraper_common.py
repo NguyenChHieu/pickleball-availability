@@ -77,6 +77,7 @@ SINGLE_TIME_RE = re.compile(r"\b\d{1,2}(?::\d{2})?\s*(?:am|pm|AM|PM)\b")
 PERIOD_RE = re.compile(r"(am|pm)$", re.IGNORECASE)
 HOUR_RE = re.compile(r"^(\d{1,2})(?::\d{2})?")
 PRICE_RE = re.compile(r"\b(?:A\$|AU\$|\$)\s*\d+(?:\.\d{2})?\b")
+TIME_RE = re.compile(r"^(\d{1,2})(?::(\d{2}))?(am|pm)$", re.IGNORECASE)
 
 
 def normalize_whitespace(value: str | None) -> str:
@@ -128,6 +129,87 @@ def normalize_time_range(start_time: str, end_time: str) -> tuple[str, str]:
                 start = f"{start}{period}"
 
     return start, end
+
+
+def time_to_minutes(value: str) -> int:
+    match = TIME_RE.match(normalize_whitespace(value).lower().replace(" ", ""))
+    if not match:
+        raise ValueError(f"Unsupported time value: {value!r}")
+
+    hour = int(match.group(1))
+    minute = int(match.group(2) or "0")
+    period = match.group(3).lower()
+
+    if hour == 12:
+        hour = 0
+    if period == "pm":
+        hour += 12
+
+    return hour * 60 + minute
+
+
+def minutes_to_time(minutes: int) -> str:
+    hour24, minute = divmod(minutes, 60)
+    period = "am" if hour24 < 12 or hour24 == 24 else "pm"
+    hour = hour24 % 12
+    if hour == 0:
+        hour = 12
+    suffix = f":{minute:02d}" if minute else ""
+    return f"{hour}{suffix}{period}"
+
+
+def merge_open_intervals(items: Iterable[dict[str, object]]) -> list[dict[str, str]]:
+    grouped: dict[tuple[str, str, str, str, str], list[tuple[int, int]]] = {}
+
+    for raw_item in items:
+        item = ensure_item_shape(raw_item)
+        if item["status"] != "open" or not item["start_time"] or not item["end_time"]:
+            continue
+        try:
+            start = time_to_minutes(item["start_time"])
+            end = time_to_minutes(item["end_time"])
+        except ValueError:
+            continue
+        if end <= start:
+            continue
+        key = (
+            item["source_url"],
+            item["title"],
+            item["date"],
+            item["price"],
+            item["link"],
+        )
+        grouped.setdefault(key, []).append((start, end))
+
+    merged_items: list[dict[str, str]] = []
+    for key, intervals in grouped.items():
+        intervals.sort()
+        merged: list[tuple[int, int]] = []
+        for start, end in intervals:
+            if not merged or start > merged[-1][1]:
+                merged.append((start, end))
+            else:
+                previous_start, previous_end = merged[-1]
+                merged[-1] = (previous_start, max(previous_end, end))
+
+        source_url, title, date, price, link = key
+        for start, end in merged:
+            merged_items.append(
+                ensure_item_shape(
+                    {
+                        "source_url": source_url,
+                        "title": title,
+                        "date": date,
+                        "start_time": minutes_to_time(start),
+                        "end_time": minutes_to_time(end),
+                        "status": "open",
+                        "price": price,
+                        "link": link,
+                    }
+                )
+            )
+
+    return merged_items
 
 
 def extract_price(text: str) -> str:
