@@ -4,6 +4,8 @@ __pycache__/
 *.py[cod]
 
 auth_state.json
+*.html
+*_files/
 availability.json
 availability.csv
 discovered_links.json

@@ -10,6 +10,7 @@ from scraper_common import (
     dedupe_items,
     item_from_text,
     looks_like_schedule_text,
+    normalize_time_range,
     normalize_whitespace,
     write_csv,
     write_json,
@@ -83,6 +84,10 @@ def candidate_elements(soup: BeautifulSoup):
 
 
 def extract_items(soup: BeautifulSoup, source_url: str) -> list[dict[str, str]]:
+    bookbox_items = extract_bookbox_items(soup, source_url)
+    if bookbox_items:
+        return bookbox_items
+
     items: list[dict[str, str]] = []
     for element in candidate_elements(soup):
         text = element.get_text("\n", strip=True)
@@ -97,6 +102,81 @@ def extract_items(soup: BeautifulSoup, source_url: str) -> list[dict[str, str]]:
             )
         )
     return dedupe_items(items)
+
+
+def extract_bookbox_items(soup: BeautifulSoup, source_url: str) -> list[dict[str, str]]:
+    bookbox = soup.select_one('[data-react-class="BookBox"]')
+    if not bookbox:
+        return []
+
+    selected_date = selected_bookbox_date(bookbox)
+    selected_type = selected_bookbox_type(bookbox) or "Court booking"
+    time_buttons = bookbox.select(".ButtonOption")
+    items: list[dict[str, str]] = []
+
+    for button in time_buttons:
+        text = normalize_whitespace(button.get_text(" "))
+        if "-" not in text:
+            continue
+        if not any(char.isdigit() for char in text):
+            continue
+
+        clean_text = text.replace("+", "").strip()
+        start_time, end_time = normalize_time_range(*clean_text.split("-", 1))
+        classes = set(button.get("class", []))
+        status = "full" if "red" in classes or button.has_attr("disabled") else "open"
+
+        items.append(
+            {
+                "source_url": source_url,
+                "title": selected_type,
+                "date": selected_date,
+                "start_time": start_time,
+                "end_time": end_time,
+                "status": status,
+                "price": "",
+                "link": source_url,
+            }
+        )
+
+    return dedupe_items(items)
+
+
+def selected_bookbox_date(bookbox) -> str:
+    summary = bookbox.select_one(".StepperItem .summary")
+    if summary:
+        text = normalize_whitespace(summary.get_text(" "))
+        if ", No time selected" in text:
+            return text.split(", No time selected", 1)[0].strip()
+        if ", " in text:
+            return text.rsplit(", ", 1)[0].strip()
+
+    selected_day = bookbox.select_one(".DaysRangeOptions .day-container button.primary")
+    if selected_day:
+        return normalize_whitespace(selected_day.get_text(" "))
+
+    return ""
+
+
+def selected_bookbox_type(bookbox) -> str:
+    select_type_header = None
+    for header in bookbox.select("h2"):
+        if normalize_whitespace(header.get_text(" ")).lower() == "select type":
+            select_type_header = header
+            break
+
+    if not select_type_header:
+        return ""
+
+    container = select_type_header.find_parent("div", class_="mb20")
+    if not container:
+        return ""
+
+    selected_button = container.select_one(".ButtonOption.primary")
+    if not selected_button:
+        return ""
+
+    return normalize_whitespace(selected_button.get_text(" "))
 
 
 def main() -> int:

@@ -74,6 +74,8 @@ TIME_RANGE_RE = re.compile(
 )
 
 SINGLE_TIME_RE = re.compile(r"\b\d{1,2}(?::\d{2})?\s*(?:am|pm|AM|PM)\b")
+PERIOD_RE = re.compile(r"(am|pm)$", re.IGNORECASE)
+HOUR_RE = re.compile(r"^(\d{1,2})(?::\d{2})?")
 PRICE_RE = re.compile(r"\b(?:A\$|AU\$|\$)\s*\d+(?:\.\d{2})?\b")
 
 
@@ -98,16 +100,34 @@ def extract_date(text: str) -> str:
 def extract_times(text: str) -> tuple[str, str]:
     range_match = TIME_RANGE_RE.search(text)
     if range_match:
-        return (
-            normalize_whitespace(range_match.group(1)),
-            normalize_whitespace(range_match.group(2)),
-        )
+        return normalize_time_range(range_match.group(1), range_match.group(2))
 
     single_match = SINGLE_TIME_RE.search(text)
     if single_match:
         return normalize_whitespace(single_match.group(0)), ""
 
     return "", ""
+
+
+def normalize_time_range(start_time: str, end_time: str) -> tuple[str, str]:
+    start = normalize_whitespace(start_time).lower().replace(" ", "")
+    end = normalize_whitespace(end_time).lower().replace(" ", "")
+    start_period = PERIOD_RE.search(start)
+    end_period = PERIOD_RE.search(end)
+
+    if not start_period and end_period:
+        period = end_period.group(1).lower()
+        start_hour_match = HOUR_RE.search(start)
+        end_hour_match = HOUR_RE.search(end)
+        if start_hour_match and end_hour_match:
+            start_hour = int(start_hour_match.group(1))
+            end_hour = int(end_hour_match.group(1))
+            if period == "pm" and end_hour == 12 and start_hour < 12:
+                start = f"{start}am"
+            else:
+                start = f"{start}{period}"
+
+    return start, end
 
 
 def extract_price(text: str) -> str:
