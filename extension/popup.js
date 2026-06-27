@@ -5,7 +5,7 @@ const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
 const resultsElement = document.querySelector("#results");
 
-const STORAGE_KEY = "latestAvailabilityPayload";
+const STORAGE_PREFIX = "latestAvailabilityPayload:";
 let latestPayload = null;
 
 function setStatus(message) {
@@ -17,6 +17,23 @@ function formatExportTime(payload) {
   const date = new Date(payload.exported_at);
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString();
+}
+
+function cacheKeyForUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return `${STORAGE_PREFIX}${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return `${STORAGE_PREFIX}${url || "unknown"}`;
+  }
+}
+
+function sourceLabel(payload) {
+  try {
+    return new URL(payload.source_url).hostname;
+  } catch {
+    return "this page";
+  }
 }
 
 async function activeTab() {
@@ -76,12 +93,14 @@ function render(payload) {
 }
 
 async function savePayload(payload) {
-  await chrome.storage.local.set({ [STORAGE_KEY]: payload });
+  await chrome.storage.local.set({ [cacheKeyForUrl(payload.source_url)]: payload });
 }
 
 async function loadSavedPayload() {
-  const stored = await chrome.storage.local.get(STORAGE_KEY);
-  const payload = stored[STORAGE_KEY];
+  const tab = await activeTab();
+  const cacheKey = cacheKeyForUrl(tab.url);
+  const stored = await chrome.storage.local.get(cacheKey);
+  const payload = stored[cacheKey];
   if (!payload) {
     actionsElement.hidden = true;
     setStatus("Open a Playbypoint booking page, then click Read Page.");
@@ -92,8 +111,8 @@ async function loadSavedPayload() {
   const exportedAt = formatExportTime(payload);
   setStatus(
     exportedAt
-      ? `Showing saved result from ${exportedAt}. Click Read Page to refresh.`
-      : "Showing saved result. Click Read Page to refresh."
+      ? `Showing saved ${sourceLabel(payload)} result from ${exportedAt}. Click Read Page to refresh.`
+      : `Showing saved ${sourceLabel(payload)} result. Click Read Page to refresh.`
   );
 }
 

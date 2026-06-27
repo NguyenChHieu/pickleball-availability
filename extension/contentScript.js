@@ -5,6 +5,8 @@
   const config = {
     // Wait after each day-tab click so Playbypoint can re-render the time buttons.
     daySettleMs: 1400,
+    // Wait for the selected-date header to confirm the clicked day loaded.
+    dayLoadTimeoutMs: 6000,
     // Safety cap: only inspect the visible date window, not an unbounded calendar.
     clickLimit: 14,
   };
@@ -43,6 +45,26 @@
   const normalizeWhitespace = (value) => (value || "").replace(/\s+/g, " ").trim();
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const normalizeMonth = (value) => monthLookup[normalizeWhitespace(value).toLowerCase()] || "";
+  const bookBoxRoot = () => document.querySelector('[data-react-class="BookBox"]');
+
+  const dateKey = (label) => {
+    const parts = normalizeWhitespace(label).replaceAll(",", "").split(" ");
+    const weekday = parts[0]?.toLowerCase() || "";
+    const month = parts.map(normalizeMonth).find(Boolean) || "";
+    const dayNumber = parts.find((part) => /^\d{1,2}$/.test(part));
+    return weekday && month && dayNumber ? `${weekday}:${month}:${Number(dayNumber)}` : normalizeWhitespace(label);
+  };
+
+  const sameDate = (left, right) => dateKey(left) === dateKey(right);
+
+  const waitUntil = async (predicate, timeoutMs, intervalMs = 100) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate()) return true;
+      await wait(intervalMs);
+    }
+    return predicate();
+  };
 
   const previousMonth = (month) => {
     const index = monthOrder.indexOf(month);
@@ -50,6 +72,7 @@
   };
 
   const selectedDateText = (root) => {
+    if (!root) return "";
     const summary = root.querySelector(".StepperItem .summary");
     const text = normalizeWhitespace(summary?.innerText || "");
     if (text.includes(", No time selected")) return text.split(", No time selected")[0].trim();
@@ -73,6 +96,7 @@
   };
 
   const visibleDayButtons = (root) => {
+    if (!root) return [];
     const daysRange = root.querySelector(".DaysRangeOptions");
     if (!daysRange) return [];
 
@@ -96,6 +120,32 @@
       }
     }
     return days.slice(0, config.clickLimit);
+  };
+
+  const dayButtonForDate = (targetDate) => {
+    const root = bookBoxRoot();
+    const day = visibleDayButtons(root).find((candidate) => sameDate(candidate.date, targetDate));
+    return { root, button: day?.button };
+  };
+
+  const clickDayAndWait = async (targetDate) => {
+    const { root, button } = dayButtonForDate(targetDate);
+    if (!root || !button) throw new Error(`Could not find the day button for ${targetDate}.`);
+
+    // The only automated interaction: click a day tab inside the calendar strip.
+    // This never clicks Next, Book, checkout, payment, login, or waiver controls.
+    button.click();
+
+    const loaded = await waitUntil(
+      () => sameDate(selectedDateText(bookBoxRoot()), targetDate),
+      config.dayLoadTimeoutMs
+    );
+    if (!loaded) throw new Error(`Timed out waiting for ${targetDate} to load.`);
+
+    await wait(config.daySettleMs);
+    const loadedRoot = bookBoxRoot();
+    if (!loadedRoot) throw new Error(`The booking widget disappeared after loading ${targetDate}.`);
+    return loadedRoot;
   };
 
   const selectedType = (root) => {
@@ -193,22 +243,18 @@
     );
 
   async function readAvailability() {
-    const root = document.querySelector('[data-react-class="BookBox"]');
+    const root = bookBoxRoot();
     if (!root) throw new Error("Could not find the Playbypoint booking widget on this page.");
 
-    const days = visibleDayButtons(root);
-    if (!days.length) throw new Error("Could not find visible booking day buttons.");
+    const dayTargets = visibleDayButtons(root).map((day) => day.date);
+    if (!dayTargets.length) throw new Error("Could not find visible booking day buttons.");
 
     const results = [];
-    for (const day of days) {
-      // The only automated interaction: click a day tab inside the calendar strip.
-      // This never clicks Next, Book, checkout, payment, login, or waiver controls.
-      day.button.click();
-      await wait(config.daySettleMs);
-
-      const currentDate = selectedDateText(root) || day.date;
-      const title = selectedType(root);
-      const slots = extractSlotsForLoadedDay(root, currentDate, title);
+    for (const targetDate of dayTargets) {
+      const loadedRoot = await clickDayAndWait(targetDate);
+      const currentDate = selectedDateText(loadedRoot) || targetDate;
+      const title = selectedType(loadedRoot);
+      const slots = extractSlotsForLoadedDay(loadedRoot, currentDate, title);
       const openIntervals = mergeOpenIntervals(slots);
 
       results.push({
