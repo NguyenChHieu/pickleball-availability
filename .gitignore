@@ -9,6 +9,7 @@ browser_availability.json
 *.test.csv
 *.html
 !install_bookmarklet.html
+!extension/*.html
 *_files/
 availability.json
 availability.csv

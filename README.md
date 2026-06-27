@@ -62,6 +62,23 @@ cat remaining_hours.json
 
 This should also be the starting point for Broadway Pickleball or North Ryde if their booking pages use the same Playbypoint `BookBox` UI.
 
+## Chrome Extension
+
+For everyday use, load the unpacked extension:
+
+1. Open `chrome://extensions`.
+2. Turn on **Developer mode**.
+3. Click **Load unpacked**.
+4. Select `C:\Users\nguye\Downloads\propickle-buddy\extension`.
+5. Open a compatible Playbypoint booking page in normal Chrome.
+6. Click the extension icon, then **Read Page**.
+
+The extension shows open intervals directly in the popup. Use **Copy JSON** or **Download JSON** if you still want to save the raw export and run:
+
+```bash
+python parse_browser_export.py --input browser_availability.json
+```
+
 The useful answer is `open_intervals` for each day, for example:
 
 ```json

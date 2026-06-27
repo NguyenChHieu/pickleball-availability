@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Playbypoint Availability Reader",
+  "version": "0.1.0",
+  "description": "Read visible Playbypoint booking day tabs and show merged open availability intervals.",
+  "permissions": ["activeTab", "scripting"],
+  "action": {
+    "default_title": "Read Playbypoint availability",
+    "default_popup": "popup.html"
+  }
+}
