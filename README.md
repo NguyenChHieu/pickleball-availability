@@ -71,7 +71,7 @@ Outputs:
 
 - `availability.json`: raw hourly slot rows.
 - `availability_intervals.json`: merged open slot intervals.
-- `remaining_hours.json`: one summary per saved day, including total remaining open hours.
+- `remaining_hours.json`: one summary per visible booking-strip day. Days present in the strip but not loaded in the saved HTML are marked `not_loaded`.
 
 ## 2. Discover hidden XHR/fetch endpoints
 
