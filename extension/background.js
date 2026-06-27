@@ -13,6 +13,8 @@ const PROVIDER_FILES = Object.freeze({
   "playbypoint-bookbox": "providers/playbypointBookBox.js",
 });
 
+const SYNC_CONFIG_KEY = "backendSyncConfig";
+
 const refreshInFlight = new Map();
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -90,6 +92,57 @@ async function readTab(tabId, venue) {
 
 async function saveVenuePayload(venueId, payload) {
   await chrome.storage.local.set({ [AvailabilityRegistry.venuePayloadKey(venueId)]: payload });
+  await syncVenuePayload(venueId, payload);
+}
+
+function syncStatusKey(venueId) {
+  return `backendSyncStatus:${venueId}`;
+}
+
+function availabilityEndpoint(backendUrl, venueId) {
+  const base = new URL(backendUrl);
+  const prefix = base.pathname.replace(/\/+$/, "");
+  base.pathname = `${prefix}/api/availability/${encodeURIComponent(venueId)}`;
+  base.search = "";
+  base.hash = "";
+  return base.toString();
+}
+
+async function syncVenuePayload(venueId, payload) {
+  const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
+  const config = stored[SYNC_CONFIG_KEY] || {};
+  if (!config.enabled || !config.backendUrl) return;
+
+  try {
+    const headers = { "content-type": "application/json" };
+    if (config.syncToken) headers["x-sync-token"] = config.syncToken;
+
+    const response = await fetch(availabilityEndpoint(config.backendUrl, venueId), {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Backend sync failed: ${response.status} ${body}`);
+    }
+
+    await chrome.storage.local.set({
+      [syncStatusKey(venueId)]: {
+        ok: true,
+        synced_at: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    await chrome.storage.local.set({
+      [syncStatusKey(venueId)]: {
+        ok: false,
+        failed_at: new Date().toISOString(),
+        error: error?.message || String(error),
+      },
+    });
+  }
 }
 
 async function firstOpenVenueTab(venue) {

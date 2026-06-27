@@ -63,6 +63,22 @@ The latest successful read is stored in Chrome local extension storage per venue
 
 This matters for future venues: ProPickle, Broadway Pickleball, and North Ryde should not overwrite each other.
 
+## Bot Backend
+
+The extension can optionally sync successful reads to a small local/backend service. That backend stores the latest availability and exposes Messenger webhook endpoints.
+
+Start here:
+
+```text
+server/README.md
+```
+
+The intended product flow is:
+
+1. Extension reads availability from your logged-in browser.
+2. Extension posts the latest payload to the backend.
+3. Messenger bot replies from the cached payload.
+
 ## Compatibility
 
 This extension targets Playbypoint pages that render a `BookBox` booking widget with visible day buttons and time-slot buttons.
@@ -92,12 +108,21 @@ extension/
   background.js
   contentScript.js
   manifest.json
+  options.html
+  options.css
+  options.js
   popup.html
   popup.css
   popup.js
   venues.js
   providers/
     playbypointBookBox.js
+server/
+  src/
+    index.js
+    availabilityStore.js
+    formatAvailability.js
+    messenger.js
 ```
 
-No Python setup is required for the current extension-only version.
+No Python setup is required. The extension is plain Chrome JS, and the optional bot backend runs on Node.

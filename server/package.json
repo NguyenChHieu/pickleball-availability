@@ -1,0 +1,13 @@
+{
+  "name": "pickleball-availability-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/index.js",
+    "check": "node --check src/index.js && node --check src/availabilityStore.js && node --check src/formatAvailability.js && node --check src/messenger.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

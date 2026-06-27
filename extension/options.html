@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Availability Sync Settings</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main>
+      <h1>Backend Sync</h1>
+
+      <label class="row">
+        <input id="enabled" type="checkbox">
+        <span>Sync successful reads to backend</span>
+      </label>
+
+      <label>
+        Backend URL
+        <input id="backendUrl" type="url" placeholder="http://localhost:8787">
+      </label>
+
+      <label>
+        Sync token
+        <input id="syncToken" type="password" autocomplete="off">
+      </label>
+
+      <button id="saveButton" type="button">Save</button>
+      <p id="status" class="status"></p>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

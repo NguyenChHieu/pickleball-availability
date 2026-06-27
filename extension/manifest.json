@@ -1,12 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Playbypoint Availability Reader",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Read Playbypoint booking availability by venue and show merged open intervals.",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
-  "host_permissions": ["https://book.propickle.com.au/*"],
+  "host_permissions": ["https://book.propickle.com.au/*", "http://localhost:8787/*"],
   "background": {
     "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
   },
   "action": {
     "default_title": "Read Playbypoint availability",
