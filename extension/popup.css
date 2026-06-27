@@ -72,6 +72,10 @@ button:disabled {
   margin-bottom: 12px;
 }
 
+.actions button:first-child {
+  grid-column: 1 / -1;
+}
+
 .day {
   background: #fff;
   border-top: 1px solid #dde4e8;

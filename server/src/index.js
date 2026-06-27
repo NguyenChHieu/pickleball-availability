@@ -9,9 +9,19 @@ const {
 } = require("./availabilityStore");
 const { answerForMessage, formatAvailability } = require("./formatAvailability");
 const { extractIncomingMessages, sendMessengerText, verifyWebhook } = require("./messenger");
+const { renderSharePage } = require("./sharePage");
 
 const PORT = Number(process.env.PORT || 8787);
 const SYNC_TOKEN = process.env.AVAILABILITY_SYNC_TOKEN || "";
+const SHARE_TOKEN = shareTokenFromEnv();
+
+function shareTokenFromEnv() {
+  if (process.env.SHARE_TOKEN) return process.env.SHARE_TOKEN;
+  if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+    throw new Error("SHARE_TOKEN is required in deployed mode.");
+  }
+  return "dev-share";
+}
 
 function sendJson(response, status, body) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -20,6 +30,14 @@ function sendJson(response, status, body) {
 
 function sendText(response, status, body) {
   response.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
+  response.end(body);
+}
+
+function sendHtml(response, status, body) {
+  response.writeHead(status, {
+    "content-type": "text/html; charset=utf-8",
+    "x-content-type-options": "nosniff",
+  });
   response.end(body);
 }
 
@@ -61,6 +79,31 @@ function venueFromApiPath(pathname, suffix = "") {
   return pathname.match(pattern)?.[1] || "";
 }
 
+function decodePathSegment(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return "";
+  }
+}
+
+function shareFromPath(pathname, suffix = "") {
+  const pattern = new RegExp(`^/s/([^/]+)/([^/]+)${suffix}$`);
+  const match = pathname.match(pattern);
+  if (!match) return null;
+  const shareToken = decodePathSegment(match[1]);
+  const venueId = decodePathSegment(match[2]);
+  if (!shareToken || !venueId) return null;
+  return {
+    shareToken,
+    venueId,
+  };
+}
+
+function validShareToken(shareToken) {
+  return Boolean(SHARE_TOKEN && shareToken && shareToken === SHARE_TOKEN);
+}
+
 async function handleAvailabilityPost(request, response, venueId) {
   if (!requireSyncToken(request, response)) return;
 
@@ -83,6 +126,26 @@ async function handleAvailabilityGet(_request, response, venueId) {
 }
 
 async function handleAvailabilitySummary(_request, response, venueId) {
+  const payload = await getAvailabilityPayload(venueId);
+  sendText(response, payload ? 200 : 404, formatAvailability(payload));
+}
+
+async function handleSharePage(response, shareToken, venueId) {
+  if (!validShareToken(shareToken)) {
+    notFound(response);
+    return;
+  }
+
+  const payload = await getAvailabilityPayload(venueId);
+  sendHtml(response, 200, renderSharePage(payload, { venueId }));
+}
+
+async function handleShareText(response, shareToken, venueId) {
+  if (!validShareToken(shareToken)) {
+    notFound(response);
+    return;
+  }
+
   const payload = await getAvailabilityPayload(venueId);
   sendText(response, payload ? 200 : 404, formatAvailability(payload));
 }
@@ -117,6 +180,18 @@ async function handleRequest(request, response) {
   try {
     if (request.method === "GET" && pathname === "/health") {
       sendJson(response, 200, { ok: true });
+      return;
+    }
+
+    const shareText = shareFromPath(pathname, "/text");
+    if (request.method === "GET" && shareText) {
+      await handleShareText(response, shareText.shareToken, shareText.venueId);
+      return;
+    }
+
+    const sharePage = shareFromPath(pathname);
+    if (request.method === "GET" && sharePage) {
+      await handleSharePage(response, sharePage.shareToken, sharePage.venueId);
       return;
     }
 

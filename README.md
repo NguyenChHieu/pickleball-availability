@@ -55,7 +55,7 @@ The popup shows each loaded day with merged open intervals, for example:
 }
 ```
 
-The **Copy JSON** and **Download JSON** buttons appear only after a result exists.
+The **Copy Share Link**, **Copy JSON**, and **Download JSON** buttons appear only after a result exists.
 
 ## Persistence
 
@@ -63,9 +63,9 @@ The latest successful read is stored in Chrome local extension storage per venue
 
 This matters for future venues: ProPickle, Broadway Pickleball, and North Ryde should not overwrite each other.
 
-## Bot Backend
+## Share Link And Backend
 
-The extension can optionally sync successful reads to a small local/backend service. That backend stores the latest availability and exposes Messenger webhook endpoints.
+The extension can optionally sync successful reads to a small local/backend service. That backend stores the latest availability, renders a phone-friendly share page, and exposes Messenger webhook endpoints.
 
 Start here:
 
@@ -77,7 +77,19 @@ The intended product flow is:
 
 1. Extension reads availability from your logged-in browser.
 2. Extension posts the latest payload to the backend.
-3. Messenger bot replies from the cached payload.
+3. You share a secret URL such as `https://your-render-url/s/dev-share/propickle`.
+4. Messenger or another bot can later reply from the same cached payload.
+
+In extension options:
+
+```text
+Backend URL: http://localhost:8787
+Sync token: dev-secret
+Share URL base: http://localhost:8787
+Share token: dev-share
+```
+
+After a successful read, click **Copy Share Link** in the popup.
 
 ## Compatibility
 
@@ -123,6 +135,7 @@ server/
     availabilityStore.js
     formatAvailability.js
     messenger.js
+    sharePage.js
 ```
 
 No Python setup is required. The extension is plain Chrome JS, and the optional bot backend runs on Node.

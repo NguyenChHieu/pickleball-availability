@@ -68,4 +68,7 @@ function answerForMessage(text, payloadsByVenue) {
 module.exports = {
   answerForMessage,
   formatAvailability,
+  formatDateTime,
+  formatDay,
+  formatInterval,
 };

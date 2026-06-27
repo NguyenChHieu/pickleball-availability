@@ -1,6 +1,7 @@
 const venueSelect = document.querySelector("#venueSelect");
 const refreshVenueButton = document.querySelector("#refreshVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
+const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
 const copyButton = document.querySelector("#copyButton");
 const downloadButton = document.querySelector("#downloadButton");
 const statusElement = document.querySelector("#status");
@@ -14,6 +15,10 @@ const MESSAGE = Object.freeze({
   REFRESH_VENUE: "AVAILABILITY_REFRESH_VENUE",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
 });
+
+const SYNC_CONFIG_KEY = "backendSyncConfig";
+const DEFAULT_BACKEND_URL = "http://localhost:8787";
+const DEFAULT_SHARE_TOKEN = "dev-share";
 
 let venues = [];
 let selectedVenueId = "";
@@ -193,6 +198,31 @@ async function copyJson() {
   setStatus("Copied JSON to clipboard.");
 }
 
+function normalizeShareUrlBase(value) {
+  const normalized = (value || DEFAULT_BACKEND_URL).trim().replace(/\/+$/, "");
+  new URL(normalized);
+  return normalized;
+}
+
+async function copyShareLink() {
+  if (!latestPayload) return;
+
+  try {
+    const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
+    const config = stored[SYNC_CONFIG_KEY] || {};
+    const venueId = latestPayload.venue_id || selectedVenueId;
+    if (!venueId) throw new Error("Select a venue before copying a share link.");
+
+    const base = normalizeShareUrlBase(config.shareUrlBase || config.backendUrl);
+    const shareToken = (config.shareToken || DEFAULT_SHARE_TOKEN).trim();
+    const link = `${base}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`;
+    await navigator.clipboard.writeText(link);
+    setStatus("Copied share link.");
+  } catch (error) {
+    setStatus(error?.message || String(error));
+  }
+}
+
 function downloadJson() {
   if (!latestPayload) return;
   const venue = latestPayload.venue_id || selectedVenueId || "availability";
@@ -234,6 +264,7 @@ venueSelect.addEventListener("change", () => {
 });
 refreshVenueButton.addEventListener("click", () => refreshVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
+copyShareLinkButton.addEventListener("click", copyShareLink);
 copyButton.addEventListener("click", copyJson);
 downloadButton.addEventListener("click", downloadJson);
 
