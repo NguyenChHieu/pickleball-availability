@@ -1,8 +1,8 @@
 /*
- * Read-only ProPickle/Playbypoint availability exporter.
+ * Read-only Playbypoint availability exporter.
  *
  * Usage:
- * 1. Open the ProPickle booking page in normal Chrome.
+ * 1. Open a Playbypoint booking page in normal Chrome.
  * 2. Log in and accept any waiver manually if you genuinely agree.
  * 3. Open DevTools Console.
  * 4. Paste this whole file and press Enter.
@@ -231,7 +231,7 @@
 
   try {
     await navigator.clipboard.writeText(json);
-    console.log("Copied ProPickle availability JSON to clipboard.");
+    console.log("Copied Playbypoint availability JSON to clipboard.");
   } catch (error) {
     console.warn("Could not copy to clipboard. Copy the JSON printed above instead.", error);
   }

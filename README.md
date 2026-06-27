@@ -45,6 +45,23 @@ python parse_browser_export.py --input browser_availability.json
 cat remaining_hours.json
 ```
 
+## Bookmarklet
+
+Build the bookmarklet installer:
+
+```bash
+python build_bookmarklet.py
+```
+
+Then open `install_bookmarklet.html` in Chrome and drag **Read Pickleball Availability** to the bookmarks bar. On any compatible Playbypoint booking page, log in normally, click the bookmarklet, and parse the downloaded JSON:
+
+```bash
+python parse_browser_export.py --input browser_availability.json
+cat remaining_hours.json
+```
+
+This should also be the starting point for Broadway Pickleball or North Ryde if their booking pages use the same Playbypoint `BookBox` UI.
+
 The useful answer is `open_intervals` for each day, for example:
 
 ```json
