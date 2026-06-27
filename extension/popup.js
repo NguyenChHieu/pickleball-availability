@@ -24,11 +24,16 @@ function setStatus(message) {
   statusElement.textContent = message;
 }
 
+function syncActions() {
+  actionsElement.hidden = isBusy || !latestPayload;
+}
+
 function setBusy(value) {
   isBusy = value;
   refreshVenueButton.disabled = value;
   readCurrentPageButton.disabled = value;
   venueSelect.disabled = value;
+  syncActions();
 }
 
 function formatExportTime(payload) {
@@ -52,14 +57,14 @@ function sourceLabel(payload) {
 
 function renderEmpty(message) {
   latestPayload = null;
-  actionsElement.hidden = true;
+  syncActions();
   resultsElement.replaceChildren();
   setStatus(message);
 }
 
 function render(payload) {
   latestPayload = payload;
-  actionsElement.hidden = false;
+  syncActions();
   resultsElement.replaceChildren();
 
   for (const day of payload.days || []) {
@@ -116,7 +121,7 @@ async function loadSavedPayload() {
 
   if (!response.payload) {
     renderEmpty(`No saved ${selectedVenue()?.name || "venue"} result yet.`);
-    return;
+    return false;
   }
 
   render(response.payload);
@@ -126,6 +131,7 @@ async function loadSavedPayload() {
       ? `Showing saved ${sourceLabel(response.payload)} result from ${exportedAt}.`
       : `Showing saved ${sourceLabel(response.payload)} result.`
   );
+  return true;
 }
 
 async function refreshVenue({ auto = false } = {}) {
@@ -142,7 +148,7 @@ async function refreshVenue({ auto = false } = {}) {
     if (!response?.ok) throw new Error(response?.error || "Refresh failed.");
 
     if (response.manualSetupRequired) {
-      if (!latestPayload) actionsElement.hidden = true;
+      syncActions();
       setStatus(`${response.error} Finish setup in the opened tab, then use Read Current Page.`);
       return;
     }
@@ -208,8 +214,8 @@ async function selectVenue(venueId) {
   if (!response?.ok) throw new Error(response?.error || "Could not select venue.");
   selectedVenueId = response.venue.id;
   venueSelect.value = selectedVenueId;
-  await loadSavedPayload();
-  await refreshVenue({ auto: true });
+  const hasSavedPayload = await loadSavedPayload();
+  if (!hasSavedPayload) await refreshVenue({ auto: true });
 }
 
 async function init() {
@@ -219,8 +225,8 @@ async function init() {
   venues = response.venues || [];
   selectedVenueId = response.selectedVenueId || AvailabilityRegistry.DEFAULT_VENUE_ID;
   populateVenues();
-  await loadSavedPayload();
-  await refreshVenue({ auto: true });
+  const hasSavedPayload = await loadSavedPayload();
+  if (!hasSavedPayload) await refreshVenue({ auto: true });
 }
 
 venueSelect.addEventListener("change", () => {

@@ -10,7 +10,7 @@ It can read the current booking page or refresh a configured venue such as ProPi
 - No booking, payment, checkout, login, waiver, or access-control automation.
 - You log in and accept any required waiver manually in normal Chrome.
 - The extension only clicks visible day tabs in the booking calendar strip.
-- Venue results auto-refresh when the popup opens.
+- Venue results auto-refresh only when no saved result exists yet.
 - No scheduled background polling.
 
 ## Install
@@ -27,7 +27,7 @@ After code changes, return to `chrome://extensions` and click the reload icon on
 
 1. Click the extension icon.
 2. Pick **ProPickle**.
-3. The extension refreshes the venue automatically.
+3. The extension refreshes the venue automatically only if there is no saved result yet.
 4. If Chrome opens the booking page, complete login/waiver/security checks manually.
 5. Once the actual schedule is visible, click **Read Current Page**.
 
@@ -59,7 +59,7 @@ The **Copy JSON** and **Download JSON** buttons appear only after a result exist
 
 ## Persistence
 
-The latest successful read is stored in Chrome local extension storage per venue. If you close or unfocus the popup, reopening it shows the saved result for the selected venue while the extension refreshes in the background.
+The latest successful read is stored in Chrome local extension storage per venue. If you close or unfocus the popup, reopening it shows the saved result for the selected venue without refreshing. Click **Refresh Venue** when you want fresh data.
 
 This matters for future venues: ProPickle, Broadway Pickleball, and North Ryde should not overwrite each other.
 
