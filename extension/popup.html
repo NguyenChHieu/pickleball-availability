@@ -8,16 +8,22 @@
   <body>
     <header>
       <h1>Availability</h1>
-      <button id="readButton" type="button">Read Page</button>
+      <select id="venueSelect" aria-label="Venue"></select>
     </header>
 
-    <p id="status" class="status">Open a Playbypoint booking page, then click Read Page.</p>
+    <div class="toolbar">
+      <button id="refreshVenueButton" type="button">Refresh Venue</button>
+      <button id="readCurrentPageButton" type="button" class="secondary">Read Current Page</button>
+    </div>
+
+    <p id="status" class="status">Loading availability...</p>
     <div id="actions" class="actions" hidden>
       <button id="copyButton" type="button">Copy JSON</button>
-      <button id="downloadButton" type="button">Download JSON</button>
+      <button id="downloadButton" type="button" class="secondary">Download JSON</button>
     </div>
     <main id="results" class="results"></main>
 
+    <script src="venues.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

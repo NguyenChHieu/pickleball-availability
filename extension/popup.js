@@ -1,15 +1,34 @@
-const readButton = document.querySelector("#readButton");
+const venueSelect = document.querySelector("#venueSelect");
+const refreshVenueButton = document.querySelector("#refreshVenueButton");
+const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
 const copyButton = document.querySelector("#copyButton");
 const downloadButton = document.querySelector("#downloadButton");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
 const resultsElement = document.querySelector("#results");
 
-const STORAGE_PREFIX = "latestAvailabilityPayload:";
+const MESSAGE = Object.freeze({
+  LIST_VENUES: "AVAILABILITY_LIST_VENUES",
+  GET_VENUE_PAYLOAD: "AVAILABILITY_GET_VENUE_PAYLOAD",
+  SET_SELECTED_VENUE: "AVAILABILITY_SET_SELECTED_VENUE",
+  REFRESH_VENUE: "AVAILABILITY_REFRESH_VENUE",
+  READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
+});
+
+let venues = [];
+let selectedVenueId = "";
 let latestPayload = null;
+let isBusy = false;
 
 function setStatus(message) {
   statusElement.textContent = message;
+}
+
+function setBusy(value) {
+  isBusy = value;
+  refreshVenueButton.disabled = value;
+  readCurrentPageButton.disabled = value;
+  venueSelect.disabled = value;
 }
 
 function formatExportTime(payload) {
@@ -19,38 +38,23 @@ function formatExportTime(payload) {
   return date.toLocaleString();
 }
 
-function cacheKeyForUrl(url) {
-  try {
-    const parsed = new URL(url);
-    return `${STORAGE_PREFIX}${parsed.origin}${parsed.pathname}`;
-  } catch {
-    return `${STORAGE_PREFIX}${url || "unknown"}`;
-  }
+function selectedVenue() {
+  return venues.find((venue) => venue.id === selectedVenueId) || venues[0] || null;
+}
+
+function sendMessage(message) {
+  return chrome.runtime.sendMessage(message);
 }
 
 function sourceLabel(payload) {
-  try {
-    return new URL(payload.source_url).hostname;
-  } catch {
-    return "this page";
-  }
+  return payload?.venue_name || selectedVenue()?.name || "this page";
 }
 
-async function activeTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) throw new Error("No active tab found.");
-  return tab;
-}
-
-async function ensureContentScript(tabId) {
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ["contentScript.js"],
-  });
-}
-
-function sendReadMessage(tabId) {
-  return chrome.tabs.sendMessage(tabId, { type: "PLAYBYPOINT_READ_AVAILABILITY" });
+function renderEmpty(message) {
+  latestPayload = null;
+  actionsElement.hidden = true;
+  resultsElement.replaceChildren();
+  setStatus(message);
 }
 
 function render(payload) {
@@ -92,51 +96,88 @@ function render(payload) {
   }
 }
 
-async function savePayload(payload) {
-  await chrome.storage.local.set({ [cacheKeyForUrl(payload.source_url)]: payload });
+function populateVenues() {
+  venueSelect.replaceChildren();
+  for (const venue of venues) {
+    const option = document.createElement("option");
+    option.value = venue.id;
+    option.textContent = venue.name;
+    venueSelect.append(option);
+  }
+  venueSelect.value = selectedVenueId;
 }
 
 async function loadSavedPayload() {
-  const tab = await activeTab();
-  const cacheKey = cacheKeyForUrl(tab.url);
-  const stored = await chrome.storage.local.get(cacheKey);
-  const payload = stored[cacheKey];
-  if (!payload) {
-    actionsElement.hidden = true;
-    setStatus("Open a Playbypoint booking page, then click Read Page.");
+  const response = await sendMessage({
+    type: MESSAGE.GET_VENUE_PAYLOAD,
+    venueId: selectedVenueId,
+  });
+  if (!response?.ok) throw new Error(response?.error || "Could not load saved availability.");
+
+  if (!response.payload) {
+    renderEmpty(`No saved ${selectedVenue()?.name || "venue"} result yet.`);
     return;
   }
 
-  render(payload);
-  const exportedAt = formatExportTime(payload);
+  render(response.payload);
+  const exportedAt = formatExportTime(response.payload);
   setStatus(
     exportedAt
-      ? `Showing saved ${sourceLabel(payload)} result from ${exportedAt}. Click Read Page to refresh.`
-      : `Showing saved ${sourceLabel(payload)} result. Click Read Page to refresh.`
+      ? `Showing saved ${sourceLabel(response.payload)} result from ${exportedAt}.`
+      : `Showing saved ${sourceLabel(response.payload)} result.`
   );
 }
 
-async function readPage() {
-  readButton.disabled = true;
-  if (!latestPayload) {
-    actionsElement.hidden = true;
-    resultsElement.replaceChildren();
-  }
-  setStatus(latestPayload ? "Refreshing visible day tabs..." : "Reading visible day tabs...");
+async function refreshVenue({ auto = false } = {}) {
+  if (isBusy || !selectedVenueId) return;
+
+  setBusy(true);
+  setStatus(auto ? `Refreshing ${selectedVenue()?.name || "venue"}...` : "Refreshing venue...");
 
   try {
-    const tab = await activeTab();
-    await ensureContentScript(tab.id);
-    const response = await sendReadMessage(tab.id);
-    if (!response?.ok) throw new Error(response?.error || "Reader failed.");
-    await savePayload(response.payload);
+    const response = await sendMessage({
+      type: MESSAGE.REFRESH_VENUE,
+      venueId: selectedVenueId,
+    });
+    if (!response?.ok) throw new Error(response?.error || "Refresh failed.");
+
+    if (response.manualSetupRequired) {
+      if (!latestPayload) actionsElement.hidden = true;
+      setStatus(`${response.error} Finish setup in the opened tab, then use Read Current Page.`);
+      return;
+    }
+
     render(response.payload);
-    setStatus(`Read ${(response.payload.days || []).length} day(s).`);
+    setStatus(`Read ${(response.payload.days || []).length} day(s) for ${response.venue.name}.`);
   } catch (error) {
     const prefix = latestPayload ? "Refresh failed; showing saved result: " : "";
     setStatus(prefix + (error?.message || String(error)));
   } finally {
-    readButton.disabled = false;
+    setBusy(false);
+  }
+}
+
+async function readCurrentPage() {
+  if (isBusy) return;
+
+  setBusy(true);
+  setStatus(latestPayload ? "Reading current page..." : "Reading current page...");
+
+  try {
+    const response = await sendMessage({ type: MESSAGE.READ_ACTIVE_TAB });
+    if (!response?.ok) throw new Error(response?.error || "Current page read failed.");
+    if (response.venue?.id) {
+      selectedVenueId = response.venue.id;
+      venueSelect.value = selectedVenueId;
+      await sendMessage({ type: MESSAGE.SET_SELECTED_VENUE, venueId: selectedVenueId });
+    }
+    render(response.payload);
+    setStatus(`Read ${(response.payload.days || []).length} day(s) from the current page.`);
+  } catch (error) {
+    const prefix = latestPayload ? "Current page read failed; showing saved result: " : "";
+    setStatus(prefix + (error?.message || String(error)));
+  } finally {
+    setBusy(false);
   }
 }
 
@@ -148,17 +189,49 @@ async function copyJson() {
 
 function downloadJson() {
   if (!latestPayload) return;
+  const venue = latestPayload.venue_id || selectedVenueId || "availability";
   const blob = new Blob([JSON.stringify(latestPayload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "browser_availability.json";
+  link.download = `${venue}_availability.json`;
   link.click();
   URL.revokeObjectURL(url);
-  setStatus("Downloaded browser_availability.json.");
+  setStatus(`Downloaded ${link.download}.`);
 }
 
-readButton.addEventListener("click", readPage);
+async function selectVenue(venueId) {
+  const response = await sendMessage({
+    type: MESSAGE.SET_SELECTED_VENUE,
+    venueId,
+  });
+  if (!response?.ok) throw new Error(response?.error || "Could not select venue.");
+  selectedVenueId = response.venue.id;
+  venueSelect.value = selectedVenueId;
+  await loadSavedPayload();
+  await refreshVenue({ auto: true });
+}
+
+async function init() {
+  const response = await sendMessage({ type: MESSAGE.LIST_VENUES });
+  if (!response?.ok) throw new Error(response?.error || "Could not load venues.");
+
+  venues = response.venues || [];
+  selectedVenueId = response.selectedVenueId || AvailabilityRegistry.DEFAULT_VENUE_ID;
+  populateVenues();
+  await loadSavedPayload();
+  await refreshVenue({ auto: true });
+}
+
+venueSelect.addEventListener("change", () => {
+  selectVenue(venueSelect.value).catch((error) => setStatus(error?.message || String(error)));
+});
+refreshVenueButton.addEventListener("click", () => refreshVenue());
+readCurrentPageButton.addEventListener("click", readCurrentPage);
 copyButton.addEventListener("click", copyJson);
 downloadButton.addEventListener("click", downloadJson);
-loadSavedPayload().catch((error) => setStatus(error?.message || String(error)));
+
+init().catch((error) => {
+  setBusy(false);
+  renderEmpty(error?.message || String(error));
+});

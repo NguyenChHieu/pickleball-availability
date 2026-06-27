@@ -5,6 +5,7 @@
 }
 
 body {
+  background: #f7fafb;
   margin: 0;
   min-width: 360px;
   padding: 14px;
@@ -15,11 +16,22 @@ header {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+  margin-bottom: 12px;
 }
 
 h1 {
   font-size: 18px;
   margin: 0;
+}
+
+select {
+  background: #fff;
+  border: 1px solid #c9d5da;
+  border-radius: 6px;
+  color: #17202a;
+  font: inherit;
+  max-width: 170px;
+  padding: 7px 8px;
 }
 
 button {
@@ -32,9 +44,20 @@ button {
   padding: 8px 10px;
 }
 
+button.secondary {
+  background: #e8eef1;
+  color: #22313a;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.6;
+}
+
+.toolbar {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
 }
 
 .status {
@@ -43,12 +66,14 @@ button:disabled {
 }
 
 .actions {
-  display: flex;
+  display: grid;
   gap: 8px;
+  grid-template-columns: 1fr 1fr;
   margin-bottom: 12px;
 }
 
 .day {
+  background: #fff;
   border-top: 1px solid #dde4e8;
   padding: 12px 0;
 }
