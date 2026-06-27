@@ -1,16 +1,11 @@
-.venv/
 .idea/
-__pycache__/
-*.py[cod]
+
+*.html
+!extension/*.html
+*_files/
 
 auth_state.json
 browser_availability.json
-*.test.json
-*.test.csv
-*.html
-!install_bookmarklet.html
-!extension/*.html
-*_files/
 availability.json
 availability.csv
 availability_intervals.json
@@ -18,3 +13,5 @@ availability_intervals.csv
 remaining_hours.json
 discovered_links.json
 endpoints_log.json
+*.test.json
+*.test.csv
