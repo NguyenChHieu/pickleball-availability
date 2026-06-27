@@ -40,7 +40,30 @@ Do not use this helper to automate payment, checkout, or an actual booking.
 
 ### If Cloudflare/security verification gets stuck
 
-Do not try to bypass bot protection. Open the page in normal Chrome instead, log in manually, accept any waiver/conditions manually if you genuinely agree, then save the visible availability page:
+Do not try to bypass bot protection. Open the page in normal Chrome instead, log in manually, accept any waiver/conditions manually if you genuinely agree.
+
+Best option: use the read-only browser exporter from DevTools Console:
+
+1. Open the actual booking page in normal Chrome.
+2. Open DevTools Console.
+3. Paste the contents of `browser_export.js`.
+4. Press Enter.
+
+The snippet clicks only the visible day buttons in the booking calendar strip, reads visible time buttons, merges adjacent open slots, copies JSON to your clipboard, and downloads `browser_availability.json`.
+
+Then convert the export:
+
+```powershell
+python parse_browser_export.py --input browser_availability.json
+```
+
+Outputs:
+
+- `remaining_hours.json`: one entry per loaded day, with `open_intervals`.
+- `availability_intervals.json`: flat merged interval rows.
+- `availability.json`: raw time-slot rows.
+
+Manual fallback: save the visible availability page:
 
 1. Press `Ctrl+S`.
 2. Save as `availability.html` inside this project folder.
