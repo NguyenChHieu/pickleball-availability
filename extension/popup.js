@@ -5,10 +5,18 @@ const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
 const resultsElement = document.querySelector("#results");
 
+const STORAGE_KEY = "latestAvailabilityPayload";
 let latestPayload = null;
 
 function setStatus(message) {
   statusElement.textContent = message;
+}
+
+function formatExportTime(payload) {
+  if (!payload?.exported_at) return "";
+  const date = new Date(payload.exported_at);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString();
 }
 
 async function activeTab() {
@@ -43,7 +51,7 @@ function render(payload) {
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.textContent = `${day.title || "Court booking"} • ${day.remaining_hours || 0} open hour(s)`;
+    meta.textContent = `${day.title || "Court booking"} - ${day.remaining_hours || 0} open hour(s)`;
     section.append(meta);
 
     const intervals = document.createElement("div");
@@ -67,21 +75,47 @@ function render(payload) {
   }
 }
 
+async function savePayload(payload) {
+  await chrome.storage.local.set({ [STORAGE_KEY]: payload });
+}
+
+async function loadSavedPayload() {
+  const stored = await chrome.storage.local.get(STORAGE_KEY);
+  const payload = stored[STORAGE_KEY];
+  if (!payload) {
+    actionsElement.hidden = true;
+    setStatus("Open a Playbypoint booking page, then click Read Page.");
+    return;
+  }
+
+  render(payload);
+  const exportedAt = formatExportTime(payload);
+  setStatus(
+    exportedAt
+      ? `Showing saved result from ${exportedAt}. Click Read Page to refresh.`
+      : "Showing saved result. Click Read Page to refresh."
+  );
+}
+
 async function readPage() {
   readButton.disabled = true;
-  actionsElement.hidden = true;
-  resultsElement.replaceChildren();
-  setStatus("Reading visible day tabs...");
+  if (!latestPayload) {
+    actionsElement.hidden = true;
+    resultsElement.replaceChildren();
+  }
+  setStatus(latestPayload ? "Refreshing visible day tabs..." : "Reading visible day tabs...");
 
   try {
     const tab = await activeTab();
     await ensureContentScript(tab.id);
     const response = await sendReadMessage(tab.id);
     if (!response?.ok) throw new Error(response?.error || "Reader failed.");
+    await savePayload(response.payload);
     render(response.payload);
     setStatus(`Read ${(response.payload.days || []).length} day(s).`);
   } catch (error) {
-    setStatus(error?.message || String(error));
+    const prefix = latestPayload ? "Refresh failed; showing saved result: " : "";
+    setStatus(prefix + (error?.message || String(error)));
   } finally {
     readButton.disabled = false;
   }
@@ -108,3 +142,4 @@ function downloadJson() {
 readButton.addEventListener("click", readPage);
 copyButton.addEventListener("click", copyJson);
 downloadButton.addEventListener("click", downloadJson);
+loadSavedPayload().catch((error) => setStatus(error?.message || String(error)));

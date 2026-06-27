@@ -79,6 +79,8 @@ The extension shows open intervals directly in the popup. Use **Copy JSON** or *
 python parse_browser_export.py --input browser_availability.json
 ```
 
+The popup keeps the last successful read in Chrome local storage. Closing or unfocusing the popup will not clear the result; click **Read Page** again when you want to refresh from the current booking page.
+
 The useful answer is `open_intervals` for each day, for example:
 
 ```json
