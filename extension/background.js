@@ -133,6 +133,10 @@ async function refreshVenueNow(venueId) {
     if (closeWhenDone) await closeTab(tab.id);
     return { venue, payload, manualSetupRequired: false };
   } catch (error) {
+    if (!error.manualSetupRequired) {
+      if (closeWhenDone && tab.id) await closeTab(tab.id);
+      throw error;
+    }
     if (tab.id) await activateTab(tab.id);
     return {
       venue,

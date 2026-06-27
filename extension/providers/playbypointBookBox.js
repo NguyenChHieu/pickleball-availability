@@ -10,14 +10,21 @@
   };
 
   const dayNames = {
-    Mon: "Monday",
-    Tue: "Tuesday",
-    Wed: "Wednesday",
-    Thu: "Thursday",
-    Fri: "Friday",
-    Sat: "Saturday",
-    Sun: "Sunday",
+    mon: "Monday",
+    tue: "Tuesday",
+    wed: "Wednesday",
+    thu: "Thursday",
+    fri: "Friday",
+    sat: "Saturday",
+    sun: "Sunday",
   };
+
+  const dayLookup = Object.fromEntries(
+    Object.entries(dayNames).flatMap(([abbr, full]) => [
+      [abbr, abbr],
+      [full.toLowerCase(), abbr],
+    ])
+  );
 
   const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const monthLookup = Object.fromEntries(
@@ -43,11 +50,12 @@
   const normalizeWhitespace = (value) => (value || "").replace(/\s+/g, " ").trim();
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const normalizeMonth = (value) => monthLookup[normalizeWhitespace(value).toLowerCase()] || "";
+  const normalizeDay = (value) => dayLookup[normalizeWhitespace(value).toLowerCase()] || "";
   const bookBoxRoot = () => document.querySelector('[data-react-class="BookBox"]');
 
   const dateKey = (label) => {
     const parts = normalizeWhitespace(label).replaceAll(",", "").split(" ");
-    const weekday = parts[0]?.toLowerCase() || "";
+    const weekday = normalizeDay(parts[0]);
     const month = parts.map(normalizeMonth).find(Boolean) || "";
     const dayNumber = parts.find((part) => /^\d{1,2}$/.test(part));
     return weekday && month && dayNumber ? `${weekday}:${month}:${Number(dayNumber)}` : normalizeWhitespace(label);
@@ -111,9 +119,10 @@
         const shortDay = normalizeWhitespace(button.querySelector(".day_name")?.innerText || "");
         const number = normalizeWhitespace(button.querySelector(".day_number")?.innerText || "");
         if (!shortDay || !number) continue;
+        const day = normalizeDay(shortDay) || shortDay.toLowerCase();
         days.push({
           button,
-          date: `${dayNames[shortDay.slice(0, 3)] || shortDay}, ${month} ${number.padStart(2, "0")}`,
+          date: `${dayNames[day] || shortDay}, ${month} ${number.padStart(2, "0")}`,
         });
       }
     }
@@ -137,7 +146,10 @@
       () => sameDate(selectedDateText(bookBoxRoot()), targetDate),
       config.dayLoadTimeoutMs
     );
-    if (!loaded) throw new Error(`Timed out waiting for ${targetDate} to load.`);
+    if (!loaded) {
+      const selectedDate = selectedDateText(bookBoxRoot()) || "unknown date";
+      throw new Error(`Timed out waiting for ${targetDate} to load; page shows ${selectedDate}.`);
+    }
 
     await wait(config.daySettleMs);
     const loadedRoot = bookBoxRoot();
