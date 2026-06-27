@@ -19,6 +19,45 @@ pip install -r requirements.txt
 python -m playwright install chromium
 ```
 
+For Git Bash:
+
+```bash
+python -m venv .venv
+source .venv/Scripts/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python -m playwright install chromium
+```
+
+## Preferred Flow
+
+Use the browser exporter from normal Chrome. This avoids automated login and avoids trying to bypass Cloudflare/security verification.
+
+```bash
+cd /c/Users/nguye/Downloads/propickle-buddy
+clip < browser_export.js
+```
+
+Then paste it into DevTools Console on the actual booking page. It will download/copy `browser_availability.json`.
+
+```bash
+python parse_browser_export.py --input browser_availability.json
+cat remaining_hours.json
+```
+
+The useful answer is `open_intervals` for each day, for example:
+
+```json
+{
+  "date": "Monday, Jun 29",
+  "open_intervals": [
+    { "start_time": "7am", "end_time": "6pm" },
+    { "start_time": "9pm", "end_time": "11pm" }
+  ],
+  "remaining_hours": 13
+}
+```
+
 ## 1. Save a Local Login Session
 
 Do not paste credentials into scripts or chats. Instead, open a real browser, log in normally, and manually accept any waiver/conditions only if you genuinely agree.
@@ -177,3 +216,15 @@ Each availability item is normalized to:
 - The default selectors are intentionally conservative and may need tuning after `discover_endpoints.py` shows how Playbypoint loads the page.
 - If a clean endpoint is found, add a dedicated endpoint fetcher rather than reusing browser automation.
 - Keep any session cookies local and out of commits or screenshots.
+
+## User-Friendly Directions
+
+The current best prototype is the DevTools browser exporter because it runs inside your already logged-in normal browser session and only reads/clicks day tabs.
+
+Good next options:
+
+- Browser bookmarklet: one-click version of `browser_export.js`, easiest upgrade from DevTools.
+- Chrome extension: popup button that runs the same content script on `book.propickle.com.au`, then renders interval cards in the extension popup.
+- Local mini web app: paste/import `browser_availability.json` and view intervals in a nicer UI.
+
+The browser extension is probably the cleanest final form: no IDE, no terminal for everyday use, and no stored credentials.

@@ -13,7 +13,9 @@
  */
 (async () => {
   const config = {
+    // Wait after each day-tab click so Playbypoint can re-render the time buttons.
     daySettleMs: 1400,
+    // Safety cap: only inspect a small visible date window, not an unbounded calendar.
     clickLimit: 14,
   };
 
@@ -196,6 +198,8 @@
   const results = [];
   for (const day of days) {
     console.log(`Reading ${day.date}`);
+    // The only automated interaction: click a day tab inside the calendar strip.
+    // The script never clicks Next, Book, checkout, payment, login, or modal buttons.
     day.button.click();
     await wait(config.daySettleMs);
 

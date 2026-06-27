@@ -74,6 +74,8 @@ def flatten_raw_slots(days: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def normalize_day(day: dict[str, Any]) -> dict[str, Any]:
+    # Keep the summary interval-first. remaining_hours is convenience metadata,
+    # not the main answer.
     return {
         "source_url": day.get("source_url", ""),
         "title": day.get("title", ""),
