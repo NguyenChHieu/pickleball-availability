@@ -92,7 +92,7 @@ async function readTab(tabId, venue) {
 
 async function saveVenuePayload(venueId, payload) {
   await chrome.storage.local.set({ [AvailabilityRegistry.venuePayloadKey(venueId)]: payload });
-  await syncVenuePayload(venueId, payload);
+  return syncVenuePayload(venueId, payload);
 }
 
 function syncStatusKey(venueId) {
@@ -111,7 +111,13 @@ function availabilityEndpoint(backendUrl, venueId) {
 async function syncVenuePayload(venueId, payload) {
   const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
   const config = stored[SYNC_CONFIG_KEY] || {};
-  if (!config.enabled || !config.backendUrl) return;
+  if (!config.enabled || !config.backendUrl) {
+    return {
+      ok: false,
+      skipped: true,
+      reason: "Backend sync is off.",
+    };
+  }
 
   try {
     const headers = { "content-type": "application/json" };
@@ -128,20 +134,20 @@ async function syncVenuePayload(venueId, payload) {
       throw new Error(`Backend sync failed: ${response.status} ${body}`);
     }
 
-    await chrome.storage.local.set({
-      [syncStatusKey(venueId)]: {
-        ok: true,
-        synced_at: new Date().toISOString(),
-      },
-    });
+    const status = {
+      ok: true,
+      synced_at: new Date().toISOString(),
+    };
+    await chrome.storage.local.set({ [syncStatusKey(venueId)]: status });
+    return status;
   } catch (error) {
-    await chrome.storage.local.set({
-      [syncStatusKey(venueId)]: {
-        ok: false,
-        failed_at: new Date().toISOString(),
-        error: error?.message || String(error),
-      },
-    });
+    const status = {
+      ok: false,
+      failed_at: new Date().toISOString(),
+      error: error?.message || String(error),
+    };
+    await chrome.storage.local.set({ [syncStatusKey(venueId)]: status });
+    return status;
   }
 }
 
@@ -182,9 +188,9 @@ async function refreshVenueNow(venueId) {
     await waitForTabComplete(tab.id);
     await wait(1200);
     const payload = await readTab(tab.id, venue);
-    await saveVenuePayload(venue.id, payload);
+    const syncStatus = await saveVenuePayload(venue.id, payload);
     if (closeWhenDone) await closeTab(tab.id);
-    return { venue, payload, manualSetupRequired: false };
+    return { venue, payload, syncStatus, manualSetupRequired: false };
   } catch (error) {
     if (!error.manualSetupRequired) {
       if (closeWhenDone && tab.id) await closeTab(tab.id);
@@ -227,8 +233,10 @@ async function readActiveTab() {
   const tab = await activeTab();
   const venue = AvailabilityRegistry.findVenueForUrl(tab.url) || fallbackVenueForTab(tab);
   const payload = await readTab(tab.id, venue);
-  if (venue.id) await saveVenuePayload(venue.id, payload);
-  return { venue, payload };
+  const syncStatus = venue.id
+    ? await saveVenuePayload(venue.id, payload)
+    : { ok: false, skipped: true, reason: "Current page is not mapped to a saved venue." };
+  return { venue, payload, syncStatus };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

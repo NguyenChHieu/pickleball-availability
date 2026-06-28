@@ -60,6 +60,18 @@ function sourceLabel(payload) {
   return payload?.venue_name || selectedVenue()?.name || "this page";
 }
 
+function syncStatusMessage(syncStatus) {
+  if (!syncStatus) return "";
+  if (syncStatus.ok) return "Synced to backend.";
+  return syncStatus.error || syncStatus.reason || "Backend sync did not complete.";
+}
+
+function readStatus(payload, syncStatus, prefix) {
+  const dayCount = (payload?.days || []).length;
+  const syncMessage = syncStatusMessage(syncStatus);
+  return `${prefix} ${dayCount} day(s).${syncMessage ? ` ${syncMessage}` : ""}`;
+}
+
 function renderEmpty(message) {
   latestPayload = null;
   syncActions();
@@ -159,7 +171,7 @@ async function refreshVenue({ auto = false } = {}) {
     }
 
     render(response.payload);
-    setStatus(`Read ${(response.payload.days || []).length} day(s) for ${response.venue.name}.`);
+    setStatus(readStatus(response.payload, response.syncStatus, `Read for ${response.venue.name}:`));
   } catch (error) {
     const prefix = latestPayload ? "Refresh failed; showing saved result: " : "";
     setStatus(prefix + (error?.message || String(error)));
@@ -183,7 +195,7 @@ async function readCurrentPage() {
       await sendMessage({ type: MESSAGE.SET_SELECTED_VENUE, venueId: selectedVenueId });
     }
     render(response.payload);
-    setStatus(`Read ${(response.payload.days || []).length} day(s) from the current page.`);
+    setStatus(readStatus(response.payload, response.syncStatus, "Read from the current page:"));
   } catch (error) {
     const prefix = latestPayload ? "Current page read failed; showing saved result: " : "";
     setStatus(prefix + (error?.message || String(error)));
