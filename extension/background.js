@@ -254,6 +254,53 @@ function pendingRefreshSession(tabId, venue, closeWhenDone, error) {
   };
 }
 
+function sameOrigin(leftUrl, rightUrl) {
+  try {
+    return new URL(leftUrl).origin === new URL(rightUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
+function samePath(leftUrl, rightUrl) {
+  try {
+    return new URL(leftUrl).pathname.toLowerCase() === new URL(rightUrl).pathname.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+function shouldReturnToVenueStart(tab, venue, session, error) {
+  if (!tab?.url || !venue.startUrl || !sameOrigin(tab.url, venue.startUrl)) return false;
+  if (samePath(tab.url, venue.startUrl)) return false;
+
+  const message = (error?.message || "").toLowerCase();
+  const pathname = new URL(tab.url).pathname.toLowerCase();
+  const looksLikePostLoginPage =
+    pathname.includes("profile") ||
+    pathname.includes("account") ||
+    pathname.includes("dashboard") ||
+    message.includes("schedule widget is not visible");
+
+  if (!looksLikePostLoginPage) return false;
+
+  return !session.returnedToStartAt;
+}
+
+async function returnPendingRefreshToVenueStart(tabId, venue, session, error) {
+  const pendingRefreshes = await loadPendingRefreshes();
+  const existing = pendingRefreshes[pendingTabKey(tabId)] || session;
+  pendingRefreshes[pendingTabKey(tabId)] = {
+    ...existing,
+    lastAttemptAt: Date.now(),
+    lastError: error?.message || String(error || ""),
+    returnedToStartAt: Date.now(),
+  };
+  await savePendingRefreshes(pendingRefreshes);
+  clearPendingRefreshTimer(tabId);
+  await chrome.tabs.update(Number(tabId), { url: venue.startUrl });
+}
+
 async function touchPendingRefresh(tabId, error) {
   const pendingRefreshes = await loadPendingRefreshes();
   const existing = pendingRefreshes[pendingTabKey(tabId)];
@@ -291,6 +338,13 @@ async function continuePendingRefresh(tabId, _reason) {
     return { venue, payload, syncStatus };
   } catch (error) {
     if (error.manualSetupRequired) {
+      const venue = AvailabilityRegistry.getVenue(session.venueId);
+      const tab = await chrome.tabs.get(Number(tabId)).catch(() => null);
+      if (shouldReturnToVenueStart(tab, venue, session, error)) {
+        await returnPendingRefreshToVenueStart(tabId, venue, session, error);
+        return null;
+      }
+
       await touchPendingRefresh(tabId, error);
       return null;
     }

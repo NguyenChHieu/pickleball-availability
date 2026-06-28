@@ -33,6 +33,8 @@ In that case, the extension activates the tab and asks the user to finish setup.
 
 One subtle logged-out state still renders the `BookBox` date buttons but shows `LOGIN TO CONTINUE` instead of time slots. The provider treats that as not readable so it does not sync a false empty availability result.
 
+Another login flow can redirect to a profile/account page after successful login. While a pending refresh is active, the background worker can return that same tab to the venue booking URL once, then continue watching for the schedule widget.
+
 ## Why Not Backend-Only Yet?
 
 A Render cron job would need a ProPickle login/session cookie or an official Playbypoint API token. That is a bigger security and maintenance tradeoff than using the browser session.
