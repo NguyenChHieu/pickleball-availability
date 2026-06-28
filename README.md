@@ -55,7 +55,7 @@ The share page shows each loaded day with merged open intervals, for example:
 }
 ```
 
-The **Copy Share Link** button appears only after a result exists. Raw JSON export is intentionally hidden from the popup.
+The **Copy Share Link** button appears only after a result has synced to the backend. Raw JSON export is intentionally hidden from the popup.
 
 ## Persistence
 

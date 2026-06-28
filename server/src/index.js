@@ -12,7 +12,7 @@ const { extractIncomingMessages, sendMessengerText, verifyWebhook } = require(".
 const { renderSharePage } = require("./sharePage");
 
 const PORT = Number(process.env.PORT || 8787);
-const SYNC_TOKEN = process.env.AVAILABILITY_SYNC_TOKEN || "";
+const SYNC_TOKEN = syncTokenFromEnv();
 const SHARE_TOKEN = shareTokenFromEnv();
 const API_CORS_HEADERS = Object.freeze({
   "access-control-allow-origin": "*",
@@ -27,6 +27,14 @@ function shareTokenFromEnv() {
     throw new Error("SHARE_TOKEN is required in deployed mode.");
   }
   return "dev-share";
+}
+
+function syncTokenFromEnv() {
+  if (process.env.AVAILABILITY_SYNC_TOKEN) return process.env.AVAILABILITY_SYNC_TOKEN;
+  if (process.env.NODE_ENV === "production" || process.env.RENDER) {
+    throw new Error("AVAILABILITY_SYNC_TOKEN is required in deployed mode.");
+  }
+  return "";
 }
 
 function sendJson(response, status, body) {
@@ -44,6 +52,14 @@ function sendApiJson(response, status, body) {
 
 function sendText(response, status, body) {
   response.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
+  response.end(body);
+}
+
+function sendApiText(response, status, body) {
+  response.writeHead(status, {
+    "content-type": "text/plain; charset=utf-8",
+    ...API_CORS_HEADERS,
+  });
   response.end(body);
 }
 
@@ -135,18 +151,22 @@ async function handleAvailabilityPost(request, response, venueId) {
   });
 }
 
-async function handleAvailabilityGet(_request, response, venueId) {
+async function handleAvailabilityGet(request, response, venueId) {
+  if (!requireSyncToken(request, response)) return;
+
   const record = await getAvailabilityRecord(venueId);
   if (!record) {
-    sendJson(response, 404, { error: `No cached availability for ${venueId}` });
+    sendApiJson(response, 404, { error: `No cached availability for ${venueId}` });
     return;
   }
-  sendJson(response, 200, record);
+  sendApiJson(response, 200, record);
 }
 
-async function handleAvailabilitySummary(_request, response, venueId) {
+async function handleAvailabilitySummary(request, response, venueId) {
+  if (!requireSyncToken(request, response)) return;
+
   const payload = await getAvailabilityPayload(venueId);
-  sendText(response, payload ? 200 : 404, formatAvailability(payload));
+  sendApiText(response, payload ? 200 : 404, formatAvailability(payload));
 }
 
 async function handleSharePage(response, shareToken, venueId) {

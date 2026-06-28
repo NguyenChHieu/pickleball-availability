@@ -20,6 +20,7 @@ const DEFAULT_SHARE_TOKEN = "dev-share";
 let venues = [];
 let selectedVenueId = "";
 let latestPayload = null;
+let latestSyncStatus = null;
 let isBusy = false;
 
 function setStatus(message) {
@@ -27,7 +28,7 @@ function setStatus(message) {
 }
 
 function syncActions() {
-  actionsElement.hidden = isBusy || !latestPayload;
+  actionsElement.hidden = isBusy || !latestPayload || !latestSyncStatus?.ok;
 }
 
 function setBusy(value) {
@@ -71,13 +72,25 @@ function readStatus(payload, syncStatus, prefix) {
 
 function renderEmpty(message) {
   latestPayload = null;
+  latestSyncStatus = null;
   syncActions();
   setStatus(message);
 }
 
-function rememberPayload(payload) {
+function rememberPayload(payload, syncStatus = null) {
   latestPayload = payload;
+  latestSyncStatus = syncStatus;
   syncActions();
+}
+
+function syncStatusKey(venueId) {
+  return `backendSyncStatus:${venueId}`;
+}
+
+async function storedSyncStatus(venueId) {
+  if (!venueId) return null;
+  const stored = await chrome.storage.local.get(syncStatusKey(venueId));
+  return stored[syncStatusKey(venueId)] || null;
 }
 
 function populateVenues() {
@@ -103,12 +116,14 @@ async function loadSavedPayload() {
     return false;
   }
 
-  rememberPayload(response.payload);
+  const syncStatus = await storedSyncStatus(selectedVenueId);
+  rememberPayload(response.payload, syncStatus?.ok ? syncStatus : null);
   const exportedAt = formatExportTime(response.payload);
+  const shareHint = syncStatus?.ok ? " Share link is ready." : " Refresh or read the page to sync the share link.";
   setStatus(
     exportedAt
-      ? `Showing saved ${sourceLabel(response.payload)} result from ${exportedAt}.`
-      : `Showing saved ${sourceLabel(response.payload)} result.`
+      ? `Showing saved ${sourceLabel(response.payload)} result from ${exportedAt}.${shareHint}`
+      : `Showing saved ${sourceLabel(response.payload)} result.${shareHint}`
   );
   return true;
 }
@@ -132,7 +147,7 @@ async function refreshVenue({ auto = false } = {}) {
       return;
     }
 
-    rememberPayload(response.payload);
+    rememberPayload(response.payload, response.syncStatus);
     setStatus(readStatus(response.payload, response.syncStatus, `Read for ${response.venue.name}:`));
   } catch (error) {
     const prefix = latestPayload ? "Refresh failed; showing saved result: " : "";
@@ -156,7 +171,7 @@ async function readCurrentPage() {
       venueSelect.value = selectedVenueId;
       await sendMessage({ type: MESSAGE.SET_SELECTED_VENUE, venueId: selectedVenueId });
     }
-    rememberPayload(response.payload);
+    rememberPayload(response.payload, response.syncStatus);
     setStatus(readStatus(response.payload, response.syncStatus, "Read from the current page:"));
   } catch (error) {
     const prefix = latestPayload ? "Current page read failed; showing saved result: " : "";
@@ -176,6 +191,10 @@ async function copyShareLink() {
   if (!latestPayload) return;
 
   try {
+    if (!latestSyncStatus?.ok) {
+      throw new Error("Sync to backend first, then copy the share link.");
+    }
+
     const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
     const config = stored[SYNC_CONFIG_KEY] || {};
     const venueId = latestPayload.venue_id || selectedVenueId;

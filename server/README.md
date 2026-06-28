@@ -52,7 +52,7 @@ POST /api/availability/propickle
 ## Test The Cache
 
 ```bash
-curl http://localhost:8787/api/availability/propickle/summary
+curl -H "x-sync-token: dev-secret" http://localhost:8787/api/availability/propickle/summary
 ```
 
 Expected output is a Messenger-friendly text summary, for example:
