@@ -66,51 +66,9 @@ button:disabled {
 }
 
 .actions {
-  display: grid;
-  gap: 8px;
-  grid-template-columns: 1fr 1fr;
   margin-bottom: 12px;
 }
 
-.actions button:first-child {
-  grid-column: 1 / -1;
-}
-
-.day {
-  background: #fff;
-  border-top: 1px solid #dde4e8;
-  padding: 12px 0;
-}
-
-.day:first-child {
-  border-top: 0;
-}
-
-.day h2 {
-  font-size: 14px;
-  margin: 0 0 6px;
-}
-
-.meta {
-  color: #52616b;
-  font-size: 12px;
-  margin-bottom: 8px;
-}
-
-.intervals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.interval {
-  background: #e8f7fb;
-  border: 1px solid #b9e3ee;
-  border-radius: 999px;
-  color: #0f5c70;
-  padding: 4px 8px;
-}
-
-.empty {
-  color: #8a3434;
+.actions button {
+  width: 100%;
 }

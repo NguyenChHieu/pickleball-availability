@@ -42,7 +42,7 @@ The extension uses your normal Chrome session. It does not store or ask for cred
 5. Click the extension icon.
 6. Click **Read Current Page**.
 
-The popup shows each loaded day with merged open intervals, for example:
+The share page shows each loaded day with merged open intervals, for example:
 
 ```json
 {
@@ -55,7 +55,7 @@ The popup shows each loaded day with merged open intervals, for example:
 }
 ```
 
-The **Copy Share Link**, **Copy JSON**, and **Download JSON** buttons appear only after a result exists.
+The **Copy Share Link** button appears only after a result exists. Raw JSON export is intentionally hidden from the popup.
 
 ## Persistence
 

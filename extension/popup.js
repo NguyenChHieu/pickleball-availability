@@ -2,11 +2,8 @@ const venueSelect = document.querySelector("#venueSelect");
 const refreshVenueButton = document.querySelector("#refreshVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
-const copyButton = document.querySelector("#copyButton");
-const downloadButton = document.querySelector("#downloadButton");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
-const resultsElement = document.querySelector("#results");
 
 const MESSAGE = Object.freeze({
   LIST_VENUES: "AVAILABILITY_LIST_VENUES",
@@ -75,47 +72,12 @@ function readStatus(payload, syncStatus, prefix) {
 function renderEmpty(message) {
   latestPayload = null;
   syncActions();
-  resultsElement.replaceChildren();
   setStatus(message);
 }
 
-function render(payload) {
+function rememberPayload(payload) {
   latestPayload = payload;
   syncActions();
-  resultsElement.replaceChildren();
-
-  for (const day of payload.days || []) {
-    const section = document.createElement("section");
-    section.className = "day";
-
-    const title = document.createElement("h2");
-    title.textContent = day.date || "Unknown date";
-    section.append(title);
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    meta.textContent = `${day.title || "Court booking"} - ${day.remaining_hours || 0} open hour(s)`;
-    section.append(meta);
-
-    const intervals = document.createElement("div");
-    intervals.className = "intervals";
-    const openIntervals = day.open_intervals || [];
-    if (!openIntervals.length) {
-      const empty = document.createElement("span");
-      empty.className = "empty";
-      empty.textContent = "No open intervals";
-      intervals.append(empty);
-    } else {
-      for (const interval of openIntervals) {
-        const chip = document.createElement("span");
-        chip.className = "interval";
-        chip.textContent = `${interval.start_time}-${interval.end_time}`;
-        intervals.append(chip);
-      }
-    }
-    section.append(intervals);
-    resultsElement.append(section);
-  }
 }
 
 function populateVenues() {
@@ -141,7 +103,7 @@ async function loadSavedPayload() {
     return false;
   }
 
-  render(response.payload);
+  rememberPayload(response.payload);
   const exportedAt = formatExportTime(response.payload);
   setStatus(
     exportedAt
@@ -170,7 +132,7 @@ async function refreshVenue({ auto = false } = {}) {
       return;
     }
 
-    render(response.payload);
+    rememberPayload(response.payload);
     setStatus(readStatus(response.payload, response.syncStatus, `Read for ${response.venue.name}:`));
   } catch (error) {
     const prefix = latestPayload ? "Refresh failed; showing saved result: " : "";
@@ -194,7 +156,7 @@ async function readCurrentPage() {
       venueSelect.value = selectedVenueId;
       await sendMessage({ type: MESSAGE.SET_SELECTED_VENUE, venueId: selectedVenueId });
     }
-    render(response.payload);
+    rememberPayload(response.payload);
     setStatus(readStatus(response.payload, response.syncStatus, "Read from the current page:"));
   } catch (error) {
     const prefix = latestPayload ? "Current page read failed; showing saved result: " : "";
@@ -202,12 +164,6 @@ async function readCurrentPage() {
   } finally {
     setBusy(false);
   }
-}
-
-async function copyJson() {
-  if (!latestPayload) return;
-  await navigator.clipboard.writeText(JSON.stringify(latestPayload, null, 2));
-  setStatus("Copied JSON to clipboard.");
 }
 
 function normalizeShareUrlBase(value) {
@@ -233,19 +189,6 @@ async function copyShareLink() {
   } catch (error) {
     setStatus(error?.message || String(error));
   }
-}
-
-function downloadJson() {
-  if (!latestPayload) return;
-  const venue = latestPayload.venue_id || selectedVenueId || "availability";
-  const blob = new Blob([JSON.stringify(latestPayload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `${venue}_availability.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  setStatus(`Downloaded ${link.download}.`);
 }
 
 async function selectVenue(venueId) {
@@ -277,8 +220,6 @@ venueSelect.addEventListener("change", () => {
 refreshVenueButton.addEventListener("click", () => refreshVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
 copyShareLinkButton.addEventListener("click", copyShareLink);
-copyButton.addEventListener("click", copyJson);
-downloadButton.addEventListener("click", downloadJson);
 
 init().catch((error) => {
   setBusy(false);
