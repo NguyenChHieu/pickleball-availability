@@ -54,12 +54,39 @@
   const bookBoxRoot = () => document.querySelector('[data-react-class="BookBox"]');
   const normalizedText = (element) => normalizeWhitespace(element?.innerText || "").toLowerCase();
 
-  const loginGateVisible = (root = bookBoxRoot()) => {
-    if (!root) return false;
-    const rootText = normalizedText(root);
-    if (rootText.includes("login to continue") || rootText.includes("log in to continue")) return true;
+  const isVisible = (element) => {
+    if (!element) return false;
+    const style = window.getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+    const box = element.getBoundingClientRect();
+    return box.width > 0 && box.height > 0;
+  };
 
-    return Array.from(root.querySelectorAll("a, button")).some((element) => {
+  const hasLoginContinueText = (element) => {
+    const text = normalizedText(element);
+    return text.includes("login to continue") || text.includes("log in to continue");
+  };
+
+  const loginDialogVisible = () =>
+    Array.from(
+      document.querySelectorAll(
+        '[role="dialog"], .modal, .modal-dialog, .modal-content, .ReactModal__Content, [class*="Modal"], [class*="modal"]'
+      )
+    ).some((element) => {
+      if (!isVisible(element)) return false;
+      const text = normalizedText(element);
+      const hasLoginText = text.includes("login") || text.includes("log in") || text.includes("sign in");
+      const hasFormText = text.includes("email") || text.includes("password") || text.includes("continue");
+      return hasLoginText && hasFormText;
+    });
+
+  const loginGateVisible = (root = bookBoxRoot()) => {
+    if (root && hasLoginContinueText(root)) return true;
+    if (document.body && hasLoginContinueText(document.body)) return true;
+    if (loginDialogVisible()) return true;
+
+    return Array.from(document.querySelectorAll("a, button")).some((element) => {
+      if (!isVisible(element)) return false;
       const text = normalizedText(element);
       return text === "login to continue" || text === "log in to continue";
     });
@@ -153,6 +180,8 @@
 
     // Read-only interaction: only day tabs inside the calendar strip.
     button.click();
+    await wait(250);
+    if (loginGateVisible()) throw new Error("Log in before reading availability times.");
 
     const loaded = await waitUntil(
       () => sameDate(selectedDateText(bookBoxRoot()), targetDate),
@@ -166,6 +195,7 @@
     await wait(config.daySettleMs);
     const loadedRoot = bookBoxRoot();
     if (!loadedRoot) throw new Error(`The booking widget disappeared after loading ${targetDate}.`);
+    if (loginGateVisible(loadedRoot)) throw new Error("Log in before reading availability times.");
     return loadedRoot;
   };
 
@@ -293,6 +323,9 @@
         raw_slots: slots,
       });
     }
+
+    const slotCount = results.reduce((sum, day) => sum + day.raw_slots.length, 0);
+    if (!slotCount && loginGateVisible()) throw new Error("Log in before reading availability times.");
 
     return {
       exported_at: new Date().toISOString(),
