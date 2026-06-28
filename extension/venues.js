@@ -8,7 +8,9 @@
       id: "propickle",
       name: "ProPickle",
       providerId: PLAYBYPOINT_PROVIDER_ID,
-      startUrl: "https://book.propickle.com.au/f/ProPickle/booking_waiver",
+      startUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
+      setupUrl: "https://book.propickle.com.au/f/ProPickle/booking_waiver",
+      readinessTimeoutMs: 10000,
       matchUrls: Object.freeze(["https://book.propickle.com.au/*"]),
     }),
   ]);

@@ -79,6 +79,7 @@ async function readTab(tabId, venue) {
     type: MESSAGE.READ_CURRENT_PAGE,
     providerId: venue.providerId,
     venue,
+    readinessTimeoutMs: venue.readinessTimeoutMs || 0,
   });
 
   if (!response?.ok) {

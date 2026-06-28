@@ -5,6 +5,16 @@
   const READ_MESSAGE = "AVAILABILITY_READ_CURRENT_PAGE";
 
   const normalizeWhitespace = (value) => (value || "").replace(/\s+/g, " ").trim();
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const waitUntil = async (predicate, timeoutMs, intervalMs = 150) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate()) return true;
+      await wait(intervalMs);
+    }
+    return predicate();
+  };
 
   const manualSetupReason = () => {
     const bodyText = normalizeWhitespace(document.body?.innerText || "").toLowerCase();
@@ -28,6 +38,12 @@
     (async () => {
       const provider = providerFor(message.providerId);
       if (!provider) throw new Error(`Reader provider is not loaded: ${message.providerId}`);
+
+      const readinessTimeoutMs = Number(message.readinessTimeoutMs || 0);
+      if (readinessTimeoutMs > 0 && !provider.canRead()) {
+        await waitUntil(() => provider.canRead(), readinessTimeoutMs);
+      }
+
       if (!provider.canRead()) {
         sendResponse({ ok: false, manualSetupRequired: true, error: manualSetupReason() });
         return;
