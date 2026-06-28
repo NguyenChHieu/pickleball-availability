@@ -1,7 +1,9 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 
-const DATA_DIR = path.resolve(__dirname, "..", "data");
+const DATA_DIR = process.env.AVAILABILITY_DATA_DIR
+  ? path.resolve(process.env.AVAILABILITY_DATA_DIR)
+  : path.resolve(__dirname, "..", "data");
 
 function safeVenueId(venueId) {
   const normalized = String(venueId || "").toLowerCase().replace(/[^a-z0-9_-]/g, "");

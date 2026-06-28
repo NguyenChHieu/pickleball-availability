@@ -49,6 +49,22 @@ Then refresh/read ProPickle from the extension. Successful reads are posted to:
 POST /api/availability/propickle
 ```
 
+## Persistent Cache
+
+By default, cached availability is stored in:
+
+```text
+server/data
+```
+
+For deployed hosts, set `AVAILABILITY_DATA_DIR` to a persistent disk mount path so the share link survives restarts and redeploys:
+
+```text
+AVAILABILITY_DATA_DIR=/var/data
+```
+
+Keep `AVAILABILITY_SYNC_TOKEN` and `SHARE_TOKEN` set in production. The backend refuses to start on Render without both.
+
 ## Test The Cache
 
 ```bash
@@ -101,6 +117,8 @@ MESSENGER_VERIFY_TOKEN=...
 MESSENGER_PAGE_ACCESS_TOKEN=...
 GRAPH_API_VERSION=v24.0
 SHARE_TOKEN=...
+AVAILABILITY_SYNC_TOKEN=...
+AVAILABILITY_DATA_DIR=...
 ```
 
 If `MESSENGER_PAGE_ACCESS_TOKEN` is missing, the server logs dry-run replies instead of sending them.
@@ -109,4 +127,4 @@ If `MESSENGER_PAGE_ACCESS_TOKEN` is missing, the server logs dry-run replies ins
 
 Meta Messenger webhooks require a public HTTPS URL. For local development, use a tunnel such as ngrok pointing at `localhost:8787`.
 
-On Render or another deployed host, set a real unguessable `SHARE_TOKEN`. The local fallback token is `dev-share` only for development.
+On Render or another deployed host, set real unguessable `SHARE_TOKEN` and `AVAILABILITY_SYNC_TOKEN` values. The local fallback share token is `dev-share` only for development.

@@ -91,6 +91,8 @@ Share token: dev-share
 
 After a successful read, click **Copy Share Link** in the popup.
 
+For Render, add a persistent disk and set `AVAILABILITY_DATA_DIR` to that disk's mount path so cached availability survives restarts and redeploys.
+
 ## Compatibility
 
 This extension targets Playbypoint pages that render a `BookBox` booking widget with visible day buttons and time-slot buttons.
