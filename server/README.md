@@ -89,10 +89,10 @@ Then set these Render environment variables:
 
 ```text
 SUPABASE_URL=https://your-project-ref.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=...
+SUPABASE_SECRET_KEY=...
 ```
 
-Keep the Supabase service-role key only on the backend. Do not put it in the browser extension.
+Use the default secret key from **Settings > API Keys > Secret keys**. Keep it only on the backend. Do not put it in the browser extension.
 
 Optional:
 
@@ -100,7 +100,7 @@ Optional:
 SUPABASE_AVAILABILITY_TABLE=availability_cache
 ```
 
-If `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are both present, the backend uses Supabase. If neither is present, it uses the local file cache. If only one is present, startup fails so the app does not silently write to the wrong place.
+If `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are both present, the backend uses Supabase. If neither is present, it uses the local file cache. If only one is present, startup fails so the app does not silently write to the wrong place. Legacy `SUPABASE_SERVICE_ROLE_KEY` also works.
 
 ## Test The Cache
 
@@ -157,7 +157,7 @@ SHARE_TOKEN=...
 AVAILABILITY_SYNC_TOKEN=...
 AVAILABILITY_DATA_DIR=...
 SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
+SUPABASE_SECRET_KEY=...
 ```
 
 If `MESSENGER_PAGE_ACCESS_TOKEN` is missing, the server logs dry-run replies instead of sending them.

@@ -5,12 +5,12 @@ const DATA_DIR = process.env.AVAILABILITY_DATA_DIR
   ? path.resolve(process.env.AVAILABILITY_DATA_DIR)
   : path.resolve(__dirname, "..", "data");
 const SUPABASE_URL = trimTrailingSlash(process.env.SUPABASE_URL || "");
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const SUPABASE_TABLE = process.env.SUPABASE_AVAILABILITY_TABLE || "availability_cache";
-const USE_SUPABASE = Boolean(SUPABASE_URL || SUPABASE_SERVICE_ROLE_KEY);
+const USE_SUPABASE = Boolean(SUPABASE_URL || SUPABASE_SECRET_KEY);
 
-if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY)) {
-  throw new Error("Set both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY, or neither.");
+if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SECRET_KEY)) {
+  throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
 }
 
 function trimTrailingSlash(value) {
@@ -80,11 +80,14 @@ function supabaseEndpoint(search = "") {
 }
 
 function supabaseHeaders(extra = {}) {
-  return {
-    apikey: SUPABASE_SERVICE_ROLE_KEY,
-    authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+  const headers = {
+    apikey: SUPABASE_SECRET_KEY,
     ...extra,
   };
+  if (!SUPABASE_SECRET_KEY.startsWith("sb_secret_")) {
+    headers.authorization = `Bearer ${SUPABASE_SECRET_KEY}`;
+  }
+  return headers;
 }
 
 async function readSupabaseJson(response) {
