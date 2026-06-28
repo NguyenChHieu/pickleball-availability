@@ -143,7 +143,10 @@ async function refreshVenue({ auto = false } = {}) {
 
     if (response.manualSetupRequired) {
       syncActions();
-      setStatus(`${response.error} Finish setup in the opened tab, then use Read Current Page.`);
+      const followUp = response.pendingRefresh
+        ? "Finish setup in the opened tab. I will continue automatically when the schedule appears."
+        : "Finish setup in the opened tab, then try again.";
+      setStatus(`${response.error} ${followUp}`);
       return;
     }
 

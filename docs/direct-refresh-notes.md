@@ -29,7 +29,7 @@ Manual setup is still required if the site shows:
 - waiver/conditions,
 - or any page where the schedule widget is not visible.
 
-In that case, the extension activates the tab and asks the user to finish setup, then use **Read Current Page**.
+In that case, the extension activates the tab and asks the user to finish setup. It keeps a short-lived pending refresh for that tab, then retries automatically after page loads or short timer ticks. When the `BookBox` widget appears, it reads, syncs, and closes the tab if the extension opened it.
 
 ## Why Not Backend-Only Yet?
 

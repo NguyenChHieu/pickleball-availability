@@ -29,8 +29,8 @@ After code changes, return to `chrome://extensions` and click the reload icon on
 2. Pick **ProPickle**.
 3. The extension refreshes the venue automatically only if there is no saved result yet.
 4. If you are already logged in, ProPickle refresh can usually open the booking page in the background, read it, sync it, and close the tab.
-5. If Chrome opens the booking page, complete login/waiver/security checks manually.
-6. Once the actual schedule is visible, click **Read Current Page**.
+5. If Chrome opens the booking page for login, waiver, or security checks, complete that setup manually.
+6. The extension keeps watching that tab and continues automatically when the schedule appears.
 
 The extension uses your normal Chrome session. It does not store or ask for credentials.
 

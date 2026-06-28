@@ -14,8 +14,13 @@ const PROVIDER_FILES = Object.freeze({
 });
 
 const SYNC_CONFIG_KEY = "backendSyncConfig";
+const PENDING_REFRESH_KEY = "pendingVenueRefreshes";
+const PENDING_REFRESH_TTL_MS = 5 * 60 * 1000;
+const PENDING_REFRESH_RETRY_MS = 8000;
 
 const refreshInFlight = new Map();
+const pendingRefreshAttempts = new Set();
+const pendingRefreshTimers = new Map();
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -191,6 +196,113 @@ async function closeTab(tabId) {
   }
 }
 
+const pendingTabKey = (tabId) => String(tabId);
+
+async function loadPendingRefreshes() {
+  const stored = await chrome.storage.local.get(PENDING_REFRESH_KEY);
+  return stored[PENDING_REFRESH_KEY] || {};
+}
+
+async function savePendingRefreshes(pendingRefreshes) {
+  await chrome.storage.local.set({ [PENDING_REFRESH_KEY]: pendingRefreshes });
+}
+
+async function pendingRefreshForTab(tabId) {
+  const pendingRefreshes = await loadPendingRefreshes();
+  return pendingRefreshes[pendingTabKey(tabId)] || null;
+}
+
+function clearPendingRefreshTimer(tabId) {
+  const timer = pendingRefreshTimers.get(Number(tabId));
+  if (timer) clearTimeout(timer);
+  pendingRefreshTimers.delete(Number(tabId));
+}
+
+function schedulePendingRefresh(tabId, delayMs = PENDING_REFRESH_RETRY_MS) {
+  clearPendingRefreshTimer(tabId);
+  const timer = setTimeout(() => {
+    pendingRefreshTimers.delete(Number(tabId));
+    continuePendingRefresh(tabId, "timer").catch((error) => console.warn(error));
+  }, delayMs);
+  pendingRefreshTimers.set(Number(tabId), timer);
+}
+
+async function clearPendingRefresh(tabId) {
+  const pendingRefreshes = await loadPendingRefreshes();
+  delete pendingRefreshes[pendingTabKey(tabId)];
+  await savePendingRefreshes(pendingRefreshes);
+  clearPendingRefreshTimer(tabId);
+}
+
+async function savePendingRefresh(session) {
+  const pendingRefreshes = await loadPendingRefreshes();
+  pendingRefreshes[pendingTabKey(session.tabId)] = session;
+  await savePendingRefreshes(pendingRefreshes);
+  schedulePendingRefresh(session.tabId);
+}
+
+function pendingRefreshSession(tabId, venue, closeWhenDone, error) {
+  const now = Date.now();
+  return {
+    tabId: Number(tabId),
+    venueId: venue.id,
+    closeWhenDone: Boolean(closeWhenDone),
+    startedAt: now,
+    expiresAt: now + (venue.pendingRefreshTimeoutMs || PENDING_REFRESH_TTL_MS),
+    lastAttemptAt: now,
+    lastError: error?.message || String(error || ""),
+  };
+}
+
+async function touchPendingRefresh(tabId, error) {
+  const pendingRefreshes = await loadPendingRefreshes();
+  const existing = pendingRefreshes[pendingTabKey(tabId)];
+  if (!existing) return;
+
+  pendingRefreshes[pendingTabKey(tabId)] = {
+    ...existing,
+    lastAttemptAt: Date.now(),
+    lastError: error?.message || String(error || ""),
+  };
+  await savePendingRefreshes(pendingRefreshes);
+  schedulePendingRefresh(tabId);
+}
+
+async function continuePendingRefresh(tabId, _reason) {
+  const key = pendingTabKey(tabId);
+  if (pendingRefreshAttempts.has(key)) return;
+
+  const session = await pendingRefreshForTab(tabId);
+  if (!session) return;
+
+  if (Date.now() > session.expiresAt) {
+    await clearPendingRefresh(tabId);
+    return;
+  }
+
+  pendingRefreshAttempts.add(key);
+  try {
+    await wait(1200);
+    const venue = AvailabilityRegistry.getVenue(session.venueId);
+    const payload = await readTab(Number(tabId), venue);
+    const syncStatus = await saveVenuePayload(venue.id, payload);
+    await clearPendingRefresh(tabId);
+    if (session.closeWhenDone) await closeTab(Number(tabId));
+    return { venue, payload, syncStatus };
+  } catch (error) {
+    if (error.manualSetupRequired) {
+      await touchPendingRefresh(tabId, error);
+      return null;
+    }
+
+    await clearPendingRefresh(tabId);
+    console.warn(error);
+    return null;
+  } finally {
+    pendingRefreshAttempts.delete(key);
+  }
+}
+
 async function refreshVenueNow(venueId) {
   const venue = AvailabilityRegistry.getVenue(venueId);
   const { tab, closeWhenDone } = await tabForVenue(venue);
@@ -207,11 +319,23 @@ async function refreshVenueNow(venueId) {
       if (closeWhenDone && tab.id) await closeTab(tab.id);
       throw error;
     }
-    if (tab.id) await activateTab(tab.id);
+    if (!tab.id) {
+      return {
+        venue,
+        payload: null,
+        manualSetupRequired: true,
+        pendingRefresh: false,
+        error: "Manual setup needed, but the booking tab is no longer available.",
+      };
+    }
+
+    await activateTab(tab.id);
+    await savePendingRefresh(pendingRefreshSession(tab.id, venue, closeWhenDone, error));
     return {
       venue,
       payload: null,
       manualSetupRequired: true,
+      pendingRefresh: true,
       error: error?.message || String(error),
     };
   }
@@ -249,6 +373,15 @@ async function readActiveTab() {
     : { ok: false, skipped: true, reason: "Current page is not mapped to a saved venue." };
   return { venue, payload, syncStatus };
 }
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status !== "complete") return;
+  continuePendingRefresh(tabId, "tab-complete").catch((error) => console.warn(error));
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  clearPendingRefresh(tabId).catch((error) => console.warn(error));
+});
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   (async () => {
