@@ -91,7 +91,7 @@ Share token: dev-share
 
 After a successful read, click **Copy Share Link** in the popup.
 
-For Render, add a persistent disk and set `AVAILABILITY_DATA_DIR` to that disk's mount path so cached availability survives restarts and redeploys.
+For durable Render deploys, use Supabase by setting `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on the backend. A Render persistent disk also works by setting `AVAILABILITY_DATA_DIR`, but Supabase is the better path once more venues or bots are added.
 
 ## Compatibility
 
@@ -132,6 +132,7 @@ extension/
   providers/
     playbypointBookBox.js
 server/
+  supabase.sql
   src/
     index.js
     availabilityStore.js

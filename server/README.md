@@ -65,6 +65,43 @@ AVAILABILITY_DATA_DIR=/var/data
 
 Keep `AVAILABILITY_SYNC_TOKEN` and `SHARE_TOKEN` set in production. The backend refuses to start on Render without both.
 
+## Supabase Cache
+
+Supabase is preferred once the share link should survive Render restarts without using a Render disk.
+
+1. Create a Supabase project.
+2. Open the Supabase SQL editor.
+3. Run:
+
+```sql
+create table if not exists public.availability_cache (
+  venue_id text primary key,
+  received_at timestamptz not null default now(),
+  payload jsonb not null
+);
+
+alter table public.availability_cache enable row level security;
+```
+
+The same SQL is saved in `server/supabase.sql`.
+
+Then set these Render environment variables:
+
+```text
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+Keep the Supabase service-role key only on the backend. Do not put it in the browser extension.
+
+Optional:
+
+```text
+SUPABASE_AVAILABILITY_TABLE=availability_cache
+```
+
+If `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are both present, the backend uses Supabase. If neither is present, it uses the local file cache. If only one is present, startup fails so the app does not silently write to the wrong place.
+
 ## Test The Cache
 
 ```bash
@@ -119,6 +156,8 @@ GRAPH_API_VERSION=v24.0
 SHARE_TOKEN=...
 AVAILABILITY_SYNC_TOKEN=...
 AVAILABILITY_DATA_DIR=...
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 If `MESSENGER_PAGE_ACCESS_TOKEN` is missing, the server logs dry-run replies instead of sending them.
