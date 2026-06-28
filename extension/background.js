@@ -119,11 +119,13 @@ async function syncVenuePayload(venueId, payload) {
     };
   }
 
+  const endpoint = availabilityEndpoint(config.backendUrl, venueId);
+
   try {
     const headers = { "content-type": "application/json" };
     if (config.syncToken) headers["x-sync-token"] = config.syncToken;
 
-    const response = await fetch(availabilityEndpoint(config.backendUrl, venueId), {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
@@ -144,11 +146,19 @@ async function syncVenuePayload(venueId, payload) {
     const status = {
       ok: false,
       failed_at: new Date().toISOString(),
-      error: error?.message || String(error),
+      error: syncErrorMessage(error, endpoint),
     };
     await chrome.storage.local.set({ [syncStatusKey(venueId)]: status });
     return status;
   }
+}
+
+function syncErrorMessage(error, endpoint) {
+  const message = error?.message || String(error);
+  if (message === "Failed to fetch" || error?.name === "TypeError") {
+    return `Failed to reach ${endpoint}. Check the Backend URL, extension permission, and Render health.`;
+  }
+  return message;
 }
 
 async function firstOpenVenueTab(venue) {

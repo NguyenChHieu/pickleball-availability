@@ -14,6 +14,12 @@ const { renderSharePage } = require("./sharePage");
 const PORT = Number(process.env.PORT || 8787);
 const SYNC_TOKEN = process.env.AVAILABILITY_SYNC_TOKEN || "";
 const SHARE_TOKEN = shareTokenFromEnv();
+const API_CORS_HEADERS = Object.freeze({
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "content-type, x-sync-token",
+  "access-control-max-age": "86400",
+});
 
 function shareTokenFromEnv() {
   if (process.env.SHARE_TOKEN) return process.env.SHARE_TOKEN;
@@ -28,9 +34,22 @@ function sendJson(response, status, body) {
   response.end(`${JSON.stringify(body, null, 2)}\n`);
 }
 
+function sendApiJson(response, status, body) {
+  response.writeHead(status, {
+    "content-type": "application/json",
+    ...API_CORS_HEADERS,
+  });
+  response.end(`${JSON.stringify(body, null, 2)}\n`);
+}
+
 function sendText(response, status, body) {
   response.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
   response.end(body);
+}
+
+function sendApiPreflight(response) {
+  response.writeHead(204, API_CORS_HEADERS);
+  response.end();
 }
 
 function sendHtml(response, status, body) {
@@ -70,7 +89,7 @@ async function readJson(request) {
 function requireSyncToken(request, response) {
   if (!SYNC_TOKEN) return true;
   if (request.headers["x-sync-token"] === SYNC_TOKEN) return true;
-  sendJson(response, 401, { error: "Invalid sync token" });
+  sendApiJson(response, 401, { error: "Invalid sync token" });
   return false;
 }
 
@@ -109,7 +128,7 @@ async function handleAvailabilityPost(request, response, venueId) {
 
   const payload = await readJson(request);
   const record = await saveAvailability(venueId, payload);
-  sendJson(response, 200, {
+  sendApiJson(response, 200, {
     ok: true,
     venue_id: record.venue_id,
     received_at: record.received_at,
@@ -183,6 +202,11 @@ async function handleRequest(request, response) {
       return;
     }
 
+    if (request.method === "OPTIONS" && pathname.startsWith("/api/availability/")) {
+      sendApiPreflight(response);
+      return;
+    }
+
     const shareText = shareFromPath(pathname, "/text");
     if (request.method === "GET" && shareText) {
       await handleShareText(response, shareText.shareToken, shareText.venueId);
@@ -223,6 +247,10 @@ async function handleRequest(request, response) {
     notFound(response);
   } catch (error) {
     console.error(error);
+    if (pathname.startsWith("/api/")) {
+      sendApiJson(response, 500, { error: error?.message || String(error) });
+      return;
+    }
     sendJson(response, 500, { error: error?.message || String(error) });
   }
 }
