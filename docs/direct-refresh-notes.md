@@ -31,6 +31,8 @@ Manual setup is still required if the site shows:
 
 In that case, the extension activates the tab and asks the user to finish setup. It keeps a short-lived pending refresh for that tab, then retries automatically after page loads or short timer ticks. When the `BookBox` widget appears, it reads, syncs, and closes the tab if the extension opened it.
 
+One subtle logged-out state still renders the `BookBox` date buttons but shows `LOGIN TO CONTINUE` instead of time slots. The provider treats that as not readable so it does not sync a false empty availability result.
+
 ## Why Not Backend-Only Yet?
 
 A Render cron job would need a ProPickle login/session cookie or an official Playbypoint API token. That is a bigger security and maintenance tradeoff than using the browser session.

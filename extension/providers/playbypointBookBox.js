@@ -52,6 +52,18 @@
   const normalizeMonth = (value) => monthLookup[normalizeWhitespace(value).toLowerCase()] || "";
   const normalizeDay = (value) => dayLookup[normalizeWhitespace(value).toLowerCase()] || "";
   const bookBoxRoot = () => document.querySelector('[data-react-class="BookBox"]');
+  const normalizedText = (element) => normalizeWhitespace(element?.innerText || "").toLowerCase();
+
+  const loginGateVisible = (root = bookBoxRoot()) => {
+    if (!root) return false;
+    const rootText = normalizedText(root);
+    if (rootText.includes("login to continue") || rootText.includes("log in to continue")) return true;
+
+    return Array.from(root.querySelectorAll("a, button")).some((element) => {
+      const text = normalizedText(element);
+      return text === "login to continue" || text === "log in to continue";
+    });
+  };
 
   const dateKey = (label) => {
     const parts = normalizeWhitespace(label).replaceAll(",", "").split(" ");
@@ -253,12 +265,13 @@
 
   const canRead = () => {
     const root = bookBoxRoot();
-    return Boolean(root && visibleDayButtons(root).length);
+    return Boolean(root && !loginGateVisible(root) && visibleDayButtons(root).length);
   };
 
   async function readAvailability(venue = {}) {
     const root = bookBoxRoot();
     if (!root) throw new Error("Could not find the Playbypoint booking widget on this page.");
+    if (loginGateVisible(root)) throw new Error("Log in before reading availability times.");
 
     const dayTargets = visibleDayButtons(root).map((day) => day.date);
     if (!dayTargets.length) throw new Error("Could not find visible booking day buttons.");

@@ -30,6 +30,21 @@
     return "Manual setup needed: the Playbypoint schedule widget is not visible yet.";
   };
 
+  const manualSetupVisible = (error) => {
+    const bodyText = normalizeWhitespace(document.body?.innerText || "").toLowerCase();
+    const errorText = normalizeWhitespace(error?.message || "").toLowerCase();
+    return (
+      bodyText.includes("performing security verification") ||
+      bodyText.includes("cloudflare") ||
+      bodyText.includes("waiver") ||
+      bodyText.includes("conditions") ||
+      bodyText.includes("login") ||
+      bodyText.includes("log in") ||
+      bodyText.includes("sign in") ||
+      errorText.includes("log in before reading")
+    );
+  };
+
   const providerFor = (providerId) => globalThis.AvailabilityProviders?.[providerId] || null;
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -52,7 +67,12 @@
       const payload = await provider.readAvailability(message.venue || {});
       sendResponse({ ok: true, payload });
     })().catch((error) => {
-      sendResponse({ ok: false, error: error?.message || String(error) });
+      const isManualSetup = manualSetupVisible(error);
+      sendResponse({
+        ok: false,
+        manualSetupRequired: isManualSetup,
+        error: isManualSetup ? manualSetupReason() : error?.message || String(error),
+      });
     });
 
     return true;
