@@ -66,6 +66,9 @@ button:disabled {
 }
 
 .actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
   margin-bottom: 12px;
 }
 

@@ -1,6 +1,7 @@
 const venueSelect = document.querySelector("#venueSelect");
 const refreshVenueButton = document.querySelector("#refreshVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
+const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton");
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
@@ -190,22 +191,38 @@ function normalizeShareUrlBase(value) {
   return normalized;
 }
 
-async function copyShareLink() {
+async function shareLink() {
   if (!latestPayload) return;
 
+  if (!latestSyncStatus?.ok) {
+    throw new Error("Sync to backend first, then use the share page.");
+  }
+
+  const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
+  const config = stored[SYNC_CONFIG_KEY] || {};
+  const venueId = latestPayload.venue_id || selectedVenueId;
+  if (!venueId) throw new Error("Select a venue before opening a share link.");
+
+  const base = normalizeShareUrlBase(config.shareUrlBase || config.backendUrl);
+  const shareToken = (config.shareToken || DEFAULT_SHARE_TOKEN).trim();
+  return `${base}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`;
+}
+
+async function viewAvailability() {
   try {
-    if (!latestSyncStatus?.ok) {
-      throw new Error("Sync to backend first, then copy the share link.");
-    }
+    const link = await shareLink();
+    if (!link) return;
+    await chrome.tabs.create({ url: link });
+    setStatus("Opened availability page.");
+  } catch (error) {
+    setStatus(error?.message || String(error));
+  }
+}
 
-    const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
-    const config = stored[SYNC_CONFIG_KEY] || {};
-    const venueId = latestPayload.venue_id || selectedVenueId;
-    if (!venueId) throw new Error("Select a venue before copying a share link.");
-
-    const base = normalizeShareUrlBase(config.shareUrlBase || config.backendUrl);
-    const shareToken = (config.shareToken || DEFAULT_SHARE_TOKEN).trim();
-    const link = `${base}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`;
+async function copyShareLink() {
+  try {
+    const link = await shareLink();
+    if (!link) return;
     await navigator.clipboard.writeText(link);
     setStatus("Copied share link.");
   } catch (error) {
@@ -241,6 +258,7 @@ venueSelect.addEventListener("change", () => {
 });
 refreshVenueButton.addEventListener("click", () => refreshVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
+viewAvailabilityButton.addEventListener("click", viewAvailability);
 copyShareLinkButton.addEventListener("click", copyShareLink);
 
 init().catch((error) => {
