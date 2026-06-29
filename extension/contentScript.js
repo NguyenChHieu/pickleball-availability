@@ -46,6 +46,13 @@
   };
 
   const providerFor = (providerId) => globalThis.AvailabilityProviders?.[providerId] || null;
+  const setupRequiredByProvider = (provider) => {
+    try {
+      return Boolean(provider?.setupRequired?.());
+    } catch {
+      return false;
+    }
+  };
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== READ_MESSAGE) return false;
@@ -54,9 +61,19 @@
       const provider = providerFor(message.providerId);
       if (!provider) throw new Error(`Reader provider is not loaded: ${message.providerId}`);
 
+      if (setupRequiredByProvider(provider)) {
+        sendResponse({ ok: false, manualSetupRequired: true, error: manualSetupReason() });
+        return;
+      }
+
       const readinessTimeoutMs = Number(message.readinessTimeoutMs || 0);
       if (readinessTimeoutMs > 0 && !provider.canRead()) {
-        await waitUntil(() => provider.canRead(), readinessTimeoutMs);
+        await waitUntil(() => setupRequiredByProvider(provider) || provider.canRead(), readinessTimeoutMs);
+      }
+
+      if (setupRequiredByProvider(provider)) {
+        sendResponse({ ok: false, manualSetupRequired: true, error: manualSetupReason() });
+        return;
       }
 
       if (!provider.canRead()) {

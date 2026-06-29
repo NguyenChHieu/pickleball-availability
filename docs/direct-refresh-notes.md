@@ -35,6 +35,8 @@ One subtle logged-out state still renders the `BookBox` date buttons but shows `
 
 Another login flow can redirect to a profile/account page after successful login. While a pending refresh is active, the background worker can return that same tab to the venue booking URL once, then continue watching for the schedule widget.
 
+Auth/setup checks should be immediate. The longer readiness wait is only for a page that looks like it may still be loading the authenticated booking widget.
+
 ## Why Not Backend-Only Yet?
 
 A Render cron job would need a ProPickle login/session cookie or an official Playbypoint API token. That is a bigger security and maintenance tradeoff than using the browser session.

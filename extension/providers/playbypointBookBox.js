@@ -298,6 +298,8 @@
     return Boolean(root && !loginGateVisible(root) && visibleDayButtons(root).length);
   };
 
+  const setupRequired = () => loginGateVisible();
+
   async function readAvailability(venue = {}) {
     const root = bookBoxRoot();
     if (!root) throw new Error("Could not find the Playbypoint booking widget on this page.");
@@ -340,6 +342,7 @@
   globalThis.AvailabilityProviders[providerId] = Object.freeze({
     providerId,
     canRead,
+    setupRequired,
     readAvailability,
   });
 })();

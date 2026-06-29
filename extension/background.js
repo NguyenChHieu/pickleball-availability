@@ -262,9 +262,31 @@ function sameOrigin(leftUrl, rightUrl) {
   }
 }
 
-function samePath(leftUrl, rightUrl) {
+function sameUrlWithoutHash(leftUrl, rightUrl) {
   try {
-    return new URL(leftUrl).pathname.toLowerCase() === new URL(rightUrl).pathname.toLowerCase();
+    const left = new URL(leftUrl);
+    const right = new URL(rightUrl);
+    return (
+      left.origin === right.origin &&
+      left.pathname.toLowerCase() === right.pathname.toLowerCase() &&
+      left.search === right.search
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isSetupUrl(url, venue) {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    return (
+      Boolean(venue.setupUrl && sameUrlWithoutHash(url, venue.setupUrl)) ||
+      pathname.includes("auth") ||
+      pathname.includes("login") ||
+      pathname.includes("sign") ||
+      pathname.includes("waiver") ||
+      pathname.includes("password")
+    );
   } catch {
     return false;
   }
@@ -272,7 +294,9 @@ function samePath(leftUrl, rightUrl) {
 
 function shouldReturnToVenueStart(tab, venue, session, error) {
   if (!tab?.url || !venue.startUrl || !sameOrigin(tab.url, venue.startUrl)) return false;
-  if (samePath(tab.url, venue.startUrl)) return false;
+  if (sameUrlWithoutHash(tab.url, venue.startUrl)) return false;
+  if (isSetupUrl(tab.url, venue)) return false;
+  if (session.returnedToStartAt) return false;
 
   const message = (error?.message || "").toLowerCase();
   const pathname = new URL(tab.url).pathname.toLowerCase();
@@ -280,11 +304,11 @@ function shouldReturnToVenueStart(tab, venue, session, error) {
     pathname.includes("profile") ||
     pathname.includes("account") ||
     pathname.includes("dashboard") ||
+    pathname.includes("user") ||
+    !error ||
     message.includes("schedule widget is not visible");
 
-  if (!looksLikePostLoginPage) return false;
-
-  return !session.returnedToStartAt;
+  return looksLikePostLoginPage;
 }
 
 async function returnPendingRefreshToVenueStart(tabId, venue, session, error) {
@@ -329,8 +353,14 @@ async function continuePendingRefresh(tabId, _reason) {
 
   pendingRefreshAttempts.add(key);
   try {
-    await wait(1200);
     const venue = AvailabilityRegistry.getVenue(session.venueId);
+    const tab = await chrome.tabs.get(Number(tabId)).catch(() => null);
+    if (shouldReturnToVenueStart(tab, venue, session, null)) {
+      await returnPendingRefreshToVenueStart(tabId, venue, session, null);
+      return null;
+    }
+
+    await wait(300);
     const payload = await readTab(Number(tabId), venue);
     const syncStatus = await saveVenuePayload(venue.id, payload);
     await clearPendingRefresh(tabId);
