@@ -28,10 +28,13 @@ After code changes, return to `chrome://extensions` and click the reload icon on
 1. Click the extension icon.
 2. Pick **ProPickle**.
 3. The extension refreshes the venue automatically only if there is no saved result yet.
-4. If Chrome opens the booking page, complete login/waiver/security checks manually.
-5. Once the actual schedule is visible, click **Read Current Page**.
+4. If you are already logged in, ProPickle refresh can usually open the booking page in the background, read it, sync it, and close the tab.
+5. If Chrome opens the booking page for login, waiver, or security checks, complete that setup manually.
+6. The extension keeps watching that tab and continues automatically when the schedule appears.
 
 The extension uses your normal Chrome session. It does not store or ask for credentials.
+
+If login redirects to a profile/account page, an active venue refresh can return that same tab to the booking URL once and continue from there. Auth/setup checks should happen quickly; the longer readiness wait is reserved for pages that look like they may still be loading the authenticated booking widget.
 
 ## Use: Current Page Flow
 
@@ -55,7 +58,9 @@ The share page shows each loaded day with merged open intervals, for example:
 }
 ```
 
-The **Copy Share Link** button appears only after a result has synced to the backend. Raw JSON export is intentionally hidden from the popup.
+The **View Availability** and **Copy Share Link** buttons appear only after a result has synced to the backend. Raw JSON export is intentionally hidden from the popup.
+
+Each day on the share page includes booking links. **Book this day** opens the venue booking page with a date marker that the extension can use to select that day; **Open booking page** is a plain fallback link.
 
 ## Persistence
 
@@ -97,7 +102,15 @@ For durable Render deploys, use Supabase by setting `SUPABASE_URL` and `SUPABASE
 
 This extension targets Playbypoint pages that render a `BookBox` booking widget with visible day buttons and time-slot buttons.
 
+Some logged-out Playbypoint pages still render date buttons but hide times behind a login prompt. The reader treats those pages as setup-required so it does not sync a false empty result.
+
 Known starting point:
+
+```text
+https://book.propickle.com.au/book/ProPickle?skip_waivers=true
+```
+
+If the direct booking URL still asks for setup, use the venue's setup URL:
 
 ```text
 https://book.propickle.com.au/f/ProPickle/booking_waiver

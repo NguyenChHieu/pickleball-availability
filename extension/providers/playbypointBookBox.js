@@ -52,6 +52,45 @@
   const normalizeMonth = (value) => monthLookup[normalizeWhitespace(value).toLowerCase()] || "";
   const normalizeDay = (value) => dayLookup[normalizeWhitespace(value).toLowerCase()] || "";
   const bookBoxRoot = () => document.querySelector('[data-react-class="BookBox"]');
+  const normalizedText = (element) => normalizeWhitespace(element?.innerText || "").toLowerCase();
+
+  const isVisible = (element) => {
+    if (!element) return false;
+    const style = window.getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+    const box = element.getBoundingClientRect();
+    return box.width > 0 && box.height > 0;
+  };
+
+  const hasLoginContinueText = (element) => {
+    const text = normalizedText(element);
+    return text.includes("login to continue") || text.includes("log in to continue");
+  };
+
+  const loginDialogVisible = () =>
+    Array.from(
+      document.querySelectorAll(
+        '[role="dialog"], .modal, .modal-dialog, .modal-content, .ReactModal__Content, [class*="Modal"], [class*="modal"]'
+      )
+    ).some((element) => {
+      if (!isVisible(element)) return false;
+      const text = normalizedText(element);
+      const hasLoginText = text.includes("login") || text.includes("log in") || text.includes("sign in");
+      const hasFormText = text.includes("email") || text.includes("password") || text.includes("continue");
+      return hasLoginText && hasFormText;
+    });
+
+  const loginGateVisible = (root = bookBoxRoot()) => {
+    if (root && hasLoginContinueText(root)) return true;
+    if (document.body && hasLoginContinueText(document.body)) return true;
+    if (loginDialogVisible()) return true;
+
+    return Array.from(document.querySelectorAll("a, button")).some((element) => {
+      if (!isVisible(element)) return false;
+      const text = normalizedText(element);
+      return text === "login to continue" || text === "log in to continue";
+    });
+  };
 
   const dateKey = (label) => {
     const parts = normalizeWhitespace(label).replaceAll(",", "").split(" ");
@@ -141,6 +180,8 @@
 
     // Read-only interaction: only day tabs inside the calendar strip.
     button.click();
+    await wait(250);
+    if (loginGateVisible()) throw new Error("Log in before reading availability times.");
 
     const loaded = await waitUntil(
       () => sameDate(selectedDateText(bookBoxRoot()), targetDate),
@@ -154,6 +195,7 @@
     await wait(config.daySettleMs);
     const loadedRoot = bookBoxRoot();
     if (!loadedRoot) throw new Error(`The booking widget disappeared after loading ${targetDate}.`);
+    if (loginGateVisible(loadedRoot)) throw new Error("Log in before reading availability times.");
     return loadedRoot;
   };
 
@@ -253,12 +295,21 @@
 
   const canRead = () => {
     const root = bookBoxRoot();
-    return Boolean(root && visibleDayButtons(root).length);
+    return Boolean(root && !loginGateVisible(root) && visibleDayButtons(root).length);
   };
+
+  const setupRequired = () => loginGateVisible();
+
+  async function selectDate(targetDate) {
+    if (loginGateVisible()) return false;
+    await clickDayAndWait(targetDate);
+    return true;
+  }
 
   async function readAvailability(venue = {}) {
     const root = bookBoxRoot();
     if (!root) throw new Error("Could not find the Playbypoint booking widget on this page.");
+    if (loginGateVisible(root)) throw new Error("Log in before reading availability times.");
 
     const dayTargets = visibleDayButtons(root).map((day) => day.date);
     if (!dayTargets.length) throw new Error("Could not find visible booking day buttons.");
@@ -275,11 +326,15 @@
         source_url: window.location.href,
         title,
         date: currentDate,
+        booking_date: currentDate,
         open_intervals: openIntervals,
         remaining_hours: remainingHours(openIntervals),
         raw_slots: slots,
       });
     }
+
+    const slotCount = results.reduce((sum, day) => sum + day.raw_slots.length, 0);
+    if (!slotCount && loginGateVisible()) throw new Error("Log in before reading availability times.");
 
     return {
       exported_at: new Date().toISOString(),
@@ -287,6 +342,7 @@
       venue_id: venue.id || "",
       venue_name: venue.name || "",
       provider_id: providerId,
+      booking_url: venue.startUrl || window.location.href,
       days: results,
     };
   }
@@ -294,6 +350,8 @@
   globalThis.AvailabilityProviders[providerId] = Object.freeze({
     providerId,
     canRead,
+    setupRequired,
+    selectDate,
     readAvailability,
   });
 })();
