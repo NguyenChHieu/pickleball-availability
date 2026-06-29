@@ -3,19 +3,19 @@
   const SELECTED_VENUE_KEY = "selectedVenueId";
   const DEFAULT_VENUE_ID = "propickle";
 
-  const venues = Object.freeze([
-    Object.freeze({
+  const venues = [
+    {
       id: "propickle",
       name: "ProPickle",
       providerId: PLAYBYPOINT_PROVIDER_ID,
       startUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
       setupUrl: "https://book.propickle.com.au/f/ProPickle/booking_waiver",
       readinessTimeoutMs: 10000,
-      matchUrls: Object.freeze(["https://book.propickle.com.au/*"]),
-    }),
-  ]);
+      matchUrls: ["https://book.propickle.com.au/*"],
+    },
+  ];
 
-  const clone = (value) => JSON.parse(JSON.stringify(value));
+  const copyVenue = (venue) => ({ ...venue, matchUrls: [...venue.matchUrls] });
   const venuePayloadKey = (venueId) => `availability:venue:${venueId}`;
 
   const wildcardToRegExp = (pattern) =>
@@ -23,7 +23,7 @@
 
   const matchesPattern = (url, pattern) => wildcardToRegExp(pattern).test(url || "");
 
-  const getVenues = () => clone(venues);
+  const getVenues = () => venues.map(copyVenue);
   const getVenue = (venueId) => venues.find((venue) => venue.id === venueId) || venues[0];
 
   const findVenueForUrl = (url) =>
@@ -34,10 +34,10 @@
     SELECTED_VENUE_KEY,
     DEFAULT_VENUE_ID,
     getVenues,
-    getVenue: (venueId) => clone(getVenue(venueId)),
+    getVenue: (venueId) => copyVenue(getVenue(venueId)),
     findVenueForUrl: (url) => {
       const venue = findVenueForUrl(url);
-      return venue ? clone(venue) : null;
+      return venue ? copyVenue(venue) : null;
     },
     venuePayloadKey,
   });

@@ -305,7 +305,6 @@ function shouldReturnToVenueStart(tab, venue, session, error) {
     pathname.includes("account") ||
     pathname.includes("dashboard") ||
     pathname.includes("user") ||
-    !error ||
     message.includes("schedule widget is not visible");
 
   return looksLikePostLoginPage;

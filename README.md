@@ -34,6 +34,8 @@ After code changes, return to `chrome://extensions` and click the reload icon on
 
 The extension uses your normal Chrome session. It does not store or ask for credentials.
 
+If login redirects to a profile/account page, an active venue refresh can return that same tab to the booking URL once and continue from there. Auth/setup checks should happen quickly; the longer readiness wait is reserved for pages that look like they may still be loading the authenticated booking widget.
+
 ## Use: Current Page Flow
 
 1. Open a compatible Playbypoint booking page in normal Chrome.
@@ -56,7 +58,7 @@ The share page shows each loaded day with merged open intervals, for example:
 }
 ```
 
-The **Copy Share Link** button appears only after a result has synced to the backend. Raw JSON export is intentionally hidden from the popup.
+The **View Availability** and **Copy Share Link** buttons appear only after a result has synced to the backend. Raw JSON export is intentionally hidden from the popup.
 
 ## Persistence
 
@@ -97,6 +99,8 @@ For durable Render deploys, use Supabase by setting `SUPABASE_URL` and `SUPABASE
 ## Compatibility
 
 This extension targets Playbypoint pages that render a `BookBox` booking widget with visible day buttons and time-slot buttons.
+
+Some logged-out Playbypoint pages still render date buttons but hide times behind a login prompt. The reader treats those pages as setup-required so it does not sync a false empty result.
 
 Known starting point:
 
