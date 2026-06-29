@@ -300,6 +300,12 @@
 
   const setupRequired = () => loginGateVisible();
 
+  async function selectDate(targetDate) {
+    if (loginGateVisible()) return false;
+    await clickDayAndWait(targetDate);
+    return true;
+  }
+
   async function readAvailability(venue = {}) {
     const root = bookBoxRoot();
     if (!root) throw new Error("Could not find the Playbypoint booking widget on this page.");
@@ -320,6 +326,7 @@
         source_url: window.location.href,
         title,
         date: currentDate,
+        booking_date: currentDate,
         open_intervals: openIntervals,
         remaining_hours: remainingHours(openIntervals),
         raw_slots: slots,
@@ -335,6 +342,7 @@
       venue_id: venue.id || "",
       venue_name: venue.name || "",
       provider_id: providerId,
+      booking_url: venue.startUrl || window.location.href,
       days: results,
     };
   }
@@ -343,6 +351,7 @@
     providerId,
     canRead,
     setupRequired,
+    selectDate,
     readAvailability,
   });
 })();

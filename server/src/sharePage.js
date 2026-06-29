@@ -22,16 +22,47 @@ function renderIntervalChips(day) {
     .join("")}</div>`;
 }
 
-function renderDay(day) {
+function stripHash(url) {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    parsed.hash = "";
+    return parsed.toString();
+  } catch {
+    return String(url).split("#")[0];
+  }
+}
+
+function bookingUrlForDay(day, payload) {
+  return stripHash(payload?.booking_url || day?.booking_url || day?.source_url || payload?.source_url || "");
+}
+
+function renderBookingActions(day, payload) {
+  const bookingUrl = bookingUrlForDay(day, payload);
+  if (!bookingUrl) return "";
+
+  const bookingDate = day?.booking_date || day?.date || "";
+  const dayUrl = bookingDate ? `${bookingUrl}#pbb_date=${encodeURIComponent(bookingDate)}` : bookingUrl;
+
+  return `<div class="booking-actions">
+    <a class="action primary" href="${escapeHtml(dayUrl)}" target="_blank" rel="noopener">Book this day</a>
+    <a class="action" href="${escapeHtml(bookingUrl)}" target="_blank" rel="noopener">Open booking page</a>
+  </div>`;
+}
+
+function renderDay(day, payload) {
   const hours = Number(day?.remaining_hours || 0);
   const hourLabel = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, "");
   const title = day?.date || "Unknown date";
   const subtitle = day?.title || "Court booking";
 
   return `<section class="day">
-    <div>
-      <h2>${escapeHtml(title)}</h2>
-      <p class="meta">${escapeHtml(subtitle)} - ${escapeHtml(hourLabel)} open hour(s)</p>
+    <div class="day-head">
+      <div>
+        <h2>${escapeHtml(title)}</h2>
+        <p class="meta">${escapeHtml(subtitle)} - ${escapeHtml(hourLabel)} open hour(s)</p>
+      </div>
+      ${renderBookingActions(day, payload)}
     </div>
     ${renderIntervalChips(day)}
   </section>`;
@@ -44,7 +75,8 @@ function renderSharePage(payload, { venueId = "venue" } = {}) {
   const hasPayload = Boolean(payload && Array.isArray(payload.days));
 
   const dayMarkup = hasPayload
-    ? days.map(renderDay).join("") || '<section class="day"><p class="empty">No days were found.</p></section>'
+    ? days.map((day) => renderDay(day, payload)).join("") ||
+      '<section class="day"><p class="empty">No days were found.</p></section>'
     : '<section class="day"><p class="empty">No cached availability yet.</p></section>';
 
   return `<!doctype html>
@@ -114,6 +146,38 @@ function renderSharePage(payload, { venueId = "venue" } = {}) {
         margin: 0 0 12px;
       }
 
+      .day-head {
+        align-items: flex-start;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+      }
+
+      .booking-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-end;
+        margin-bottom: 12px;
+      }
+
+      .action {
+        border: 1px solid #bfd4dc;
+        border-radius: 6px;
+        color: #1b5364;
+        font-size: 13px;
+        font-weight: 700;
+        padding: 7px 9px;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .action.primary {
+        background: #0098c7;
+        border-color: #0098c7;
+        color: #fff;
+      }
+
       .chips {
         display: flex;
         flex-wrap: wrap;
@@ -137,6 +201,16 @@ function renderSharePage(payload, { venueId = "venue" } = {}) {
       footer {
         font-size: 12px;
         padding: 8px 2px 0;
+      }
+
+      @media (max-width: 560px) {
+        .day-head {
+          display: block;
+        }
+
+        .booking-actions {
+          justify-content: flex-start;
+        }
       }
     </style>
   </head>
