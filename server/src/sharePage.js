@@ -26,10 +26,11 @@ function stripHash(url) {
   if (!url) return "";
   try {
     const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "";
     parsed.hash = "";
     return parsed.toString();
   } catch {
-    return String(url).split("#")[0];
+    return "";
   }
 }
 
