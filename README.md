@@ -10,7 +10,7 @@ It can read the current booking page or refresh a configured venue such as ProPi
 - No booking, payment, checkout, login, waiver, or access-control automation.
 - You log in and accept any required waiver manually in normal Chrome.
 - The extension only clicks visible day tabs in the booking calendar strip.
-- Venue results auto-refresh only when no saved result exists yet.
+- Venue refreshes are user-directed; opening the popup shows saved data without surprise refreshes.
 - No scheduled background polling.
 
 ## Install
@@ -27,7 +27,7 @@ After code changes, return to `chrome://extensions` and click the reload icon on
 
 1. Click the extension icon.
 2. Pick **ProPickle**.
-3. The extension refreshes the venue automatically only if there is no saved result yet.
+3. Click **Refresh Venue** when you want a fresh read.
 4. If you are already logged in, ProPickle refresh can usually open the booking page in the background, read it, sync it, and close the tab.
 5. If Chrome opens the booking page for login, waiver, or security checks, complete that setup manually.
 6. The extension keeps watching that tab and continues automatically when the schedule appears.
