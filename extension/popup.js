@@ -47,6 +47,24 @@ function formatExportTime(payload) {
   return date.toLocaleString();
 }
 
+function formatAge(payload) {
+  if (!payload?.exported_at) return "";
+  const exportedAt = new Date(payload.exported_at).getTime();
+  if (Number.isNaN(exportedAt)) return "";
+
+  const seconds = Math.max(0, Math.round((Date.now() - exportedAt) / 1000));
+  if (seconds < 60) return "just now";
+
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
 function selectedVenue() {
   return venues.find((venue) => venue.id === selectedVenueId) || venues[0] || null;
 }
@@ -68,7 +86,26 @@ function syncStatusMessage(syncStatus) {
 function readStatus(payload, syncStatus, prefix) {
   const dayCount = (payload?.days || []).length;
   const syncMessage = syncStatusMessage(syncStatus);
-  return `${prefix} ${dayCount} day(s).${syncMessage ? ` ${syncMessage}` : ""}`;
+  const age = formatAge(payload);
+  return `${prefix} ${dayCount} day(s).${age ? ` Last read ${age}.` : ""}${
+    syncMessage ? ` ${syncMessage}` : ""
+  }`;
+}
+
+function savedPayloadStatus(payload, syncStatus) {
+  const exportedAt = formatExportTime(payload);
+  const age = formatAge(payload);
+  const shareHint = syncStatus?.ok
+    ? "View Availability and Copy Share Link are ready."
+    : "Use Refresh Venue or Read Current Page to update the share page.";
+  const timeText = age || exportedAt ? ` Last read ${age || exportedAt}.` : "";
+  return `Showing saved ${sourceLabel(payload)} result.${timeText} ${shareHint}`;
+}
+
+function savedFallbackStatus(action, error) {
+  const saved = latestPayload ? savedPayloadStatus(latestPayload, latestSyncStatus) : "";
+  const detail = error?.message || String(error);
+  return saved ? `${action} failed. ${saved} ${detail}` : `${action} failed. ${detail}`;
 }
 
 function renderEmpty(message) {
@@ -113,27 +150,23 @@ async function loadSavedPayload() {
   if (!response?.ok) throw new Error(response?.error || "Could not load saved availability.");
 
   if (!response.payload) {
-    renderEmpty(`No saved ${selectedVenue()?.name || "venue"} result yet.`);
+    renderEmpty(
+      `No saved ${selectedVenue()?.name || "venue"} result yet. Use Refresh Venue, or open a schedule tab and use Read Current Page.`
+    );
     return false;
   }
 
   const syncStatus = await storedSyncStatus(selectedVenueId);
   rememberPayload(response.payload, syncStatus?.ok ? syncStatus : null);
-  const exportedAt = formatExportTime(response.payload);
-  const shareHint = syncStatus?.ok ? " Share link is ready." : " Refresh or read the page to sync the share link.";
-  setStatus(
-    exportedAt
-      ? `Showing saved ${sourceLabel(response.payload)} result from ${exportedAt}.${shareHint}`
-      : `Showing saved ${sourceLabel(response.payload)} result.${shareHint}`
-  );
+  setStatus(savedPayloadStatus(response.payload, syncStatus));
   return true;
 }
 
-async function refreshVenue({ auto = false } = {}) {
+async function refreshVenue() {
   if (isBusy || !selectedVenueId) return;
 
   setBusy(true);
-  setStatus(auto ? `Refreshing ${selectedVenue()?.name || "venue"}...` : "Refreshing venue...");
+  setStatus(`Refreshing ${selectedVenue()?.name || "venue"}...`);
 
   try {
     const response = await sendMessage({
@@ -154,8 +187,7 @@ async function refreshVenue({ auto = false } = {}) {
     rememberPayload(response.payload, response.syncStatus);
     setStatus(readStatus(response.payload, response.syncStatus, `Read for ${response.venue.name}:`));
   } catch (error) {
-    const prefix = latestPayload ? "Refresh failed; showing saved result: " : "";
-    setStatus(prefix + (error?.message || String(error)));
+    setStatus(savedFallbackStatus("Refresh", error));
   } finally {
     setBusy(false);
   }
@@ -165,7 +197,7 @@ async function readCurrentPage() {
   if (isBusy) return;
 
   setBusy(true);
-  setStatus(latestPayload ? "Reading current page..." : "Reading current page...");
+  setStatus("Reading current page...");
 
   try {
     const response = await sendMessage({ type: MESSAGE.READ_ACTIVE_TAB });
@@ -178,8 +210,7 @@ async function readCurrentPage() {
     rememberPayload(response.payload, response.syncStatus);
     setStatus(readStatus(response.payload, response.syncStatus, "Read from the current page:"));
   } catch (error) {
-    const prefix = latestPayload ? "Current page read failed; showing saved result: " : "";
-    setStatus(prefix + (error?.message || String(error)));
+    setStatus(savedFallbackStatus("Current page read", error));
   } finally {
     setBusy(false);
   }
@@ -238,8 +269,7 @@ async function selectVenue(venueId) {
   if (!response?.ok) throw new Error(response?.error || "Could not select venue.");
   selectedVenueId = response.venue.id;
   venueSelect.value = selectedVenueId;
-  const hasSavedPayload = await loadSavedPayload();
-  if (!hasSavedPayload) await refreshVenue({ auto: true });
+  await loadSavedPayload();
 }
 
 async function init() {
@@ -249,8 +279,7 @@ async function init() {
   venues = response.venues || [];
   selectedVenueId = response.selectedVenueId || AvailabilityRegistry.DEFAULT_VENUE_ID;
   populateVenues();
-  const hasSavedPayload = await loadSavedPayload();
-  if (!hasSavedPayload) await refreshVenue({ auto: true });
+  await loadSavedPayload();
 }
 
 venueSelect.addEventListener("change", () => {
