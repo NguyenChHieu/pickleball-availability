@@ -60,7 +60,7 @@ The share page shows each loaded day with merged open intervals, for example:
 
 The **View Availability** and **Copy Share Link** buttons appear only after a result has synced to the backend. Raw JSON export is intentionally hidden from the popup.
 
-Each day on the share page includes booking links. **Book this day** opens the venue booking page with a date marker that the extension can use to select that day; **Open booking page** is a plain fallback link.
+Each day on the share page includes **Open booking**, which opens the venue booking page with a date marker that the extension can use to select that day. If that does not happen, pick the day manually.
 
 ## Persistence
 

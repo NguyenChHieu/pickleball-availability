@@ -46,8 +46,7 @@ function renderBookingActions(day, payload) {
   const dayUrl = bookingDate ? `${bookingUrl}#pbb_date=${encodeURIComponent(bookingDate)}` : bookingUrl;
 
   return `<div class="booking-actions">
-    <a class="action primary" href="${escapeHtml(dayUrl)}" target="_blank" rel="noopener">Book this day</a>
-    <a class="action" href="${escapeHtml(bookingUrl)}" target="_blank" rel="noopener">Open booking page</a>
+    <a class="action" href="${escapeHtml(dayUrl)}" target="_blank" rel="noopener">Open booking</a>
   </div>`;
 }
 
@@ -163,20 +162,15 @@ function renderSharePage(payload, { venueId = "venue" } = {}) {
       }
 
       .action {
-        border: 1px solid #bfd4dc;
+        background: #0098c7;
+        border: 1px solid #0098c7;
         border-radius: 6px;
-        color: #1b5364;
+        color: #fff;
         font-size: 13px;
         font-weight: 700;
         padding: 7px 9px;
         text-decoration: none;
         white-space: nowrap;
-      }
-
-      .action.primary {
-        background: #0098c7;
-        border-color: #0098c7;
-        color: #fff;
       }
 
       .chips {
