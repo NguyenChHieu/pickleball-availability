@@ -1,5 +1,8 @@
 .idea/
 
+node_modules/
+.next/
+*.tsbuildinfo
 *.html
 !extension/*.html
 *_files/
