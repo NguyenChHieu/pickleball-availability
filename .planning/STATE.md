@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase PBB-01
-last_updated: "2026-07-02T07:38:05.549Z"
+last_updated: "2026-07-02T07:50:51.269Z"
 last_activity: 2026-07-02
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 50
+  completed_plans: 3
+  percent: 75
 ---
 
 # Project State
@@ -35,6 +35,7 @@ See: .planning/PROJECT.md (updated 2026-06-30)
 - Phase 1 research, pattern map, validation strategy, and 4 implementation plans are ready in `.planning/phases/PBB-01-venue-themed-availability-ui/`.
 - Plan 01 is complete: `GET /api/public/:shareToken/:venueId` returns display-safe cached availability JSON for the future web UI.
 - Plan 02 is complete: `web/` now has an isolated Next.js TypeScript scaffold and UI-SPEC baseline CSS.
+- Plan 03 is complete: the Next.js share route renders display-safe public availability with venue theme tokens and booking links.
 
 ## Active Phase
 
@@ -52,6 +53,7 @@ Phase 1: Venue-Themed Availability UI
 | 2026-07-02 | Plan Phase 1 implementation | Splits backend DTO, web scaffold, web route/cards, and polish/browser verification into 4 checked execution plans |
 | 2026-07-02 | Complete Phase 1 Plan 01 | Public web UI will consume an allowlisted backend DTO instead of raw cache or Supabase data |
 | 2026-07-02 | Complete Phase 1 Plan 02 | The polished UI will live in a separate Next.js app with no scraping or secret surface |
+| 2026-07-02 | Complete Phase 1 Plan 03 | The web route consumes only the public DTO and keeps venue styling in typed theme data |
 
 ## Blockers/Concerns
 
@@ -66,7 +68,7 @@ Phase 1: Venue-Themed Availability UI
 
 ## Next Step
 
-Continue Phase 1 Plan 03: add the share-token route, public DTO fetcher, theme mapping, availability page, and day cards.
+Continue Phase 1 Plan 04: add ProPickle visual polish, reduced-motion-safe hero treatment, responsive state polish, and browser verification.
 
 ## Performance Metrics
 
@@ -74,3 +76,4 @@ Continue Phase 1 Plan 03: add the share-token route, public DTO fetcher, theme m
 |-------|------|----------|-------|
 | PBB-01 | 01 | 25min | 3 tasks, 6 files |
 | PBB-01 | 02 | 25min | 2 tasks, 9 files |
+| PBB-01 | 03 | 35min | 2 tasks, 11 files |
