@@ -11,6 +11,7 @@
 **Requirements:** VIEW-01, VIEW-02, VIEW-03, VIEW-04, THEME-01, THEME-02, THEME-03
 
 **Success Criteria:**
+
 1. ProPickle share page clearly shows venue name, last-read freshness, days, interval chips, and open booking actions.
 2. ProPickle styling uses black, white, blue, and pickleball-green brand cues in a modern but readable way.
 3. Venue theme data is separated from the rendering logic so future venues can supply their own theme.
@@ -25,6 +26,7 @@
 **Requirements:** VENUE-01, VENUE-02, VENUE-03
 
 **Success Criteria:**
+
 1. Broadway Pickleball or North Ryde can be added through venue configuration with minimal provider changes.
 2. Extension popup can switch between ProPickle and the new venue.
 3. Backend stores and serves separate cached payloads by venue ID.
@@ -38,6 +40,7 @@
 **Requirements:** CACHE-01, CACHE-02, CACHE-03, CACHE-04
 
 **Success Criteria:**
+
 1. Popup never refreshes unexpectedly on open.
 2. Popup clearly distinguishes saved, refreshing, synced, failed, and setup-required states.
 3. Share page freshness is visible enough that stale data is not mistaken for live data.
@@ -51,6 +54,7 @@
 **Requirements:** BOT-01, BOT-02
 
 **Success Criteria:**
+
 1. Cached payload can produce both HTML cards and bot-style text summaries.
 2. Formatter output includes venue name, last-read freshness, day labels, and open intervals.
 3. Bot integration can remain delivery-only; it does not scrape or own a separate data model.

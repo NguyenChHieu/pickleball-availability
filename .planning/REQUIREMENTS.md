@@ -7,15 +7,15 @@
 
 ### Venue Viewing
 
-- [ ] **VIEW-01**: User can open a phone-friendly availability page for a venue from a secret share link.
-- [ ] **VIEW-02**: User can see one section per available booking day with merged open intervals.
-- [ ] **VIEW-03**: User can see when the cached availability was last read.
-- [ ] **VIEW-04**: User can open the booking page for a specific day from that day's availability card.
+- [x] **VIEW-01**: User can open a phone-friendly availability page for a venue from a secret share link.
+- [x] **VIEW-02**: User can see one section per available booking day with merged open intervals.
+- [x] **VIEW-03**: User can see when the cached availability was last read.
+- [x] **VIEW-04**: User can open the booking page for a specific day from that day's availability card.
 
 ### Venue Theming
 
 - [ ] **THEME-01**: ProPickle availability page uses ProPickle-style brand cues without reducing readability.
-- [ ] **THEME-02**: Venue styles are configured as theme data, not hard-coded per page.
+- [x] **THEME-02**: Venue styles are configured as theme data, not hard-coded per page.
 - [ ] **THEME-03**: Page transitions and motion are smooth but non-essential, so availability remains usable if animation is unavailable.
 
 ### Multi-Venue Support
@@ -68,12 +68,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIEW-01 | Phase 1 | Pending |
-| VIEW-02 | Phase 1 | Pending |
-| VIEW-03 | Phase 1 | Pending |
-| VIEW-04 | Phase 1 | Pending |
+| VIEW-01 | Phase 1 | Complete |
+| VIEW-02 | Phase 1 | Complete |
+| VIEW-03 | Phase 1 | Complete |
+| VIEW-04 | Phase 1 | Complete |
 | THEME-01 | Phase 1 | Pending |
-| THEME-02 | Phase 1 | Pending |
+| THEME-02 | Phase 1 | Complete |
 | THEME-03 | Phase 1 | Pending |
 | VENUE-01 | Phase 2 | Pending |
 | VENUE-02 | Phase 2 | Pending |
@@ -86,6 +86,7 @@
 | BOT-02 | Phase 4 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 16 total
 - Mapped to phases: 16
 - Unmapped: 0
