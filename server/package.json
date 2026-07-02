@@ -5,7 +5,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/index.js",
-    "check": "node --check src/index.js && node --check src/availabilityStore.js && node --check src/formatAvailability.js && node --check src/messenger.js && node --check src/sharePage.js"
+    "check": "node --check src/index.js && node --check src/availabilityStore.js && node --check src/formatAvailability.js && node --check src/messenger.js && node --check src/sharePage.js",
+    "test:public": "node --test test/publicAvailability.test.js"
   },
   "engines": {
     "node": ">=18"
