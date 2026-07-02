@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase PBB-01
-last_updated: "2026-07-02T07:50:51.269Z"
+status: Phase PBB-01 Complete
+last_updated: "2026-07-02T08:11:27.237Z"
 last_activity: 2026-07-02
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 75
+  completed_plans: 4
+  percent: 25
 ---
 
 # Project State
@@ -22,7 +22,7 @@ Last activity: 2026-07-02
 See: .planning/PROJECT.md (updated 2026-06-30)
 
 **Core value:** Show trustworthy open booking intervals quickly without manually clicking every booking day.
-**Current focus:** Phase PBB-01 - Venue-Themed Availability UI
+**Current focus:** Phase 2 - Second Venue Integration
 
 ## Current Status
 
@@ -36,10 +36,11 @@ See: .planning/PROJECT.md (updated 2026-06-30)
 - Plan 01 is complete: `GET /api/public/:shareToken/:venueId` returns display-safe cached availability JSON for the future web UI.
 - Plan 02 is complete: `web/` now has an isolated Next.js TypeScript scaffold and UI-SPEC baseline CSS.
 - Plan 03 is complete: the Next.js share route renders display-safe public availability with venue theme tokens and booking links.
+- Plan 04 is complete: the ProPickle web route has package-free hero polish, responsive state/card styling, and browser verification evidence.
 
 ## Active Phase
 
-Phase 1: Venue-Themed Availability UI
+Phase 1: Venue-Themed Availability UI - complete.
 
 ## Recent Decisions
 
@@ -54,6 +55,7 @@ Phase 1: Venue-Themed Availability UI
 | 2026-07-02 | Complete Phase 1 Plan 01 | Public web UI will consume an allowlisted backend DTO instead of raw cache or Supabase data |
 | 2026-07-02 | Complete Phase 1 Plan 02 | The polished UI will live in a separate Next.js app with no scraping or secret surface |
 | 2026-07-02 | Complete Phase 1 Plan 03 | The web route consumes only the public DTO and keeps venue styling in typed theme data |
+| 2026-07-02 | Complete Phase 1 Plan 04 | The ProPickle page now has package-free brand polish, safe invalid-link rendering, and browser-verified responsive states |
 
 ## Blockers/Concerns
 
@@ -68,7 +70,7 @@ Phase 1: Venue-Themed Availability UI
 
 ## Next Step
 
-Continue Phase 1 Plan 04: add ProPickle visual polish, reduced-motion-safe hero treatment, responsive state polish, and browser verification.
+Start Phase 2 discussion/planning for the second Playbypoint-compatible venue, likely Broadway Pickleball or North Ryde.
 
 ## Performance Metrics
 
@@ -77,3 +79,4 @@ Continue Phase 1 Plan 04: add ProPickle visual polish, reduced-motion-safe hero 
 | PBB-01 | 01 | 25min | 3 tasks, 6 files |
 | PBB-01 | 02 | 25min | 2 tasks, 9 files |
 | PBB-01 | 03 | 35min | 2 tasks, 11 files |
+| PBB-01 | 04 | 35min | 3 tasks, 6 files |
