@@ -1,15 +1,24 @@
 export type VenueTheme = {
   id: string;
   name: string;
+  identity: {
+    productLabel: string;
+    markLabel: string;
+    motion: "venue-pop" | "none";
+  };
   colors: {
     background: string;
     surface: string;
+    surfaceHigh: string;
+    surfaceHighest: string;
     foreground: string;
-    inverseForeground: string;
+    muted: string;
     accent: string;
     highlight: string;
-    muted: string;
     border: string;
+    borderStrong: string;
+    actionSurface: string;
+    actionForeground: string;
     warning: string;
   };
   copy: {
@@ -28,16 +37,25 @@ export type VenueTheme = {
 export const propickleTheme: VenueTheme = {
   id: "propickle",
   name: "ProPickle",
+  identity: {
+    productLabel: "Availability",
+    markLabel: "ProPickle venue mark",
+    motion: "venue-pop",
+  },
   colors: {
-    background: "#050505",
-    surface: "#ffffff",
-    foreground: "#050505",
-    inverseForeground: "#ffffff",
-    accent: "#0098ff",
-    highlight: "#b7ff2a",
-    muted: "#6b7280",
-    border: "#dce5e9",
-    warning: "#b45309",
+    background: "#050707",
+    surface: "#101212",
+    surfaceHigh: "#181b1b",
+    surfaceHighest: "#202323",
+    foreground: "#f1f4f2",
+    muted: "#a9b0ad",
+    accent: "#3d63e6",
+    highlight: "#aeea2f",
+    border: "#2b3030",
+    borderStrong: "#3a4040",
+    actionSurface: "#e8eeeb",
+    actionForeground: "#050707",
+    warning: "#f59e0b",
   },
   copy: {
     kicker: "Cached court availability",
@@ -52,7 +70,10 @@ export const propickleTheme: VenueTheme = {
   },
 };
 
+export const venueThemes: Record<string, VenueTheme> = {
+  [propickleTheme.id]: propickleTheme,
+};
+
 export function getVenueTheme(themeId = "") {
-  if (themeId === propickleTheme.id) return propickleTheme;
-  return propickleTheme;
+  return venueThemes[themeId] ?? propickleTheme;
 }

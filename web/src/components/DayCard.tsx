@@ -9,57 +9,70 @@ function formatHours(hours: number) {
   return Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, "");
 }
 
-function openHoursLabel(hours: number) {
-  const label = formatHours(hours);
-  return `${label} open ${hours === 1 ? "hour" : "hours"}`;
-}
-
 function splitDateLabel(date: string) {
   const [weekday, ...rest] = date.split(" ");
   return {
-    weekday: weekday || date,
+    weekday: (weekday || date).replace(/,$/, ""),
     dateDetail: rest.join(" ") || date,
   };
 }
 
+function statusLabel(day: PublicAvailabilityDay) {
+  if (!day.openIntervals.length) return "No open intervals";
+  if (day.openIntervals.length <= 2) return "Limited slots";
+  return "Open availability";
+}
+
 export function DayCard({ day, index }: DayCardProps) {
-  const titleId = `day-card-${index}`;
-  const openHours = openHoursLabel(day.totalOpenHours);
+  const titleId = `stitch-day-${index}`;
   const { weekday, dateDetail } = splitDateLabel(day.date);
+  const hoursLabel = `${formatHours(day.totalOpenHours)} HR`;
 
   return (
-    <section className="day-card" aria-labelledby={titleId}>
-      <div className="day-card__date">
-        <p>{weekday}</p>
-        <h2 id={titleId}>{dateDetail}</h2>
-      </div>
-
-      <div className="day-card__body">
-        <div className="day-card__title-group">
-          <p className="day-card__meta">{day.title}</p>
-          <p className="day-card__hours tabular-nums">{openHours}</p>
+    <article className="stitch-day-card" aria-labelledby={titleId}>
+      <header className="stitch-day-card__header">
+        <div>
+          <h2 id={titleId}>
+            {weekday} {dateDetail}
+          </h2>
+          <p>{statusLabel(day)}</p>
         </div>
+        <span className="tabular-nums">{hoursLabel}</span>
+      </header>
 
-        {day.openIntervals.length ? (
-          <ul className="interval-list" aria-label={`${day.date} open intervals`}>
-            {day.openIntervals.map((interval) => (
-              <li key={`${interval.startTime}-${interval.endTime}`}>
-                <span className="interval-chip tabular-nums">{interval.label}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="day-card__empty">No open intervals</p>
-        )}
-      </div>
+      {day.openIntervals.length ? (
+        <ul className="stitch-intervals" aria-label={`${day.date} open intervals`}>
+          {day.openIntervals.map((interval) => (
+            <li className="stitch-interval" key={`${interval.startTime}-${interval.endTime}`}>
+              <div>
+                <span className="stitch-interval__time tabular-nums">{interval.label}</span>
+                <span className="stitch-interval__detail">{day.title} - available court window</span>
+              </div>
+              {day.bookingUrl ? (
+                <a href={day.bookingUrl} target="_blank" rel="noopener noreferrer">
+                  Book
+                </a>
+              ) : (
+                <span className="stitch-interval__disabled">Book</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="stitch-interval stitch-interval--empty">
+          <div>
+            <span className="stitch-interval__time">No open intervals</span>
+            <span className="stitch-interval__detail">Open booking to confirm the live schedule.</span>
+          </div>
+          <span className="stitch-interval__disabled">Full</span>
+        </div>
+      )}
 
       {day.bookingUrl ? (
-        <div className="day-card__actions">
-          <a className="booking-link touch-target" href={day.bookingUrl} target="_blank" rel="noopener noreferrer">
-            Open booking
-          </a>
-        </div>
+        <a className="stitch-day-card__reserve" href={day.bookingUrl} target="_blank" rel="noopener noreferrer">
+          Reserve Court
+        </a>
       ) : null}
-    </section>
+    </article>
   );
 }
