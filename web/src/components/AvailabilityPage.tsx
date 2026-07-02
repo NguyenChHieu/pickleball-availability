@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { DayCard } from "@/components/DayCard";
+import { HeroScene } from "@/components/HeroScene";
 import type { PublicAvailability } from "@/lib/publicAvailability";
 import { getVenueTheme } from "@/lib/themes";
 
@@ -45,6 +46,7 @@ export function AvailabilityPage({ availability, venueId = "propickle" }: Availa
   return (
     <main className="availability-page" style={themeStyle(themeId)}>
       <section className="availability-hero" aria-labelledby="availability-title">
+        <HeroScene />
         <div className="availability-hero__inner">
           <div className="availability-hero__copy">
             <p className="availability-kicker">{theme.copy.kicker}</p>

@@ -48,6 +48,7 @@ body {
   line-height: var(--line-height-body);
   margin: 0;
   min-height: 100vh;
+  overflow-x: clip;
 }
 
 body,
@@ -69,7 +70,6 @@ a {
 
 img,
 svg,
-canvas,
 video {
   display: block;
   max-width: 100%;
@@ -174,15 +174,22 @@ h2,
 .availability-hero {
   background: var(--venue-background);
   color: var(--venue-inverse-foreground);
-  min-height: 46vh;
-  padding: 28px 16px 64px;
+  display: grid;
+  min-height: clamp(42vh, 48vh, 52vh);
+  overflow: hidden;
+  padding: 24px 16px 58px;
+  position: relative;
 }
 
 .availability-hero__inner {
+  align-self: center;
   display: grid;
   gap: 24px;
   margin: 0 auto;
   max-width: 960px;
+  position: relative;
+  width: 100%;
+  z-index: 1;
 }
 
 .availability-hero__copy {
@@ -201,6 +208,7 @@ h2,
 
 .availability-hero h1 {
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 
 .availability-freshness {
@@ -225,6 +233,7 @@ h2,
 }
 
 .availability-summary div {
+  background: rgb(255 255 255 / 6%);
   border: 1px solid rgb(255 255 255 / 18%);
   border-radius: var(--radius-card);
   padding: 14px;
@@ -247,14 +256,15 @@ h2,
 
 .availability-section {
   background: var(--color-page);
-  margin-top: -32px;
-  padding: 0 16px 28px;
+  margin-top: -28px;
+  padding: 0 16px 32px;
   position: relative;
+  z-index: 2;
 }
 
 .availability-section__inner {
   margin: 0 auto;
-  max-width: 840px;
+  max-width: 760px;
 }
 
 .day-card-list {
@@ -271,11 +281,8 @@ h2,
   padding: 16px;
 }
 
-.day-card__header {
-  align-items: flex-start;
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
+.day-card {
+  animation: day-card-in 420ms ease both;
 }
 
 .day-card__title-group {
@@ -287,6 +294,18 @@ h2,
 .day-card__meta {
   color: var(--venue-muted);
   overflow-wrap: anywhere;
+}
+
+.day-card__hours {
+  color: var(--venue-foreground);
+  font-size: var(--font-size-label);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-label);
+}
+
+.day-card__actions {
+  display: flex;
+  margin-top: 16px;
 }
 
 .booking-link {
@@ -303,6 +322,15 @@ h2,
   padding: 10px 14px;
   text-align: center;
   text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.booking-link:hover {
+  background: #ffffff;
+  color: var(--venue-accent);
 }
 
 .interval-list {
@@ -338,16 +366,147 @@ h2,
 
 .availability-footer {
   color: var(--venue-muted);
-  font-size: 12px;
+  font-size: var(--font-size-label);
   margin: 0 auto;
-  max-width: 840px;
+  max-width: 760px;
   padding: 0 16px 28px;
+}
+
+.hero-scene {
+  --hero-shift: 0px;
+  --hero-tilt: 0deg;
+  --hero-ball-spin: 0deg;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+}
+
+.hero-scene__court {
+  aspect-ratio: 1.55;
+  border: 2px solid rgb(0 152 255 / 70%);
+  border-radius: var(--radius-card);
+  bottom: -48px;
+  position: absolute;
+  right: max(-132px, -12vw);
+  transform: perspective(760px) rotateX(58deg) rotateZ(-11deg) translateY(var(--hero-shift)) rotate(var(--hero-tilt));
+  transform-origin: center;
+  width: min(620px, 78vw);
+}
+
+.hero-scene__court::before,
+.hero-scene__court::after,
+.hero-scene__line {
+  background: rgb(0 152 255 / 62%);
+  content: "";
+  position: absolute;
+}
+
+.hero-scene__court::before {
+  height: 2px;
+  inset-inline: 0;
+  top: 50%;
+}
+
+.hero-scene__court::after {
+  bottom: 0;
+  top: 0;
+  width: 2px;
+  left: 50%;
+}
+
+.hero-scene__line--center {
+  height: 2px;
+  left: 0;
+  right: 0;
+  top: 24%;
+}
+
+.hero-scene__line--left,
+.hero-scene__line--right {
+  bottom: 0;
+  top: 0;
+  width: 2px;
+}
+
+.hero-scene__line--left {
+  left: 24%;
+}
+
+.hero-scene__line--right {
+  right: 24%;
+}
+
+.hero-scene__line--kitchen {
+  bottom: 28%;
+  height: 2px;
+  left: 0;
+  right: 0;
+}
+
+.hero-scene__ball {
+  aspect-ratio: 1;
+  background: var(--venue-highlight);
+  border: 3px solid rgb(5 5 5 / 72%);
+  border-radius: 999px;
+  position: absolute;
+  right: clamp(18px, 16vw, 220px);
+  top: clamp(62px, 14vh, 146px);
+  transform: translateY(var(--hero-shift)) rotate(var(--hero-ball-spin));
+  transform-origin: center;
+  width: clamp(64px, 11vw, 112px);
+}
+
+.hero-scene__ball span {
+  background: var(--venue-background);
+  border-radius: 999px;
+  display: block;
+  height: 12%;
+  position: absolute;
+  width: 12%;
+}
+
+.hero-scene__ball span:nth-child(1) {
+  left: 30%;
+  top: 18%;
+}
+
+.hero-scene__ball span:nth-child(2) {
+  right: 22%;
+  top: 34%;
+}
+
+.hero-scene__ball span:nth-child(3) {
+  left: 20%;
+  top: 52%;
+}
+
+.hero-scene__ball span:nth-child(4) {
+  right: 32%;
+  bottom: 18%;
+}
+
+.hero-scene__ball span:nth-child(5) {
+  left: 48%;
+  top: 44%;
+}
+
+@keyframes day-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (min-width: 768px) {
   .availability-hero {
-    min-height: 54vh;
-    padding: 48px 24px 84px;
+    min-height: clamp(52vh, 58vh, 64vh);
+    padding: 48px 24px 86px;
   }
 
   .availability-hero__inner {
@@ -366,15 +525,27 @@ h2,
 }
 
 @media (max-width: 479px) {
-  .day-card__header {
-    display: grid;
-  }
-
   .booking-link {
     width: 100%;
   }
 
   .availability-summary {
     grid-template-columns: 1fr;
+  }
+
+  .hero-scene__court {
+    right: -180px;
+    width: 520px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .day-card {
+    animation: none;
+  }
+
+  .hero-scene__court,
+  .hero-scene__ball {
+    transform: none;
   }
 }

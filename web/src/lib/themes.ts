@@ -46,7 +46,7 @@ export const propickleTheme: VenueTheme = {
     emptyBody: "Refresh ProPickle from the extension, then reopen this page.",
     noDaysHeading: "No booking days found",
     noDaysBody: "The latest read did not include visible booking days. Try a manual refresh after the booking page has loaded.",
-    errorBody: "We could not load this share page. Check the link or try the stable fallback page.",
+    errorBody: "Check the link or try the stable fallback page.",
     staleWarning: "This is an older read. Open booking to confirm live availability before making plans.",
     footerNote: "Read-only page. Availability comes from the latest browser-extension read.",
   },
