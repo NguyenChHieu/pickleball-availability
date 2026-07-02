@@ -1,6 +1,21 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-07-02T05:04:23.526Z"
+last_activity: 2026-07-02 - Phase 1 UI-SPEC approved.
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
+---
+
 # Project State
 
-Last activity: 2026-06-30 - Initialized GSD planning from current repo state.
+Last activity: 2026-07-02 - Phase 1 UI-SPEC approved.
 
 ## Project Reference
 
@@ -15,7 +30,8 @@ See: .planning/PROJECT.md (updated 2026-06-30)
 - Backend can persist availability through Supabase.
 - Share page currently uses server-rendered HTML from `server/src/sharePage.js`.
 - Popup no longer auto-refreshes on open; refresh is user-directed.
-- Next planning focus is venue-themed availability UX and whether to introduce a separate `web/` Next.js TypeScript app.
+- Phase 1 UI-SPEC is approved at `.planning/phases/PBB-01-venue-themed-availability-ui/01-UI-SPEC.md`.
+- Next planning focus is implementation context for the `web/` Next.js TypeScript app and safe public display endpoint.
 
 ## Active Phase
 
@@ -28,6 +44,7 @@ Phase 1: Venue-Themed Availability UI
 | 2026-06-30 | Keep extension plain JavaScript for now | Extension should stay reliable and low-friction |
 | 2026-06-30 | Explore polished UI outside extension | Visual polish belongs in share/web UI, not the scraper |
 | 2026-06-30 | Initialize GSD manually from current state | Repo is small enough to skip a heavyweight codebase map |
+| 2026-07-02 | Approve Phase 1 UI-SPEC | Locks ProPickle themed web UI, motion, accessibility, and display-data contracts |
 
 ## Blockers/Concerns
 
@@ -42,4 +59,4 @@ Phase 1: Venue-Themed Availability UI
 
 ## Next Step
 
-Run `$gsd-ui-phase 1` or discuss Phase 1 manually to define the venue-themed availability UI.
+Run `$gsd-discuss-phase 1` to capture implementation context, or `$gsd-plan-phase 1` to plan directly from the approved UI-SPEC.
