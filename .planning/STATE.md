@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Executing Phase PBB-01
-last_updated: "2026-07-02T07:11:53.928Z"
+last_updated: "2026-07-02T07:38:05.549Z"
 last_activity: 2026-07-02
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -34,6 +34,7 @@ See: .planning/PROJECT.md (updated 2026-06-30)
 - Phase 1 context is gathered at `.planning/phases/PBB-01-venue-themed-availability-ui/01-CONTEXT.md`.
 - Phase 1 research, pattern map, validation strategy, and 4 implementation plans are ready in `.planning/phases/PBB-01-venue-themed-availability-ui/`.
 - Plan 01 is complete: `GET /api/public/:shareToken/:venueId` returns display-safe cached availability JSON for the future web UI.
+- Plan 02 is complete: `web/` now has an isolated Next.js TypeScript scaffold and UI-SPEC baseline CSS.
 
 ## Active Phase
 
@@ -50,6 +51,7 @@ Phase 1: Venue-Themed Availability UI
 | 2026-07-02 | Gather Phase 1 context | Locks display-ready public endpoint, hybrid theme ownership, display-safe failures, and 12h stale threshold |
 | 2026-07-02 | Plan Phase 1 implementation | Splits backend DTO, web scaffold, web route/cards, and polish/browser verification into 4 checked execution plans |
 | 2026-07-02 | Complete Phase 1 Plan 01 | Public web UI will consume an allowlisted backend DTO instead of raw cache or Supabase data |
+| 2026-07-02 | Complete Phase 1 Plan 02 | The polished UI will live in a separate Next.js app with no scraping or secret surface |
 
 ## Blockers/Concerns
 
@@ -64,10 +66,11 @@ Phase 1: Venue-Themed Availability UI
 
 ## Next Step
 
-Continue Phase 1 Plan 02: scaffold the separate `web/` Next.js TypeScript app that consumes the public availability endpoint.
+Continue Phase 1 Plan 03: add the share-token route, public DTO fetcher, theme mapping, availability page, and day cards.
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
 | PBB-01 | 01 | 25min | 3 tasks, 6 files |
+| PBB-01 | 02 | 25min | 2 tasks, 9 files |

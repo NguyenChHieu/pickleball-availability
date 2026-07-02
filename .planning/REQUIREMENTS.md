@@ -14,9 +14,9 @@
 
 ### Venue Theming
 
-- [ ] **THEME-01**: ProPickle availability page uses ProPickle-style brand cues without reducing readability.
+- [x] **THEME-01**: ProPickle availability page uses ProPickle-style brand cues without reducing readability.
 - [x] **THEME-02**: Venue styles are configured as theme data, not hard-coded per page.
-- [ ] **THEME-03**: Page transitions and motion are smooth but non-essential, so availability remains usable if animation is unavailable.
+- [x] **THEME-03**: Page transitions and motion are smooth but non-essential, so availability remains usable if animation is unavailable.
 
 ### Multi-Venue Support
 
@@ -72,9 +72,9 @@
 | VIEW-02 | Phase 1 | Complete |
 | VIEW-03 | Phase 1 | Complete |
 | VIEW-04 | Phase 1 | Complete |
-| THEME-01 | Phase 1 | Pending |
+| THEME-01 | Phase 1 | Complete |
 | THEME-02 | Phase 1 | Complete |
-| THEME-03 | Phase 1 | Pending |
+| THEME-03 | Phase 1 | Complete |
 | VENUE-01 | Phase 2 | Pending |
 | VENUE-02 | Phase 2 | Pending |
 | VENUE-03 | Phase 2 | Pending |
