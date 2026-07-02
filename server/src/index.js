@@ -9,6 +9,7 @@ const {
 } = require("./availabilityStore");
 const { answerForMessage, formatAvailability } = require("./formatAvailability");
 const { extractIncomingMessages, sendMessengerText, verifyWebhook } = require("./messenger");
+const { buildPublicAvailabilityResponse } = require("./publicAvailability");
 const { renderSharePage } = require("./sharePage");
 
 const PORT = Number(process.env.PORT || 8787);
@@ -135,6 +136,18 @@ function shareFromPath(pathname, suffix = "") {
   };
 }
 
+function publicShareFromPath(pathname) {
+  const match = pathname.match(/^\/api\/public\/([^/]+)\/([^/]+)$/);
+  if (!match) return null;
+  const shareToken = decodePathSegment(match[1]);
+  const venueId = decodePathSegment(match[2]);
+  if (!shareToken || !venueId) return null;
+  return {
+    shareToken,
+    venueId,
+  };
+}
+
 function validShareToken(shareToken) {
   return Boolean(SHARE_TOKEN && shareToken && shareToken === SHARE_TOKEN);
 }
@@ -189,6 +202,17 @@ async function handleShareText(response, shareToken, venueId) {
   sendText(response, payload ? 200 : 404, formatAvailability(payload));
 }
 
+async function handlePublicAvailability(response, shareToken, venueId) {
+  if (!validShareToken(shareToken)) {
+    notFound(response);
+    return;
+  }
+
+  const record = await getAvailabilityRecord(venueId);
+  const result = buildPublicAvailabilityResponse(record, { venueId });
+  sendApiJson(response, result.status, result.body);
+}
+
 async function handleMessengerGet(url, response) {
   const verification = verifyWebhook(url.searchParams);
   if (!verification.ok) {
@@ -222,8 +246,17 @@ async function handleRequest(request, response) {
       return;
     }
 
-    if (request.method === "OPTIONS" && pathname.startsWith("/api/availability/")) {
+    if (
+      request.method === "OPTIONS" &&
+      (pathname.startsWith("/api/availability/") || pathname.startsWith("/api/public/"))
+    ) {
       sendApiPreflight(response);
+      return;
+    }
+
+    const publicShare = publicShareFromPath(pathname);
+    if (request.method === "GET" && publicShare) {
+      await handlePublicAvailability(response, publicShare.shareToken, publicShare.venueId);
       return;
     }
 
@@ -267,6 +300,13 @@ async function handleRequest(request, response) {
     notFound(response);
   } catch (error) {
     console.error(error);
+    if (pathname.startsWith("/api/public/")) {
+      sendApiJson(response, 500, {
+        state: "error",
+        message: "We could not load this share page.",
+      });
+      return;
+    }
     if (pathname.startsWith("/api/")) {
       sendApiJson(response, 500, { error: error?.message || String(error) });
       return;
@@ -279,6 +319,15 @@ const server = http.createServer((request, response) => {
   handleRequest(request, response);
 });
 
-server.listen(PORT, () => {
-  console.log(`Availability bot server listening on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`Availability bot server listening on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = {
+  handleRequest,
+  handlePublicAvailability,
+  publicShareFromPath,
+  server,
+};

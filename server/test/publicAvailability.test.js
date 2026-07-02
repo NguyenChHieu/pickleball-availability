@@ -1,5 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs/promises");
+const http = require("node:http");
+const os = require("node:os");
+const path = require("node:path");
 
 const { bookingActionUrlForDay, bookingUrlForDay, stripHash } = require("../src/bookingLinks");
 const { buildPublicAvailabilityResponse, STALE_THRESHOLD_HOURS } = require("../src/publicAvailability");
@@ -32,6 +36,77 @@ const READY_RECORD = {
     ],
   },
 };
+
+const SERVER_MODULES = ["../src/index", "../src/availabilityStore"];
+const SERVER_ENV_KEYS = [
+  "AVAILABILITY_DATA_DIR",
+  "AVAILABILITY_SYNC_TOKEN",
+  "RENDER",
+  "SHARE_TOKEN",
+  "SUPABASE_SECRET_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_URL",
+];
+
+function clearServerModules() {
+  for (const modulePath of SERVER_MODULES) {
+    delete require.cache[require.resolve(modulePath)];
+  }
+}
+
+function restoreEnv(previousEnv) {
+  for (const [key, value] of Object.entries(previousEnv)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
+
+async function startPublicServer(t) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "pbb-public-"));
+  const previousEnv = Object.fromEntries(SERVER_ENV_KEYS.map((key) => [key, process.env[key]]));
+
+  process.env.AVAILABILITY_DATA_DIR = tempDir;
+  process.env.AVAILABILITY_SYNC_TOKEN = "test-sync-token";
+  process.env.SHARE_TOKEN = "dev-share";
+  delete process.env.RENDER;
+  delete process.env.SUPABASE_SECRET_KEY;
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.SUPABASE_URL;
+
+  clearServerModules();
+  const { handleRequest } = require("../src/index");
+  const { saveAvailability } = require("../src/availabilityStore");
+  const server = http.createServer(handleRequest);
+
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+
+  t.after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+    await fs.rm(tempDir, { force: true, recursive: true });
+    restoreEnv(previousEnv);
+    clearServerModules();
+  });
+
+  return {
+    baseUrl: `http://127.0.0.1:${server.address().port}`,
+    saveAvailability,
+  };
+}
+
+async function getJson(url, options) {
+  const response = await fetch(url, options);
+  return {
+    body: await response.json(),
+    headers: response.headers,
+    status: response.status,
+  };
+}
 
 test("ready cache returns display-ready allowlisted ProPickle availability", () => {
   const result = buildPublicAvailabilityResponse(READY_RECORD, {
@@ -129,4 +204,39 @@ test("safe booking links strip existing hashes and reject unsafe protocols", () 
     "https://book.propickle.com.au/book/ProPickle#pbb_date=Tue%2030%20Jun"
   );
   assert.equal(bookingActionUrlForDay({ source_url: "javascript:alert(1)" }, {}), "");
+});
+
+test("public endpoint validates token and returns display-safe cache states", async (t) => {
+  const { baseUrl, saveAvailability } = await startPublicServer(t);
+
+  const wrongToken = await getJson(`${baseUrl}/api/public/wrong/propickle`);
+  assert.equal(wrongToken.status, 404);
+  assert.deepEqual(wrongToken.body, { error: "Not found" });
+
+  const empty = await getJson(`${baseUrl}/api/public/dev-share/propickle`);
+  assert.equal(empty.status, 404);
+  assert.equal(empty.headers.get("access-control-allow-origin"), "*");
+  assert.deepEqual(empty.body, {
+    state: "empty",
+    message: "No cached availability yet.",
+    fallbackUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
+  });
+
+  await saveAvailability("propickle", READY_RECORD.payload);
+
+  const ready = await getJson(`${baseUrl}/api/public/dev-share/propickle`);
+  assert.equal(ready.status, 200);
+  assert.equal(ready.headers.get("access-control-allow-origin"), "*");
+  assert.equal(ready.body.state, "ready");
+  assert.equal(ready.body.venueId, "propickle");
+  assert.equal(ready.body.days.length, 2);
+  assert.equal(
+    ready.body.days[0].bookingUrl,
+    "https://book.propickle.com.au/book/ProPickle?skip_waivers=true#pbb_date=Tue%2030%20Jun"
+  );
+  assert.doesNotMatch(JSON.stringify(ready.body), /payload|received_at|venue_id|SUPABASE|AVAILABILITY_SYNC_TOKEN|x-sync-token/i);
+
+  const preflight = await fetch(`${baseUrl}/api/public/dev-share/propickle`, { method: "OPTIONS" });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), "*");
 });
