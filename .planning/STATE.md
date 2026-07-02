@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-07-02T05:04:23.526Z"
-last_activity: 2026-07-02 - Phase 1 UI-SPEC approved.
+last_updated: "2026-07-02T05:23:53.448Z"
+last_activity: 2026-07-02 - Phase 1 context gathered.
 progress:
   total_phases: 4
   completed_phases: 0
@@ -15,7 +15,7 @@ progress:
 
 # Project State
 
-Last activity: 2026-07-02 - Phase 1 UI-SPEC approved.
+Last activity: 2026-07-02 - Phase 1 context gathered.
 
 ## Project Reference
 
@@ -31,7 +31,8 @@ See: .planning/PROJECT.md (updated 2026-06-30)
 - Share page currently uses server-rendered HTML from `server/src/sharePage.js`.
 - Popup no longer auto-refreshes on open; refresh is user-directed.
 - Phase 1 UI-SPEC is approved at `.planning/phases/PBB-01-venue-themed-availability-ui/01-UI-SPEC.md`.
-- Next planning focus is implementation context for the `web/` Next.js TypeScript app and safe public display endpoint.
+- Phase 1 context is gathered at `.planning/phases/PBB-01-venue-themed-availability-ui/01-CONTEXT.md`.
+- Next planning focus is implementation planning for the safe public display endpoint and `web/` Next.js TypeScript app.
 
 ## Active Phase
 
@@ -45,6 +46,7 @@ Phase 1: Venue-Themed Availability UI
 | 2026-06-30 | Explore polished UI outside extension | Visual polish belongs in share/web UI, not the scraper |
 | 2026-06-30 | Initialize GSD manually from current state | Repo is small enough to skip a heavyweight codebase map |
 | 2026-07-02 | Approve Phase 1 UI-SPEC | Locks ProPickle themed web UI, motion, accessibility, and display-data contracts |
+| 2026-07-02 | Gather Phase 1 context | Locks display-ready public endpoint, hybrid theme ownership, display-safe failures, and 12h stale threshold |
 
 ## Blockers/Concerns
 
@@ -59,4 +61,4 @@ Phase 1: Venue-Themed Availability UI
 
 ## Next Step
 
-Run `$gsd-discuss-phase 1` to capture implementation context, or `$gsd-plan-phase 1` to plan directly from the approved UI-SPEC.
+Run `$gsd-plan-phase 1` to create the implementation plan from the approved UI-SPEC and context.
