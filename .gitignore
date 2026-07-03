@@ -19,3 +19,7 @@ endpoints_log.json
 *.test.json
 *.test.csv
 web/data/*.json
+
+.vercel
+.env*
+!.env.example
