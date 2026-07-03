@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ProPickle Availability",
-  description: "Cached court availability for ProPickle.",
+  title: "Pickleball Availability Buddy",
+  description: "Read-only cached pickleball venue availability with shareable pages.",
 };
 
 type RootLayoutProps = Readonly<{

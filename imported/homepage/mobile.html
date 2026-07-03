@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Pickleball Buddy</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#424754",
+                    "on-tertiary": "#ffffff",
+                    "tertiary": "#924700",
+                    "on-tertiary-fixed": "#311400",
+                    "secondary-fixed-dim": "#98da27",
+                    "on-tertiary-fixed-variant": "#723600",
+                    "surface-bright": "#f9f9ff",
+                    "secondary-fixed": "#b2f746",
+                    "on-background": "#191b23",
+                    "inverse-primary": "#adc6ff",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed": "#001a42",
+                    "on-primary-container": "#fefcff",
+                    "surface-tint": "#005ac2",
+                    "on-secondary-container": "#496f00",
+                    "on-error-container": "#93000a",
+                    "secondary-container": "#b2f746",
+                    "surface-container-high": "#e6e7f2",
+                    "secondary": "#446900",
+                    "on-tertiary-container": "#fffbff",
+                    "tertiary-fixed-dim": "#ffb786",
+                    "primary-fixed-dim": "#adc6ff",
+                    "error": "#ba1a1a",
+                    "on-primary-fixed-variant": "#004395",
+                    "inverse-surface": "#2e3038",
+                    "on-secondary": "#ffffff",
+                    "surface": "#f9f9ff",
+                    "on-secondary-fixed": "#121f00",
+                    "background": "#f9f9ff",
+                    "on-error": "#ffffff",
+                    "outline-variant": "#c2c6d6",
+                    "surface-dim": "#d8d9e3",
+                    "primary": "#0058be",
+                    "tertiary-container": "#b75b00",
+                    "primary-container": "#2170e4",
+                    "surface-container": "#ecedf7",
+                    "inverse-on-surface": "#eff0fa",
+                    "surface-variant": "#e1e2ec",
+                    "on-surface": "#191b23",
+                    "surface-container-low": "#f2f3fd",
+                    "outline": "#727785",
+                    "on-secondary-fixed-variant": "#334f00",
+                    "surface-container-lowest": "#ffffff",
+                    "primary-fixed": "#d8e2ff",
+                    "error-container": "#ffdad6",
+                    "surface-container-highest": "#e1e2ec",
+                    "tertiary-fixed": "#ffdcc6"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "gutter": "24px",
+                    "container-max": "1280px",
+                    "section-gap-sm": "64px",
+                    "margin-mobile": "16px",
+                    "section-gap-lg": "120px",
+                    "unit": "4px",
+                    "safe": "env(safe-area-inset-bottom)"
+            },
+            "fontFamily": {
+                    "display-xl-mobile": ["Geist"],
+                    "body-md": ["Geist"],
+                    "headline-md": ["Geist"],
+                    "display-xl": ["Geist"],
+                    "body-lg": ["Geist"],
+                    "label-sm": ["Geist"],
+                    "headline-lg": ["Geist"],
+                    "headline-lg-mobile": ["Geist"]
+            },
+            "fontSize": {
+                    "display-xl-mobile": ["40px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.4", "fontWeight": "600"}],
+                    "display-xl": ["64px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "label-sm": ["14px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-safe">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 backdrop-blur-xl bg-surface/80 dark:bg-surface-dim/80 border-b border-outline-variant dark:border-outline">
+<div class="flex justify-between items-center px-margin-mobile h-16 w-full">
+<div class="flex items-center gap-2 cursor-pointer active:scale-95 duration-200 hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim" style="font-variation-settings: 'FILL' 1;">sports_tennis</span>
+<span class="font-headline-md text-headline-md-mobile text-primary dark:text-primary-fixed-dim font-bold tracking-tight">Pickleball Buddy</span>
+</div>
+<div class="flex items-center">
+<button aria-label="Toggle Theme" class="p-2 cursor-pointer active:scale-95 duration-200 hover:opacity-80 transition-opacity text-on-surface-variant">
+<span class="material-symbols-outlined">light_mode</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="pt-24 px-margin-mobile pb-32">
+<!-- Hero Section -->
+<section class="mb-section-gap-sm min-h-[707px] flex flex-col justify-center">
+<div class="w-full h-64 bg-surface-container rounded-xl mb-8 flex items-center justify-center overflow-hidden border border-outline-variant dark:border-outline relative">
+<!-- Placeholder for 3D visual -->
+<div class="absolute inset-0 bg-gradient-to-tr from-surface-container to-surface-container-high opacity-50"></div>
+<span class="material-symbols-outlined text-primary text-6xl opacity-20">view_in_ar</span>
+</div>
+<h1 class="font-display-xl-mobile text-display-xl-mobile text-on-background mb-4">
+                Stop clicking through every day just to find open court time.
+            </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-8 max-w-md">
+                A unified, fast view of available courts across your favorite venues. Sync and play.
+            </p>
+<button class="bg-primary text-on-primary w-full py-4 rounded-lg font-headline-md text-[18px] active:scale-95 transition-transform duration-200 min-h-[44px]">
+                Get Started
+            </button>
+</section>
+<!-- Availability Preview Section -->
+<section class="mb-section-gap-sm scroll-mt-24" id="preview">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile mb-6">Live Availability Preview</h2>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-6">
+<div class="flex justify-between items-start mb-6">
+<div>
+<h3 class="font-headline-md text-[20px]">Nexus Athletics</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Indoor Courts</p>
+</div>
+<span class="bg-secondary-container text-on-secondary-container font-label-sm text-label-sm px-2 py-1 rounded uppercase tracking-wider">Live</span>
+</div>
+<div class="space-y-4">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-2">Today, Oct 24</p>
+<div class="flex flex-wrap gap-2">
+<button class="border border-outline-variant rounded p-2 text-center flex-1 min-w-[80px] active:bg-surface-container transition-colors">
+<span class="font-mono text-sm block">08:00 AM</span>
+</button>
+<button class="border border-outline-variant rounded p-2 text-center flex-1 min-w-[80px] active:bg-surface-container transition-colors">
+<span class="font-mono text-sm block">09:30 AM</span>
+</button>
+<button class="border border-outline-variant rounded p-2 text-center flex-1 min-w-[80px] active:bg-surface-container transition-colors opacity-50 line-through">
+<span class="font-mono text-sm block">11:00 AM</span>
+</button>
+</div>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-2">Tomorrow, Oct 25</p>
+<div class="flex flex-wrap gap-2">
+<button class="border border-outline-variant rounded p-2 text-center flex-1 min-w-[80px] active:bg-surface-container transition-colors">
+<span class="font-mono text-sm block">07:00 AM</span>
+</button>
+<button class="border border-outline-variant rounded p-2 text-center flex-1 min-w-[80px] active:bg-surface-container transition-colors">
+<span class="font-mono text-sm block">08:30 AM</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- How it Works Section -->
+<section class="mb-section-gap-sm">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile mb-6">How it Works</h2>
+<div class="space-y-6">
+<!-- Step 1 -->
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center shrink-0 border border-outline-variant">
+<span class="material-symbols-outlined text-primary">extension</span>
+</div>
+<div>
+<h3 class="font-headline-md text-[20px] mb-1">1. Extension Reads</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Securely parses availability data directly from supported venue portals.</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center shrink-0 border border-outline-variant">
+<span class="material-symbols-outlined text-primary">cloud_sync</span>
+</div>
+<div>
+<h3 class="font-headline-md text-[20px] mb-1">2. Cached Web Page</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Aggregates the data into a clean, lightning-fast dashboard.</p>
+</div>
+</div>
+<!-- Step 3 -->
+<div class="flex gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center shrink-0 border border-outline-variant">
+<span class="material-symbols-outlined text-primary">share</span>
+</div>
+<div>
+<h3 class="font-headline-md text-[20px] mb-1">3. Share Link</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Easily share the aggregated view with your regular playing group.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Venue Roadmap Section -->
+<section>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile mb-6">Venue Sync Roadmap</h2>
+<div class="grid gap-4">
+<!-- Active Card -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex justify-between items-center">
+<span class="font-headline-md text-[18px]">ProPickle</span>
+<span class="bg-secondary-container text-on-secondary-container font-label-sm text-label-sm px-2 py-1 rounded uppercase tracking-wider">Active</span>
+</div>
+<!-- Coming Soon Cards -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex justify-between items-center opacity-70">
+<span class="font-headline-md text-[18px]">Broadway</span>
+<span class="bg-surface-dim text-on-surface-variant font-label-sm text-label-sm px-2 py-1 rounded uppercase tracking-wider">Coming Soon</span>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-4 flex justify-between items-center opacity-70">
+<span class="font-headline-md text-[18px]">North Ryde</span>
+<span class="bg-surface-dim text-on-surface-variant font-label-sm text-label-sm px-2 py-1 rounded uppercase tracking-wider">Coming Soon</span>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Semantic Match: Home/Dashboard context doesn't map cleanly to the 4 specific tabs, but 'Courts' is the closest functional anchor for an 'Availability Buddy') -->
+<nav class="fixed bottom-0 w-full z-50 rounded-t-xl bg-surface dark:bg-surface-container-lowest border-t border-outline-variant dark:border-outline">
+<div class="flex justify-around items-center h-20 px-2 pb-safe">
+<!-- Courts (Active) -->
+<button class="flex flex-col items-center justify-center text-primary dark:text-secondary-fixed-dim bg-secondary-container/20 rounded-xl px-3 py-1 active:scale-90 duration-150 min-h-[44px] min-w-[44px]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<span class="font-label-sm text-label-sm mt-1">Courts</span>
+</button>
+<!-- Bookings (Inactive) -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary dark:hover:text-secondary-fixed-dim transition-colors active:scale-90 duration-150 min-h-[44px] min-w-[44px]">
+<span class="material-symbols-outlined">event_available</span>
+<span class="font-label-sm text-label-sm mt-1">Bookings</span>
+</button>
+<!-- Clubs (Inactive) -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary dark:hover:text-secondary-fixed-dim transition-colors active:scale-90 duration-150 min-h-[44px] min-w-[44px]">
+<span class="material-symbols-outlined">groups</span>
+<span class="font-label-sm text-label-sm mt-1">Clubs</span>
+</button>
+<!-- Profile (Inactive) -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:text-primary dark:hover:text-secondary-fixed-dim transition-colors active:scale-90 duration-150 min-h-[44px] min-w-[44px]">
+<span class="material-symbols-outlined">person</span>
+<span class="font-label-sm text-label-sm mt-1">Profile</span>
+</button>
+</div>
+</nav>
+<!-- Footer -->
+<footer class="w-full relative bg-surface-container-low dark:bg-surface-container-highest border-t border-outline-variant dark:border-outline pb-24">
+<div class="flex flex-col items-center gap-4 py-section-gap-sm px-margin-mobile text-center">
+<span class="font-headline-md text-headline-md text-on-surface dark:text-on-surface-variant mb-2">Pickleball Buddy</span>
+<div class="flex flex-col gap-2">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors min-h-[44px] flex items-center justify-center" href="#">Privacy Policy</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors min-h-[44px] flex items-center justify-center" href="#">Terms of Service</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors min-h-[44px] flex items-center justify-center" href="#">Venue Partners</a>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-4">© 2024 ProPickle Solutions</p>
+</div>
+</footer>
+</body></html>

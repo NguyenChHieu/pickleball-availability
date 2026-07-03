@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pickleball Buddy</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "on-primary-fixed-variant": "#004395",
+                        "on-error": "#ffffff",
+                        "background": "#f9f9ff",
+                        "tertiary-container": "#b75b00",
+                        "primary-fixed": "#d8e2ff",
+                        "secondary": "#446900",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed-variant": "#334f00",
+                        "on-tertiary-fixed": "#311400",
+                        "surface-container-high": "#e6e7f2",
+                        "outline-variant": "#c2c6d6",
+                        "on-primary": "#ffffff",
+                        "on-tertiary": "#ffffff",
+                        "inverse-on-surface": "#eff0fa",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#fefcff",
+                        "surface-container-highest": "#e1e2ec",
+                        "secondary-fixed": "#b2f746",
+                        "secondary-fixed-dim": "#98da27",
+                        "primary-container": "#2170e4",
+                        "inverse-surface": "#2e3038",
+                        "on-secondary-fixed": "#121f00",
+                        "tertiary-fixed-dim": "#ffb786",
+                        "surface-container-low": "#f2f3fd",
+                        "surface-bright": "#f9f9ff",
+                        "surface-variant": "#e1e2ec",
+                        "inverse-primary": "#adc6ff",
+                        "surface-container": "#ecedf7",
+                        "on-tertiary-fixed-variant": "#723600",
+                        "outline": "#727785",
+                        "on-primary-fixed": "#001a42",
+                        "primary-fixed-dim": "#adc6ff",
+                        "on-tertiary-container": "#fffbff",
+                        "error": "#ba1a1a",
+                        "on-surface-variant": "#424754",
+                        "secondary-container": "#b2f746",
+                        "tertiary-fixed": "#ffdcc6",
+                        "surface-tint": "#005ac2",
+                        "tertiary": "#924700",
+                        "on-error-container": "#93000a",
+                        "on-background": "#191b23",
+                        "primary": "#0058be",
+                        "surface": "#f9f9ff",
+                        "on-surface": "#191b23",
+                        "on-secondary-container": "#496f00",
+                        "surface-dim": "#d8d9e3"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "margin-mobile": "16px",
+                        "container-max": "1280px",
+                        "unit": "4px",
+                        "section-gap-lg": "120px",
+                        "section-gap-sm": "64px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Geist"],
+                        "display-xl-mobile": ["Geist"],
+                        "display-xl": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-md": ["Geist"],
+                        "body-lg": ["Geist"],
+                        "label-sm": ["Geist"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-xl-mobile": ["40px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "display-xl": ["64px", { "lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "label-sm": ["14px", { "lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Geist', sans-serif; }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<header class="bg-surface/80 backdrop-blur-xl dark:bg-on-background/80 fixed top-0 w-full z-50 border-b border-outline-variant/30 dark:border-outline/20">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-gutter flex justify-between items-center h-16">
+<div class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed cursor-pointer active:opacity-70 transition-opacity duration-200">
+                Pickleball Buddy
+            </div>
+<nav class="hidden md:flex items-center gap-8 font-body-md text-body-md">
+<a class="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors cursor-pointer active:opacity-70" href="#how-it-works">How it Works</a>
+<a class="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-colors cursor-pointer active:opacity-70" href="#roadmap">Roadmap</a>
+<button class="text-primary dark:text-primary-fixed-dim hover:text-primary dark:hover:text-primary-fixed transition-colors cursor-pointer active:opacity-70 p-2 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="dark_mode">dark_mode</span>
+</button>
+</nav>
+<!-- Mobile Menu Toggle (Decorative) -->
+<button class="md:hidden text-primary p-2 flex items-center justify-center">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</header>
+<main class="pt-16">
+<!-- Hero Section -->
+<section class="relative min-h-[921px] flex items-center overflow-hidden border-b border-outline-variant/30">
+<!-- WebGL Background -->
+<div class="absolute inset-0 z-0 opacity-40">
+<!-- STITCH_SHADER_START:ANIMATION_24 class="absolute inset-0 w-full h-full" -->
+<div class="absolute inset-0 w-full h-full" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_24" style="display:block;width:100%;height:100%"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_24');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `
+precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    
+    // Create a subtle court-grid pattern
+    float grid = step(0.98, fract(uv.x * 10.0)) + step(0.98, fract(uv.y * 10.0));
+    
+    // Soft flowing background colors using the palette
+    vec3 color1 = vec3(0.04, 0.04, 0.05); // Dark surface
+    vec3 color2 = vec3(0.08, 0.1, 0.12);  // Muted blue-grey
+    
+    float pulse = (sin(u_time * 0.5) * 0.5 + 0.5);
+    vec3 finalColor = mix(color1, color2, uv.y + pulse * 0.1);
+    
+    // Add very faint grid
+    finalColor += grid * 0.02;
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+}
+`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_24 -->
+</div>
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-gutter w-full relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-section-gap-sm">
+<!-- Text Content -->
+<div class="flex flex-col gap-6 max-w-2xl">
+<div class="inline-flex items-center gap-2 bg-secondary-container/20 text-on-secondary-container px-4 py-2 rounded-full w-max border border-secondary-container">
+<span class="w-2 h-2 rounded-full bg-secondary-fixed"></span>
+<span class="font-label-sm text-label-sm uppercase">Live Beta Available</span>
+</div>
+<h1 class="font-display-xl-mobile md:font-display-xl text-display-xl-mobile md:text-display-xl text-on-background tracking-tight">
+                        Stop clicking through every day just to find <span class="text-primary">open court time.</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-xl">
+                        A smarter way to play. Real-time venue syncing brings public availability data into one unified dashboard. No more guessing.
+                    </p>
+<div class="flex flex-col sm:flex-row gap-4 pt-4">
+<button class="bg-primary text-on-primary font-label-sm text-label-sm uppercase px-8 py-4 rounded hover:bg-primary/90 transition-colors shadow-sm active:scale-[0.98]">
+                            Get the Extension
+                        </button>
+<button class="bg-transparent border border-outline-variant text-on-surface font-label-sm text-label-sm uppercase px-8 py-4 rounded hover:bg-surface-container transition-colors active:scale-[0.98]">
+                            View Demo
+                        </button>
+</div>
+</div>
+<!-- 3D Scene / Mockup Area -->
+<div class="relative h-[500px] w-full rounded-xl overflow-hidden border border-outline-variant/30 bg-surface-container-lowest shadow-sm flex items-center justify-center">
+<!-- STITCH_THREEJS_START:ANIMATION_25 class="absolute inset-0 w-full h-full" -->
+<div class="absolute inset-0 w-full h-full" style="display:block;">
+<script src="https://ajax.googleapis.com/ajax/libs/threejs/r125/three.min.js"></script>
+<div id="threejs-container-ANIMATION_25" style="width:100%;height:100%"></div>
+<script>
+(function() {
+  const container = document.getElementById('threejs-container-ANIMATION_25');
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  
+const width = container.clientWidth || window.innerWidth;
+const height = container.clientHeight || window.innerHeight;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+camera.position.set(5, 5, 5);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(width, height);
+renderer.setPixelRatio(window.devicePixelRatio);
+container.appendChild(renderer.domElement);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(10, 10, 10);
+scene.add(directionalLight);
+
+// Pickleball Court Placeholder
+const courtGeo = new THREE.BoxGeometry(4, 0.1, 8);
+const courtMat = new THREE.MeshPhongMaterial({ color: 0x3B82F6 }); // ProPickle Blue
+const court = new THREE.Mesh(courtGeo, courtMat);
+scene.add(court);
+
+// Court Lines
+const lineGeo = new THREE.PlaneGeometry(3.8, 7.8);
+const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.3 });
+const lines = new THREE.Mesh(lineGeo, lineMat);
+lines.rotation.x = -Math.PI / 2;
+lines.position.y = 0.06;
+scene.add(lines);
+
+// Pickleball
+const ballGeo = new THREE.SphereGeometry(0.3, 32, 32);
+const ballMat = new THREE.MeshPhongMaterial({ color: 0xA3E635 }); // Pickleball Lime
+const ball = new THREE.Mesh(ballGeo, ballMat);
+ball.position.set(0, 0.5, 0);
+scene.add(ball);
+
+// Animation
+function animate() {
+    requestAnimationFrame(animate);
+    
+    const time = Date.now() * 0.001;
+    
+    // Subtle bounce and rotation
+    ball.position.y = 0.5 + Math.abs(Math.sin(time * 2)) * 1.5;
+    ball.rotation.y += 0.01;
+    ball.rotation.x += 0.01;
+    
+    // Gentle court tilt
+    court.rotation.y = Math.sin(time * 0.5) * 0.05;
+    lines.rotation.z = Math.sin(time * 0.5) * 0.05;
+    
+    renderer.render(scene, camera);
+}
+
+animate();
+
+window.addEventListener('resize', () => {
+    const newWidth = container.clientWidth || window.innerWidth;
+    const newHeight = container.clientHeight || window.innerHeight;
+    camera.aspect = newWidth / newHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(newWidth, newHeight);
+});
+
+})();
+</script>
+</div>
+<!-- STITCH_THREEJS_END:ANIMATION_25 -->
+<!-- Overlay Mockup Card -->
+<div class="absolute bottom-8 right-8 left-8 md:left-auto bg-surface/95 backdrop-blur-md border border-outline-variant p-6 rounded-lg shadow-lg w-auto md:w-96 transform transition-transform hover:-translate-y-1 duration-300">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Nexus Athletics</h3>
+<p class="font-body-md text-body-md text-on-surface-variant flex items-center gap-1 mt-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+                                    Today, Oct 24
+                                </p>
+</div>
+<div class="bg-surface-container-high px-2 py-1 rounded text-xs font-mono text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">sync</span> 2m ago
+                            </div>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between py-2 border-b border-outline-variant/50 last:border-0">
+<span class="font-body-md text-body-md text-on-surface">Court 1</span>
+<div class="flex gap-2">
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm px-3 py-1 rounded cursor-pointer hover:bg-secondary-fixed-dim transition-colors">08:00 AM</span>
+<span class="bg-surface-container text-on-surface-variant font-label-sm text-label-sm px-3 py-1 rounded opacity-50 line-through">09:00 AM</span>
+</div>
+</div>
+<div class="flex items-center justify-between py-2 border-b border-outline-variant/50 last:border-0">
+<span class="font-body-md text-body-md text-on-surface">Court 3</span>
+<div class="flex gap-2">
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm px-3 py-1 rounded cursor-pointer hover:bg-secondary-fixed-dim transition-colors">09:30 AM</span>
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm px-3 py-1 rounded cursor-pointer hover:bg-secondary-fixed-dim transition-colors">10:30 AM</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Scroll Indicator -->
+<div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce text-outline">
+<span class="font-label-sm text-label-sm mb-1 opacity-50">Scroll</span>
+<span class="material-symbols-outlined">arrow_downward</span>
+</div>
+</section>
+<!-- How it Works Section -->
+<section class="py-section-gap-lg bg-surface-container-lowest" id="how-it-works">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-gutter">
+<div class="text-center mb-16 max-w-3xl mx-auto">
+<h2 class="font-headline-lg text-headline-lg text-on-background mb-4">Seamless Integration</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Three simple steps to never missing a court booking again. The extension works quietly in the background.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Step 1 -->
+<div class="p-8 border border-outline-variant bg-surface rounded-xl hover:shadow-sm transition-shadow duration-300 group">
+<div class="w-16 h-16 bg-primary-container text-on-primary-container rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-3xl" data-icon="extension">extension</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-3">1. Extension Reads</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Install the browser extension. It securely reads public availability data from supported booking portals as you browse.</p>
+</div>
+<!-- Step 2 -->
+<div class="p-8 border border-outline-variant bg-surface rounded-xl hover:shadow-sm transition-shadow duration-300 group">
+<div class="w-16 h-16 bg-primary-container text-on-primary-container rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-3xl" data-icon="cloud_sync">cloud_sync</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-3">2. Cached Web Page</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Data is aggregated into a fast, unified, cached dashboard. View all open slots across multiple venues instantly.</p>
+</div>
+<!-- Step 3 -->
+<div class="p-8 border border-outline-variant bg-surface rounded-xl hover:shadow-sm transition-shadow duration-300 group">
+<div class="w-16 h-16 bg-primary-container text-on-primary-container rounded-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+<span class="material-symbols-outlined text-3xl" data-icon="link">link</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-3">3. Share Link</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Generate a quick link to share current availability with your playgroup to coordinate times effortlessly.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Roadmap Section -->
+<section class="py-section-gap-lg bg-surface" id="roadmap">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-gutter">
+<div class="mb-12">
+<h2 class="font-headline-lg text-headline-lg text-on-background mb-2">Venue Roadmap</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Expanding our coverage to keep you on the court.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Active Venue -->
+<div class="border border-outline-variant bg-surface-container-lowest p-6 rounded-xl flex flex-col h-full">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">sports_tennis</span>
+</div>
+<span class="bg-secondary-fixed/20 text-secondary border border-secondary/20 font-label-sm text-label-sm px-3 py-1 rounded-full uppercase">Active</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">ProPickle</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-auto">Full integration. Real-time syncing available now.</p>
+</div>
+<!-- Coming Soon Venue 1 -->
+<div class="border border-outline-variant bg-surface-container-lowest p-6 rounded-xl flex flex-col h-full opacity-70 hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">location_on</span>
+</div>
+<span class="bg-surface-container-high text-on-surface-variant border border-outline-variant/50 font-label-sm text-label-sm px-3 py-1 rounded-full uppercase">Coming Soon</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">Broadway</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-auto">Integration currently in development and testing phase.</p>
+</div>
+<!-- Coming Soon Venue 2 -->
+<div class="border border-outline-variant bg-surface-container-lowest p-6 rounded-xl flex flex-col h-full opacity-70 hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">location_on</span>
+</div>
+<span class="bg-surface-container-high text-on-surface-variant border border-outline-variant/50 font-label-sm text-label-sm px-3 py-1 rounded-full uppercase">Coming Soon</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface mb-2">North Ryde</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-auto">Scheduled for next quarter release.</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface dark:bg-on-background w-full py-section-gap-sm border-t border-outline-variant dark:border-outline/20">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-gutter flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex flex-col items-center md:items-start gap-2">
+<span class="font-headline-md text-headline-md text-primary font-bold">Pickleball Buddy</span>
+<span class="font-label-sm text-label-sm text-on-surface dark:text-on-primary-fixed-variant opacity-70">
+                    © 2024 Pickleball Availability Buddy. All rights reserved.
+                </span>
+</div>
+<div class="flex flex-col items-center md:items-end gap-4">
+<div class="flex gap-6 font-label-sm text-label-sm">
+<a class="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-opacity duration-200" href="#">Privacy Policy</a>
+<a class="text-on-surface-variant dark:text-surface-variant hover:text-primary dark:hover:text-primary-fixed transition-opacity duration-200" href="#">Terms of Service</a>
+</div>
+<p class="text-xs text-outline max-w-md text-center md:text-right">
+                    We only read public availability data. No private accounts or tokens are stored.
+                </p>
+</div>
+</div>
+</footer>
+</body></html>
