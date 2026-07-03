@@ -6,21 +6,29 @@
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
-    <header>
-      <h1>Availability</h1>
-      <select id="venueSelect" aria-label="Venue"></select>
-    </header>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Pickleball Buddy</p>
+          <h1>Availability</h1>
+        </div>
+        <select id="venueSelect" aria-label="Venue"></select>
+      </header>
 
-    <div class="toolbar">
-      <button id="refreshVenueButton" type="button">Refresh Venue</button>
-      <button id="readCurrentPageButton" type="button" class="secondary">Read Current Page</button>
-    </div>
+      <section class="panel">
+        <div class="toolbar">
+          <button id="refreshVenueButton" type="button">Refresh Venue</button>
+          <button id="readCurrentPageButton" type="button" class="secondary">Read Current Page</button>
+        </div>
 
-    <p id="status" class="status" aria-live="polite">Loading availability...</p>
-    <div id="actions" class="actions" hidden>
-      <button id="viewAvailabilityButton" type="button">View Availability</button>
-      <button id="copyShareLinkButton" type="button">Copy Share Link</button>
-    </div>
+        <p id="status" class="status" aria-live="polite">Loading availability...</p>
+      </section>
+
+      <div id="actions" class="actions" hidden>
+        <button id="viewAvailabilityButton" type="button">View Availability</button>
+        <button id="copyShareLinkButton" type="button" class="secondary">Copy Share Link</button>
+      </div>
+    </main>
 
     <script src="venues.js"></script>
     <script src="popup.js"></script>

@@ -43,7 +43,7 @@ async function loadSettings() {
 async function saveSettings() {
   const backendUrl = normalizeUrl(backendUrlInput.value, DEFAULT_BACKEND_URL);
   if (!isValidUrl(backendUrl)) {
-    setStatus("Enter a valid backend URL.");
+    setStatus("Enter a valid app URL.");
     return;
   }
 

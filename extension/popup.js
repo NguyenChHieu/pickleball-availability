@@ -80,8 +80,8 @@ function sourceLabel(payload) {
 
 function syncStatusMessage(syncStatus) {
   if (!syncStatus) return "";
-  if (syncStatus.ok) return "Synced to backend.";
-  return syncStatus.error || syncStatus.reason || "Backend sync did not complete.";
+  if (syncStatus.ok) return "Synced to web app.";
+  return syncStatus.error || syncStatus.reason || "Web app sync did not complete.";
 }
 
 function readStatus(payload, syncStatus, prefix) {
@@ -227,7 +227,7 @@ async function shareLink() {
   if (!latestPayload) return;
 
   if (!latestSyncStatus?.ok) {
-    throw new Error("Sync to backend first, then use the share page.");
+    throw new Error("Sync to the web app first, then use the share page.");
   }
 
   const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);

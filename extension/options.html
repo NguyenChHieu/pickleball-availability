@@ -6,33 +6,47 @@
     <link rel="stylesheet" href="options.css">
   </head>
   <body>
-    <main>
-      <h1>Backend Sync</h1>
+    <main class="settings">
+      <header>
+        <p class="eyebrow">Pickleball Buddy</p>
+        <h1>Sync Settings</h1>
+      </header>
 
-      <label class="row">
-        <input id="enabled" type="checkbox">
-        <span>Sync successful reads to backend</span>
-      </label>
+      <section class="panel">
+        <label class="toggle">
+          <input id="enabled" type="checkbox">
+          <span>
+            <strong>Sync reads</strong>
+            <small>Send successful reads to the web app.</small>
+          </span>
+        </label>
+      </section>
 
-      <label>
-        Backend URL
-        <input id="backendUrl" type="url" placeholder="http://localhost:3007">
-      </label>
+      <section class="panel">
+        <h2>Connection</h2>
+        <label>
+          App URL
+          <input id="backendUrl" type="url" placeholder="https://pickleball-availability-tau.vercel.app">
+        </label>
 
-      <label>
-        Sync token
-        <input id="syncToken" type="password" autocomplete="off">
-      </label>
+        <label>
+          Sync token
+          <input id="syncToken" type="password" autocomplete="off">
+        </label>
+      </section>
 
-      <label>
-        Share URL base
-        <input id="shareUrlBase" type="url" placeholder="http://localhost:3007">
-      </label>
+      <section class="panel">
+        <h2>Share Link</h2>
+        <label>
+          Share URL base
+          <input id="shareUrlBase" type="url" placeholder="https://pickleball-availability-tau.vercel.app">
+        </label>
 
-      <label>
-        Share token
-        <input id="shareToken" type="text" autocomplete="off" placeholder="dev-share">
-      </label>
+        <label>
+          Share token
+          <input id="shareToken" type="text" autocomplete="off" placeholder="dev-share">
+        </label>
+      </section>
 
       <button id="saveButton" type="button">Save</button>
       <p id="status" class="status"></p>

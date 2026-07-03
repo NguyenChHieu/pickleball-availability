@@ -128,7 +128,7 @@ async function syncVenuePayload(venueId, payload) {
     return {
       ok: false,
       skipped: true,
-      reason: "Backend sync is off.",
+      reason: "Web app sync is off.",
     };
   }
 
@@ -146,7 +146,7 @@ async function syncVenuePayload(venueId, payload) {
 
     if (!response.ok) {
       const body = await response.text();
-      throw new Error(`Backend sync failed: ${response.status} ${body}`);
+      throw new Error(`Web app sync failed: ${response.status} ${body}`);
     }
 
     const status = {
@@ -169,7 +169,7 @@ async function syncVenuePayload(venueId, payload) {
 function syncErrorMessage(error, endpoint) {
   const message = error?.message || String(error);
   if (message === "Failed to fetch" || error?.name === "TypeError") {
-    return `Failed to reach ${endpoint}. Check the Backend URL, extension permission, and web app health.`;
+    return `Failed to reach ${endpoint}. Check the App URL, extension permission, and web app health.`;
   }
   return message;
 }
