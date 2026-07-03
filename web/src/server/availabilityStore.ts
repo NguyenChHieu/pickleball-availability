@@ -46,12 +46,14 @@ if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SECRET_KEY)) {
   throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
 }
 
-if (!USE_SUPABASE && process.env.VERCEL) {
-  throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY are required for deployed cache storage.");
-}
-
 function trimTrailingSlash(value: string) {
   return String(value || "").replace(/\/+$/, "");
+}
+
+function assertWritableLocalCache() {
+  if (process.env.VERCEL) {
+    throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY are required for deployed cache storage.");
+  }
 }
 
 export function safeVenueId(venueId: unknown) {
@@ -73,6 +75,7 @@ async function ensureDataDir() {
 export async function saveAvailability(venueId: string, payload: AvailabilityPayload) {
   if (USE_SUPABASE) return saveAvailabilityToSupabase(venueId, payload);
 
+  assertWritableLocalCache();
   await ensureDataDir();
   const record = {
     received_at: new Date().toISOString(),
@@ -86,6 +89,7 @@ export async function saveAvailability(venueId: string, payload: AvailabilityPay
 export async function getAvailabilityRecord(venueId: string) {
   if (USE_SUPABASE) return getAvailabilityRecordFromSupabase(venueId);
 
+  assertWritableLocalCache();
   try {
     const raw = await fs.readFile(venuePath(venueId), "utf8");
     return JSON.parse(raw) as AvailabilityRecord;
@@ -105,6 +109,7 @@ export async function getAvailabilityPayload(venueId: string) {
 export async function getAllPayloads() {
   if (USE_SUPABASE) return getAllPayloadsFromSupabase();
 
+  assertWritableLocalCache();
   await ensureDataDir();
   const entries = await fs.readdir(DATA_DIR, { withFileTypes: true });
   const payloads: Record<string, AvailabilityPayload | null> = {};
