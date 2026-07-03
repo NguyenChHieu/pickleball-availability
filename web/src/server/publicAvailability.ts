@@ -1,7 +1,9 @@
-const { bookingActionUrlForDay, bookingUrlForDay } = require("./bookingLinks");
-const { formatDateTime } = require("./formatAvailability");
+import type { AvailabilityPayload, AvailabilityPayloadDay, AvailabilityRecord } from "./availabilityStore";
+import { bookingActionUrlForDay, bookingUrlForDay } from "./bookingLinks";
+import { formatDateTime } from "./formatAvailability";
 
-const STALE_THRESHOLD_HOURS = 12;
+export const STALE_THRESHOLD_HOURS = 12;
+
 const STALE_THRESHOLD_MS = STALE_THRESHOLD_HOURS * 60 * 60 * 1000;
 const DEFAULT_VENUE = Object.freeze({
   fallbackUrl: "",
@@ -16,27 +18,34 @@ const VENUE_METADATA = Object.freeze({
   }),
 });
 
-function metadataForVenue(venueId, payload) {
-  const metadata = VENUE_METADATA[venueId] || DEFAULT_VENUE;
+type VenueMetadata = {
+  fallbackUrl: string;
+  themeId: string;
+  venueName: string;
+};
+
+function metadataForVenue(venueId: string, payload?: AvailabilityPayload | null) {
+  const metadata =
+    (VENUE_METADATA as Record<string, VenueMetadata | undefined>)[venueId] || DEFAULT_VENUE;
   return {
-    fallbackUrl: bookingUrlForDay({}, payload) || metadata.fallbackUrl,
+    fallbackUrl: bookingUrlForDay({}, payload as Record<string, unknown>) || metadata.fallbackUrl,
     themeId: metadata.themeId || venueId || DEFAULT_VENUE.themeId,
     venueName: payload?.venue_name || metadata.venueName || venueId || DEFAULT_VENUE.venueName,
   };
 }
 
-function numberOrZero(value) {
+function numberOrZero(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
 }
 
-function intervalLabel(interval) {
+function intervalLabel(interval: Record<string, unknown>) {
   return `${interval.start_time || interval.startTime || "?"}-${interval.end_time || interval.endTime || "?"}`;
 }
 
-function normalizeInterval(interval) {
-  const startTime = interval?.start_time || interval?.startTime || "";
-  const endTime = interval?.end_time || interval?.endTime || "";
+function normalizeInterval(interval: Record<string, unknown>) {
+  const startTime = String(interval?.start_time || interval?.startTime || "");
+  const endTime = String(interval?.end_time || interval?.endTime || "");
   return {
     startTime,
     endTime,
@@ -44,18 +53,21 @@ function normalizeInterval(interval) {
   };
 }
 
-function normalizeDay(day, payload) {
+function normalizeDay(day: AvailabilityPayloadDay, payload: AvailabilityPayload) {
   const openIntervals = Array.isArray(day?.open_intervals) ? day.open_intervals : [];
   return {
     date: day?.date || "Unknown date",
     title: day?.title || "Court booking",
     totalOpenHours: numberOrZero(day?.remaining_hours),
-    openIntervals: openIntervals.map(normalizeInterval),
-    bookingUrl: bookingActionUrlForDay(day, payload),
+    openIntervals: openIntervals.map((interval) => normalizeInterval(interval as Record<string, unknown>)),
+    bookingUrl: bookingActionUrlForDay(
+      day as Record<string, unknown>,
+      payload as Record<string, unknown>
+    ),
   };
 }
 
-function isStaleTimestamp(lastReadAt, now) {
+function isStaleTimestamp(lastReadAt: string | null, now?: Date | number | string) {
   if (!lastReadAt) return false;
   const readTime = new Date(lastReadAt).getTime();
   const nowTime = new Date(now || Date.now()).getTime();
@@ -63,7 +75,10 @@ function isStaleTimestamp(lastReadAt, now) {
   return nowTime - readTime > STALE_THRESHOLD_MS;
 }
 
-function buildPublicAvailabilityResponse(record, { venueId = "venue", now } = {}) {
+export function buildPublicAvailabilityResponse(
+  record: AvailabilityRecord | null,
+  { venueId = "venue", now }: { venueId?: string; now?: Date | number | string } = {}
+) {
   if (!record?.payload || !Array.isArray(record.payload.days)) {
     const metadata = metadataForVenue(venueId);
     return {
@@ -73,13 +88,14 @@ function buildPublicAvailabilityResponse(record, { venueId = "venue", now } = {}
         message: "No cached availability yet.",
         fallbackUrl: metadata.fallbackUrl,
       },
-    };
+    } as const;
   }
 
   const payload = record.payload;
   const metadata = metadataForVenue(venueId, payload);
   const lastReadAt = payload.exported_at || record.received_at || null;
-  const days = payload.days.map((day) => normalizeDay(day, payload));
+  const payloadDays = payload.days || [];
+  const days = payloadDays.map((day) => normalizeDay(day, payload));
 
   return {
     status: 200,
@@ -99,10 +115,5 @@ function buildPublicAvailabilityResponse(record, { venueId = "venue", now } = {}
       days,
       fallbackUrl: metadata.fallbackUrl,
     },
-  };
+  } as const;
 }
-
-module.exports = {
-  buildPublicAvailabilityResponse,
-  STALE_THRESHOLD_HOURS,
-};

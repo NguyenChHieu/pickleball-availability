@@ -1,4 +1,7 @@
-const DEFAULT_BACKEND_URL = "http://localhost:8787";
+import { getAvailabilityRecord } from "@/server/availabilityStore";
+import { buildPublicAvailabilityResponse } from "@/server/publicAvailability";
+import { validShareToken } from "@/server/security";
+
 const SAFE_ERROR_MESSAGE = "We could not load this share page.";
 
 export type PublicAvailabilityInterval = {
@@ -56,16 +59,13 @@ export type PublicAvailability =
   | PublicAvailabilityError
   | PublicAvailabilityNotFound;
 
-function backendBaseUrl() {
-  return (process.env.NEXT_PUBLIC_BACKEND_URL || DEFAULT_BACKEND_URL).replace(/\/+$/, "");
-}
-
-function publicAvailabilityUrl(shareToken: string, venueId: string) {
-  return `${backendBaseUrl()}/api/public/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`;
-}
-
 function hasState(value: unknown, state: string) {
-  return Boolean(value && typeof value === "object" && "state" in value && value.state === state);
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "state" in value &&
+      (value as { state?: unknown }).state === state
+  );
 }
 
 function isReadyAvailability(value: unknown): value is PublicAvailabilityReady {
@@ -76,47 +76,39 @@ function isEmptyAvailability(value: unknown): value is PublicAvailabilityEmpty {
   return hasState(value, "empty");
 }
 
-async function readJson(response: Response) {
-  try {
-    return (await response.json()) as unknown;
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchPublicAvailability(
   shareToken: string,
   venueId: string
 ): Promise<PublicAvailability> {
-  let response: Response;
-
   try {
-    response = await fetch(publicAvailabilityUrl(shareToken, venueId), {
-      cache: "no-store",
-      headers: {
-        accept: "application/json",
-      },
-    });
+    if (!validShareToken(shareToken)) {
+      return {
+        state: "not-found",
+        message: SAFE_ERROR_MESSAGE,
+      };
+    }
+
+    const record = await getAvailabilityRecord(venueId);
+    const result = buildPublicAvailabilityResponse(record, { venueId });
+    const body: unknown = result.body;
+
+    if (result.status === 200 && isReadyAvailability(body)) return body;
+    if (result.status === 404 && isEmptyAvailability(body)) return body;
+    if (result.status === 404) {
+      return {
+        state: "not-found",
+        message: SAFE_ERROR_MESSAGE,
+      };
+    }
+
+    return {
+      state: "error",
+      message: SAFE_ERROR_MESSAGE,
+    };
   } catch {
     return {
       state: "error",
       message: SAFE_ERROR_MESSAGE,
     };
   }
-
-  const body = await readJson(response);
-
-  if (response.ok && isReadyAvailability(body)) return body;
-  if (response.status === 404 && isEmptyAvailability(body)) return body;
-  if (response.status === 404) {
-    return {
-      state: "not-found",
-      message: SAFE_ERROR_MESSAGE,
-    };
-  }
-
-  return {
-    state: "error",
-    message: SAFE_ERROR_MESSAGE,
-  };
 }

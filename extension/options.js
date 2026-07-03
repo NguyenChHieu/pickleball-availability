@@ -1,5 +1,7 @@
 const SYNC_CONFIG_KEY = "backendSyncConfig";
-const DEFAULT_BACKEND_URL = "http://localhost:8787";
+const OLD_LOCAL_BACKEND_URL = "http://localhost:8787";
+const DEFAULT_BACKEND_URL = "http://localhost:3007";
+const DEFAULT_SHARE_URL_BASE = "http://localhost:3007";
 const DEFAULT_SHARE_TOKEN = "dev-share";
 
 const enabledInput = document.querySelector("#enabled");
@@ -30,10 +32,11 @@ function isValidUrl(value) {
 async function loadSettings() {
   const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
   const config = stored[SYNC_CONFIG_KEY] || {};
+  const backendUrl = config.backendUrl === OLD_LOCAL_BACKEND_URL ? DEFAULT_BACKEND_URL : config.backendUrl;
   enabledInput.checked = Boolean(config.enabled);
-  backendUrlInput.value = config.backendUrl || DEFAULT_BACKEND_URL;
+  backendUrlInput.value = backendUrl || DEFAULT_BACKEND_URL;
   syncTokenInput.value = config.syncToken || "";
-  shareUrlBaseInput.value = config.shareUrlBase || config.backendUrl || DEFAULT_BACKEND_URL;
+  shareUrlBaseInput.value = config.shareUrlBase || DEFAULT_SHARE_URL_BASE;
   shareTokenInput.value = config.shareToken || DEFAULT_SHARE_TOKEN;
 }
 

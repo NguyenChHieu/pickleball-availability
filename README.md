@@ -1,6 +1,6 @@
 # Pickleball Availability Helper
 
-Small read-only Chrome extension for Playbypoint booking pages.
+Small read-only Chrome extension plus a full-stack Next.js availability share app for Playbypoint booking pages.
 
 It can read the current booking page or refresh a configured venue such as ProPickle. It reads visible booking day tabs, merges adjacent open time slots, and keeps the last successful result in the extension popup.
 
@@ -68,35 +68,38 @@ The latest successful read is stored in Chrome local extension storage per venue
 
 This matters for future venues: ProPickle, Broadway Pickleball, and North Ryde should not overwrite each other.
 
-## Share Link And Backend
+## Share Link And Web App
 
-The extension can optionally sync successful reads to a small local/backend service. That backend stores the latest availability, renders a phone-friendly share page, and exposes Messenger webhook endpoints.
-
-Start here:
-
-```text
-server/README.md
-```
+The extension can optionally sync successful reads to the Next.js app under `web/`. That one app stores the latest availability, exposes API routes, renders the public share page, and keeps the future Messenger webhook path in the same deployment.
 
 The intended product flow is:
 
 1. Extension reads availability from your logged-in browser.
-2. Extension posts the latest payload to the backend.
-3. You share a secret URL such as `https://your-render-url/s/dev-share/propickle`.
+2. Extension posts the latest payload to the Next app API.
+3. You share a secret URL from the same app, such as `https://your-vercel-app.vercel.app/s/dev-share/propickle`.
 4. Messenger or another bot can later reply from the same cached payload.
 
 In extension options:
 
 ```text
-Backend URL: http://localhost:8787
+Backend URL: http://localhost:3007
 Sync token: dev-secret
-Share URL base: http://localhost:8787
+Share URL base: http://localhost:3007
 Share token: dev-share
 ```
 
 After a successful read, click **Copy Share Link** in the popup.
 
-For durable Render deploys, use Supabase by setting `SUPABASE_URL` and `SUPABASE_SECRET_KEY` on the backend. A Render persistent disk also works by setting `AVAILABILITY_DATA_DIR`, but Supabase is the better path once more venues or bots are added.
+Run the share UI locally with:
+
+```bash
+cd web
+AVAILABILITY_SYNC_TOKEN=dev-secret SHARE_TOKEN=dev-share npm run dev -- --port 3007
+```
+
+On Vercel, import the repo with `web` as the root directory. Set the same `AVAILABILITY_SYNC_TOKEN` and `SHARE_TOKEN`, then set the extension Backend URL and Share URL base to the Vercel app URL.
+
+For deployed cache persistence, use Supabase by setting `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in Vercel. The schema is in `web/supabase.sql`.
 
 ## Compatibility
 
@@ -120,13 +123,16 @@ Other Playbypoint venues may work if they use the same booking widget. Add a ven
 
 ## Architecture
 
-The extension uses a small adapter/registry shape:
+The project uses a small adapter/registry shape:
 
 - `venues.js`: configured venues and storage keys.
 - `providers/playbypointBookBox.js`: Playbypoint `BookBox` reader.
 - `contentScript.js`: message bridge injected into readable pages.
 - `background.js`: venue refresh orchestration and persistence.
 - `popup.js`: venue selector, rendering, exports, and current-page actions.
+- `web/app/api/availability/[venueId]`: token-protected sync/cache API for the extension.
+- `web/app/s/[shareToken]/[venueId]`: secret-link availability page.
+- `web/src/server/`: shared cache, formatter, public availability, and webhook helpers.
 
 ## Project Shape
 
@@ -144,14 +150,16 @@ extension/
   venues.js
   providers/
     playbypointBookBox.js
-server/
+web/
   supabase.sql
+  app/
+    api/
+    s/
+    webhook/
   src/
-    index.js
-    availabilityStore.js
-    formatAvailability.js
-    messenger.js
-    sharePage.js
+    components/
+    lib/
+    server/
 ```
 
-No Python setup is required. The extension is plain Chrome JS, and the optional bot backend runs on Node.
+No Python setup is required. The extension is plain Chrome JS, and the share/API app is Next.js.

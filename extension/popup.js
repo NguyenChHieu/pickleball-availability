@@ -15,7 +15,8 @@ const MESSAGE = Object.freeze({
 });
 
 const SYNC_CONFIG_KEY = "backendSyncConfig";
-const DEFAULT_BACKEND_URL = "http://localhost:8787";
+const DEFAULT_BACKEND_URL = "http://localhost:3007";
+const DEFAULT_SHARE_URL_BASE = "http://localhost:3007";
 const DEFAULT_SHARE_TOKEN = "dev-share";
 
 let venues = [];
@@ -217,7 +218,7 @@ async function readCurrentPage() {
 }
 
 function normalizeShareUrlBase(value) {
-  const normalized = (value || DEFAULT_BACKEND_URL).trim().replace(/\/+$/, "");
+  const normalized = (value || DEFAULT_SHARE_URL_BASE).trim().replace(/\/+$/, "");
   new URL(normalized);
   return normalized;
 }
@@ -234,7 +235,7 @@ async function shareLink() {
   const venueId = latestPayload.venue_id || selectedVenueId;
   if (!venueId) throw new Error("Select a venue before opening a share link.");
 
-  const base = normalizeShareUrlBase(config.shareUrlBase || config.backendUrl);
+  const base = normalizeShareUrlBase(config.shareUrlBase);
   const shareToken = (config.shareToken || DEFAULT_SHARE_TOKEN).trim();
   return `${base}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`;
 }

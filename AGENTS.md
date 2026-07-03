@@ -2,21 +2,21 @@
 
 ## Project
 
-Pickleball Availability Buddy is a read-only Chrome extension plus Node backend for cached pickleball venue availability.
+Pickleball Availability Buddy is a read-only Chrome extension plus a full-stack Next.js app for cached pickleball venue availability.
 
 ## Guardrails
 
 - Keep the project read-only: no booking, payment, checkout, login, waiver, CAPTCHA, or access-control automation.
 - Keep extension scraping polite and user-directed.
 - Do not put backend secrets, Supabase secret keys, or sync tokens in extension code.
-- Preserve the split: extension reads, backend stores, share/web UI renders, future bots reply from cached data.
+- Preserve the split: extension reads, Next API routes store, share/web UI renders, future bots reply from cached data.
 
 ## Current Stack
 
 - `extension/`: plain Chrome MV3 JavaScript.
-- `server/`: dependency-free Node CommonJS backend.
+- `web/`: Next.js App Router app with share pages, API routes, cache/store modules, and webhook handlers.
 - Supabase: optional durable availability cache through REST.
-- Render: current backend deployment target.
+- Vercel: current single-app deployment target.
 
 ## Planning
 
@@ -31,7 +31,9 @@ GSD planning files live in `.planning/`.
 Run these checks after relevant changes:
 
 ```powershell
-npm.cmd --prefix server run check
+npm.cmd --prefix web run typecheck
+npm.cmd --prefix web run lint
+npm.cmd --prefix web run build
 node --check extension\background.js
 node --check extension\contentScript.js
 node --check extension\popup.js

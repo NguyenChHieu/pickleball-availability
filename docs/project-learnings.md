@@ -13,9 +13,9 @@ This project started as a read-only ProPickle availability helper and became a s
 
 - Chrome extension reads Playbypoint booking availability from the user browser session.
 - Extension merges open slot intervals per day.
-- Extension syncs the latest payload to a backend.
-- Backend stores one latest payload per venue.
-- Backend renders a secret-token share page:
+- Extension syncs the latest payload to the Next.js app API.
+- The Next app stores one latest payload per venue.
+- The Next app renders a secret-token share page:
   - `/s/:shareToken/:venueId`
   - `/s/:shareToken/:venueId/text`
 - Share page is the viewing UI.
@@ -25,14 +25,14 @@ This project started as a read-only ProPickle availability helper and became a s
 
 - Chrome extension: best fit because the user is already logged in and has passed waiver/security checks in normal Chrome.
 - Plain JavaScript extension: no build step, easy to load unpacked.
-- Node backend: tiny HTTP server, no framework needed yet.
-- Render: simple public HTTPS hosting for the backend.
-- Supabase: durable cache so Render restarts/redeploys do not lose availability.
-- No Python in final runtime: early scraping ideas used Python, but the extension/backend path became simpler.
+- Next.js app: one deployment for share UI, API routes, cache access, and future webhook handlers.
+- Vercel: simple GitHub-connected deployment for the Next app.
+- Supabase: durable cache so Vercel deploys/serverless restarts do not lose availability.
+- No Python in final runtime: early scraping ideas used Python, but the extension/Next path became simpler.
 
 ## Important Tradeoffs
 
-- Browser extension instead of backend scraper:
+- Browser extension instead of server-side scraper:
   - Uses the user's normal authenticated session.
   - Avoids automating login/Cloudflare/waiver handling on the server.
   - Requires Chrome to read/sync availability at least once.
@@ -50,7 +50,7 @@ This project started as a read-only ProPickle availability helper and became a s
 
 ## Security Lessons
 
-- Keep all secrets in Render/backend only:
+- Keep all secrets in the deployed Next app only:
   - `AVAILABILITY_SYNC_TOKEN`
   - `SHARE_TOKEN`
   - `SUPABASE_SECRET_KEY`
@@ -73,7 +73,7 @@ create table if not exists public.availability_cache (
 alter table public.availability_cache enable row level security;
 ```
 
-Render env vars:
+Vercel env vars:
 
 ```text
 SUPABASE_URL=https://your-project-ref.supabase.co
@@ -82,7 +82,7 @@ AVAILABILITY_SYNC_TOKEN=...
 SHARE_TOKEN=...
 ```
 
-The backend uses Supabase only when both `SUPABASE_URL` and `SUPABASE_SECRET_KEY` exist.
+The Next app uses Supabase only when both `SUPABASE_URL` and `SUPABASE_SECRET_KEY` exist. Local dev can use a file cache, but deployed Vercel should use Supabase.
 
 ## How To Repeat For Another Venue
 
@@ -98,9 +98,9 @@ The backend uses Supabase only when both `SUPABASE_URL` and `SUPABASE_SECRET_KEY
 ## Useful Mental Model
 
 - Extension reads.
-- Backend stores.
+- Next API stores.
 - Share page renders.
-- Future bots only ask the backend for formatted cached data.
+- Future bots ask the same Next app for formatted cached data.
 
 This keeps venue scraping, storage, presentation, and bot delivery separated.
 

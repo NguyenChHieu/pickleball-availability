@@ -1,11 +1,44 @@
-const fs = require("node:fs/promises");
-const path = require("node:path");
+import fs from "node:fs/promises";
+import path from "node:path";
+
+export type AvailabilityInterval = {
+  start_time?: string;
+  end_time?: string;
+  startTime?: string;
+  endTime?: string;
+};
+
+export type AvailabilityPayloadDay = {
+  date?: string;
+  title?: string;
+  remaining_hours?: number;
+  open_intervals?: AvailabilityInterval[];
+  booking_date?: string;
+  booking_url?: string;
+  source_url?: string;
+};
+
+export type AvailabilityPayload = {
+  venue_id?: string;
+  venue_name?: string;
+  exported_at?: string;
+  days?: AvailabilityPayloadDay[];
+  booking_url?: string;
+  source_url?: string;
+};
+
+export type AvailabilityRecord = {
+  received_at: string;
+  venue_id: string;
+  payload: AvailabilityPayload;
+};
 
 const DATA_DIR = process.env.AVAILABILITY_DATA_DIR
   ? path.resolve(process.env.AVAILABILITY_DATA_DIR)
-  : path.resolve(__dirname, "..", "data");
+  : path.resolve(process.cwd(), "data");
 const SUPABASE_URL = trimTrailingSlash(process.env.SUPABASE_URL || "");
-const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const SUPABASE_SECRET_KEY =
+  process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const SUPABASE_TABLE = process.env.SUPABASE_AVAILABILITY_TABLE || "availability_cache";
 const USE_SUPABASE = Boolean(SUPABASE_URL || SUPABASE_SECRET_KEY);
 
@@ -13,17 +46,23 @@ if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SECRET_KEY)) {
   throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
 }
 
-function trimTrailingSlash(value) {
+if (!USE_SUPABASE && process.env.VERCEL) {
+  throw new Error("SUPABASE_URL and SUPABASE_SECRET_KEY are required for deployed cache storage.");
+}
+
+function trimTrailingSlash(value: string) {
   return String(value || "").replace(/\/+$/, "");
 }
 
-function safeVenueId(venueId) {
-  const normalized = String(venueId || "").toLowerCase().replace(/[^a-z0-9_-]/g, "");
+export function safeVenueId(venueId: unknown) {
+  const normalized = String(venueId || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
   if (!normalized) throw new Error("Missing venue id.");
   return normalized;
 }
 
-function venuePath(venueId) {
+function venuePath(venueId: string) {
   return path.join(DATA_DIR, `${safeVenueId(venueId)}.json`);
 }
 
@@ -31,7 +70,7 @@ async function ensureDataDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
 
-async function saveAvailability(venueId, payload) {
+export async function saveAvailability(venueId: string, payload: AvailabilityPayload) {
   if (USE_SUPABASE) return saveAvailabilityToSupabase(venueId, payload);
 
   await ensureDataDir();
@@ -39,34 +78,36 @@ async function saveAvailability(venueId, payload) {
     received_at: new Date().toISOString(),
     venue_id: safeVenueId(venueId),
     payload,
-  };
+  } satisfies AvailabilityRecord;
   await fs.writeFile(venuePath(venueId), `${JSON.stringify(record, null, 2)}\n`, "utf8");
   return record;
 }
 
-async function getAvailabilityRecord(venueId) {
+export async function getAvailabilityRecord(venueId: string) {
   if (USE_SUPABASE) return getAvailabilityRecordFromSupabase(venueId);
 
   try {
     const raw = await fs.readFile(venuePath(venueId), "utf8");
-    return JSON.parse(raw);
+    return JSON.parse(raw) as AvailabilityRecord;
   } catch (error) {
-    if (error.code === "ENOENT") return null;
+    if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") {
+      return null;
+    }
     throw error;
   }
 }
 
-async function getAvailabilityPayload(venueId) {
+export async function getAvailabilityPayload(venueId: string) {
   const record = await getAvailabilityRecord(venueId);
   return record?.payload || null;
 }
 
-async function getAllPayloads() {
+export async function getAllPayloads() {
   if (USE_SUPABASE) return getAllPayloadsFromSupabase();
 
   await ensureDataDir();
   const entries = await fs.readdir(DATA_DIR, { withFileTypes: true });
-  const payloads = {};
+  const payloads: Record<string, AvailabilityPayload | null> = {};
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
     const venueId = entry.name.slice(0, -5);
@@ -79,8 +120,8 @@ function supabaseEndpoint(search = "") {
   return `${SUPABASE_URL}/rest/v1/${encodeURIComponent(SUPABASE_TABLE)}${search}`;
 }
 
-function supabaseHeaders(extra = {}) {
-  const headers = {
+function supabaseHeaders(extra: Record<string, string> = {}) {
+  const headers: Record<string, string> = {
     apikey: SUPABASE_SECRET_KEY,
     ...extra,
   };
@@ -90,7 +131,7 @@ function supabaseHeaders(extra = {}) {
   return headers;
 }
 
-async function readSupabaseJson(response) {
+async function readSupabaseJson(response: Response) {
   const text = await response.text();
   if (!response.ok) {
     throw new Error(`Supabase cache request failed: ${response.status} ${text}`);
@@ -98,12 +139,12 @@ async function readSupabaseJson(response) {
   return text ? JSON.parse(text) : null;
 }
 
-async function saveAvailabilityToSupabase(venueId, payload) {
+async function saveAvailabilityToSupabase(venueId: string, payload: AvailabilityPayload) {
   const record = {
     received_at: new Date().toISOString(),
     venue_id: safeVenueId(venueId),
     payload,
-  };
+  } satisfies AvailabilityRecord;
   const response = await fetch(supabaseEndpoint("?on_conflict=venue_id"), {
     method: "POST",
     headers: supabaseHeaders({
@@ -116,7 +157,7 @@ async function saveAvailabilityToSupabase(venueId, payload) {
   return rows?.[0] || record;
 }
 
-async function getAvailabilityRecordFromSupabase(venueId) {
+async function getAvailabilityRecordFromSupabase(venueId: string) {
   const venue = encodeURIComponent(safeVenueId(venueId));
   const response = await fetch(
     supabaseEndpoint(`?venue_id=eq.${venue}&select=venue_id,received_at,payload&limit=1`),
@@ -131,16 +172,9 @@ async function getAllPayloadsFromSupabase() {
     headers: supabaseHeaders(),
   });
   const rows = await readSupabaseJson(response);
-  const payloads = {};
+  const payloads: Record<string, AvailabilityPayload | null> = {};
   for (const row of rows || []) {
     payloads[row.venue_id] = row.payload || null;
   }
   return payloads;
 }
-
-module.exports = {
-  getAllPayloads,
-  getAvailabilityPayload,
-  getAvailabilityRecord,
-  saveAvailability,
-};

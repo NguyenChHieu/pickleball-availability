@@ -2,7 +2,7 @@ const GRAPH_API_VERSION = process.env.GRAPH_API_VERSION || "v24.0";
 const PAGE_ACCESS_TOKEN = process.env.MESSENGER_PAGE_ACCESS_TOKEN || "";
 const VERIFY_TOKEN = process.env.MESSENGER_VERIFY_TOKEN || "";
 
-function verifyWebhook(query) {
+export function verifyWebhook(query: URLSearchParams) {
   const mode = query.get("hub.mode");
   const token = query.get("hub.verify_token");
   const challenge = query.get("hub.challenge");
@@ -13,8 +13,17 @@ function verifyWebhook(query) {
   return { ok: false };
 }
 
-function extractIncomingMessages(body) {
-  const messages = [];
+type MessengerBody = {
+  entry?: Array<{
+    messaging?: Array<{
+      sender?: { id?: string };
+      message?: { text?: string };
+    }>;
+  }>;
+};
+
+export function extractIncomingMessages(body: MessengerBody) {
+  const messages: Array<{ senderId: string; text: string }> = [];
   for (const entry of body.entry || []) {
     for (const event of entry.messaging || []) {
       const senderId = event.sender?.id;
@@ -25,7 +34,7 @@ function extractIncomingMessages(body) {
   return messages;
 }
 
-async function sendMessengerText(recipientId, text) {
+export async function sendMessengerText(recipientId: string, text: string) {
   if (!PAGE_ACCESS_TOKEN) {
     console.log(`[messenger:dry-run] ${recipientId}: ${text}`);
     return { dryRun: true };
@@ -50,9 +59,3 @@ async function sendMessengerText(recipientId, text) {
 
   return response.json();
 }
-
-module.exports = {
-  extractIncomingMessages,
-  sendMessengerText,
-  verifyWebhook,
-};

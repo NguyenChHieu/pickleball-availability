@@ -14,6 +14,8 @@ const PROVIDER_FILES = Object.freeze({
 });
 
 const SYNC_CONFIG_KEY = "backendSyncConfig";
+const OLD_LOCAL_BACKEND_URL = "http://localhost:8787";
+const DEFAULT_BACKEND_URL = "http://localhost:3007";
 const PENDING_REFRESH_KEY = "pendingVenueRefreshes";
 const PENDING_REFRESH_TTL_MS = 5 * 60 * 1000;
 const PENDING_REFRESH_RETRY_MS = 8000;
@@ -114,10 +116,15 @@ function availabilityEndpoint(backendUrl, venueId) {
   return base.toString();
 }
 
+function normalizeStoredBackendUrl(backendUrl) {
+  return backendUrl === OLD_LOCAL_BACKEND_URL ? DEFAULT_BACKEND_URL : backendUrl;
+}
+
 async function syncVenuePayload(venueId, payload) {
   const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
   const config = stored[SYNC_CONFIG_KEY] || {};
-  if (!config.enabled || !config.backendUrl) {
+  const backendUrl = normalizeStoredBackendUrl(config.backendUrl);
+  if (!config.enabled || !backendUrl) {
     return {
       ok: false,
       skipped: true,
@@ -125,7 +132,7 @@ async function syncVenuePayload(venueId, payload) {
     };
   }
 
-  const endpoint = availabilityEndpoint(config.backendUrl, venueId);
+  const endpoint = availabilityEndpoint(backendUrl, venueId);
 
   try {
     const headers = { "content-type": "application/json" };
@@ -162,7 +169,7 @@ async function syncVenuePayload(venueId, payload) {
 function syncErrorMessage(error, endpoint) {
   const message = error?.message || String(error);
   if (message === "Failed to fetch" || error?.name === "TypeError") {
-    return `Failed to reach ${endpoint}. Check the Backend URL, extension permission, and Render health.`;
+    return `Failed to reach ${endpoint}. Check the Backend URL, extension permission, and web app health.`;
   }
   return message;
 }

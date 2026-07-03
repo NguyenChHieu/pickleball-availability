@@ -1,6 +1,10 @@
-function formatDateTime(value) {
+import type { AvailabilityPayload, AvailabilityPayloadDay } from "./availabilityStore";
+
+type PayloadsByVenue = Record<string, AvailabilityPayload | null | undefined>;
+
+export function formatDateTime(value: unknown) {
   if (!value) return "";
-  const date = new Date(value);
+  const date = new Date(String(value));
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString("en-AU", {
     dateStyle: "medium",
@@ -9,23 +13,27 @@ function formatDateTime(value) {
   });
 }
 
-function formatInterval(interval) {
-  return `${interval.start_time}-${interval.end_time}`;
+function stringField(value: unknown) {
+  return typeof value === "string" ? value : "";
 }
 
-function formatDay(day) {
-  const intervals = day.open_intervals || [];
+export function formatInterval(interval: Record<string, unknown>) {
+  return `${stringField(interval.start_time)}-${stringField(interval.end_time)}`;
+}
+
+export function formatDay(day: AvailabilityPayloadDay) {
+  const intervals = Array.isArray(day.open_intervals) ? day.open_intervals : [];
   const label = day.date || "Unknown date";
   if (!intervals.length) return `${label}: no open intervals`;
 
-  const times = intervals.map(formatInterval).join(", ");
+  const times = intervals.map((interval) => formatInterval(interval as Record<string, unknown>)).join(", ");
   const hours = Number(day.remaining_hours || 0);
   const hoursLabel = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, "");
   const suffix = hours > 0 ? ` (${hoursLabel}h)` : "";
   return `${label}: ${times}${suffix}`;
 }
 
-function formatAvailability(payload, { maxDays = 8 } = {}) {
+export function formatAvailability(payload: AvailabilityPayload | null | undefined, { maxDays = 8 } = {}) {
   if (!payload || !Array.isArray(payload.days)) {
     return "No availability has been loaded yet.";
   }
@@ -48,7 +56,7 @@ function formatAvailability(payload, { maxDays = 8 } = {}) {
   return lines.join("\n");
 }
 
-function answerForMessage(text, payloadsByVenue) {
+export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue) {
   const normalized = String(text || "").toLowerCase();
   if (!normalized.trim()) return "Ask me: availability propickle";
 
@@ -64,11 +72,3 @@ function answerForMessage(text, payloadsByVenue) {
 
   return "Ask me: availability propickle";
 }
-
-module.exports = {
-  answerForMessage,
-  formatAvailability,
-  formatDateTime,
-  formatDay,
-  formatInterval,
-};

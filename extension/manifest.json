@@ -6,8 +6,8 @@
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": [
     "https://book.propickle.com.au/*",
-    "http://localhost:8787/*",
-    "https://*.onrender.com/*"
+    "http://localhost:3007/*",
+    "https://*.vercel.app/*"
   ],
   "background": {
     "service_worker": "background.js"
