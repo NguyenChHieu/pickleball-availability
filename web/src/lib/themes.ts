@@ -3,7 +3,6 @@ export type VenueTheme = {
   name: string;
   identity: {
     productLabel: string;
-    markLabel: string;
     logoSrc: string;
     motion: "venue-pop" | "none";
   };
@@ -23,7 +22,6 @@ export type VenueTheme = {
     warning: string;
   };
   copy: {
-    kicker: string;
     freshnessFallback: string;
     emptyHeading: string;
     emptyBody: string;
@@ -41,7 +39,6 @@ export const propickleTheme: VenueTheme = {
   name: "ProPickle",
   identity: {
     productLabel: "Availability",
-    markLabel: "ProPickle venue mark",
     logoSrc: "/venues/propickle-logo.png",
     motion: "venue-pop",
   },
@@ -61,7 +58,6 @@ export const propickleTheme: VenueTheme = {
     warning: "#f59e0b",
   },
   copy: {
-    kicker: "Cached court availability",
     freshnessFallback: "Cached availability",
     emptyHeading: "No cached availability yet",
     emptyBody: "Refresh ProPickle from the extension, then reopen this page.",
@@ -78,7 +74,6 @@ export const broadwayTheme: VenueTheme = {
   name: "Broadway Pickleball",
   identity: {
     productLabel: "Court Times",
-    markLabel: "Broadway venue mark",
     logoSrc: "/venues/broadway-logo.png",
     motion: "venue-pop",
   },
@@ -98,7 +93,6 @@ export const broadwayTheme: VenueTheme = {
     warning: "#b7791f",
   },
   copy: {
-    kicker: "Cached ClubSpark availability",
     freshnessFallback: "Cached Broadway availability",
     emptyHeading: "No cached Broadway availability yet",
     emptyBody: "Refresh Broadway Pickleball from the extension, then reopen this page.",
@@ -110,12 +104,3 @@ export const broadwayTheme: VenueTheme = {
     footerNote: "Read-only page. Availability comes from the latest browser-extension read of ClubSpark.",
   },
 };
-
-export const venueThemes: Record<string, VenueTheme> = {
-  [propickleTheme.id]: propickleTheme,
-  [broadwayTheme.id]: broadwayTheme,
-};
-
-export function getVenueTheme(themeId = "") {
-  return venueThemes[themeId] ?? propickleTheme;
-}

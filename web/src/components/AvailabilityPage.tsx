@@ -1,7 +1,7 @@
 import { DayCard } from "@/components/DayCard";
 import type { PublicAvailability, PublicAvailabilityReady } from "@/lib/publicAvailability";
-import { shareVenueLinks, type ShareVenueLink } from "@/lib/shareVenues";
-import { getVenueTheme, type VenueTheme } from "@/lib/themes";
+import { getVenueTheme, shareVenueLinks, type ShareVenueLink } from "@/lib/venues";
+import type { VenueTheme } from "@/lib/themes";
 import Image from "next/image";
 import type { CSSProperties } from "react";
 

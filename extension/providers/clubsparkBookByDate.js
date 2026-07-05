@@ -74,6 +74,19 @@
   };
 
   const pageDate = () => firstSlotDate() || hashDate();
+  const scheduleFingerprint = () => {
+    const slotIds = Array.from(document.querySelectorAll("[data-test-id^='booking-']"))
+      .map((element) => element.getAttribute("data-test-id") || "")
+      .join("|");
+    const sheetText = normalizeWhitespace(bookingSheet()?.innerText || bookingSheet()?.textContent || "");
+    return `${slotIds}::${sheetText}`;
+  };
+
+  const scheduleLoadedForDate = (dateIso, previousFingerprint = "") => {
+    if (!bookingSheet() || !resources().length) return false;
+    if (firstSlotDate() === dateIso) return true;
+    return Boolean(previousFingerprint && hashDate() === dateIso && scheduleFingerprint() !== previousFingerprint);
+  };
 
   const bookingBase = (venue = {}) => {
     if (venue.bookingUrlBase) return String(venue.bookingUrlBase).replace(/\/+$/, "");
@@ -87,11 +100,15 @@
     `${bookingBase(venue)}#?date=${encodeURIComponent(dateIso)}&role=guest`;
 
   const loadDate = async (dateIso, venue = {}) => {
-    if (pageDate() === dateIso && canRead()) return true;
+    if (scheduleLoadedForDate(dateIso) || (pageDate() === dateIso && canRead())) return true;
 
+    const previousFingerprint = scheduleFingerprint();
     window.location.hash = `?date=${dateIso}&role=guest`;
-    await wait(250);
-    const hashLoaded = await waitUntil(() => pageDate() === dateIso && canRead(), DAY_LOAD_TIMEOUT_MS);
+    await wait(DAY_SETTLE_MS);
+    const hashLoaded = await waitUntil(
+      () => scheduleLoadedForDate(dateIso, previousFingerprint),
+      DAY_LOAD_TIMEOUT_MS
+    );
     if (hashLoaded) {
       await wait(DAY_SETTLE_MS);
       return true;
@@ -101,8 +118,12 @@
     const nextButton = document.querySelector(".day-nav-btn.tomorrow");
     const currentDate = pageDate();
     if (nextButton && currentDate && addDays(currentDate, 1) === dateIso) {
+      const clickedFromFingerprint = scheduleFingerprint();
       nextButton.click();
-      const clickedLoaded = await waitUntil(() => pageDate() === dateIso && canRead(), DAY_LOAD_TIMEOUT_MS);
+      const clickedLoaded = await waitUntil(
+        () => scheduleLoadedForDate(dateIso, clickedFromFingerprint),
+        DAY_LOAD_TIMEOUT_MS
+      );
       if (clickedLoaded) {
         await wait(DAY_SETTLE_MS);
         return true;
@@ -124,66 +145,27 @@
     return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   };
 
-  const parseDataTestId = (element) => {
+  const startMinutesFromTestId = (element) => {
     const parts = (element.getAttribute("data-test-id") || "").split("|");
-    return {
-      resourceId: parts[0]?.replace(/^booking-/, "") || "",
-      dateIso: parts[1] || "",
-      startMinutes: Number(parts[2]),
-    };
+    return Number(parts[2]);
   };
 
-  const parseOpenSlot = (element, courtName, dateIso, venue) => {
+  const parseOpenSlot = (element) => {
     const text = normalizeWhitespace(element.innerText || element.textContent || "");
-    const testId = parseDataTestId(element);
+    const testIdStart = startMinutesFromTestId(element);
     const range = text.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
-    const price = text.match(/\$\d+(?:\.\d{2})?/)?.[0] || "";
-    const startMinutes = Number.isFinite(testId.startMinutes)
-      ? testId.startMinutes
+    const startMinutes = Number.isFinite(testIdStart)
+      ? testIdStart
       : range
         ? timeToMinutes(range[1])
         : null;
     if (startMinutes === null) return null;
 
     return {
-      title: courtName,
-      date: dateLabel(dateIso),
       start_time: range?.[1] || minutesToTime(startMinutes),
       end_time: range?.[2] || minutesToTime(startMinutes + SLOT_MINUTES),
       status: "open",
-      price,
-      court_name: courtName,
-      resource_id: testId.resourceId,
-      booking_url: bookingUrlForDate(dateIso, venue),
-      booking_action_url: bookingUrlForDate(dateIso, venue),
-      source_url: window.location.href,
     };
-  };
-
-  const parseBookedSlot = (element, courtName, dateIso, venue) => {
-    const text = normalizeWhitespace(element.innerText || element.textContent || "");
-    const range = text.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
-    if (!range) return null;
-    const testId = parseDataTestId(element);
-    return {
-      title: courtName,
-      date: dateLabel(dateIso),
-      start_time: range[1],
-      end_time: range[2],
-      status: "full",
-      court_name: courtName,
-      resource_id: testId.resourceId,
-      booking_url: bookingUrlForDate(dateIso, venue),
-      source_url: window.location.href,
-    };
-  };
-
-  const courtNameForResource = (resource) => {
-    const header = resource.querySelector(".resource-header");
-    if (!header) return "Court";
-    const info = normalizeWhitespace(header.querySelector(".resource-info")?.innerText || "");
-    const fullText = normalizeWhitespace(header.innerText || header.textContent || "");
-    return normalizeWhitespace(fullText.replace(info, "")) || fullText.split(" Full,")[0] || "Court";
   };
 
   const mergeOpenIntervals = (slots) => {
@@ -215,18 +197,11 @@
       0
     );
 
-  const extractSlotsForDate = (dateIso, venue) => {
+  const extractOpenSlots = () => {
     const slots = [];
-    for (const resource of resources()) {
-      const courtName = courtNameForResource(resource);
-      for (const element of Array.from(resource.querySelectorAll("a.book-interval.not-booked"))) {
-        const slot = parseOpenSlot(element, courtName, dateIso, venue);
-        if (slot) slots.push(slot);
-      }
-      for (const element of Array.from(resource.querySelectorAll("a.edit-booking"))) {
-        const slot = parseBookedSlot(element, courtName, dateIso, venue);
-        if (slot) slots.push(slot);
-      }
+    for (const element of Array.from(document.querySelectorAll(".resource a.book-interval.not-booked"))) {
+      const slot = parseOpenSlot(element);
+      if (slot) slots.push(slot);
     }
     return slots;
   };
@@ -253,8 +228,8 @@
       }
 
       const currentDateIso = pageDate() || dateIso;
-      const rawSlots = extractSlotsForDate(currentDateIso, venue);
-      const openIntervals = mergeOpenIntervals(rawSlots);
+      const openSlots = extractOpenSlots();
+      const openIntervals = mergeOpenIntervals(openSlots);
       const dayBookingUrl = bookingUrlForDate(currentDateIso, venue);
       results.push({
         source_url: window.location.href,
@@ -265,7 +240,6 @@
         booking_action_url: dayBookingUrl,
         open_intervals: openIntervals,
         remaining_hours: remainingHours(openIntervals),
-        raw_slots: rawSlots,
       });
     }
 

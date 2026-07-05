@@ -1,3 +1,4 @@
+import { getVenueDefinition } from "@/lib/venues";
 import type { AvailabilityPayload, AvailabilityPayloadDay, AvailabilityRecord } from "./availabilityStore";
 import { bookingActionUrlForDay, bookingUrlForDay } from "./bookingLinks";
 import { formatDateTime } from "./formatAvailability";
@@ -10,32 +11,13 @@ const DEFAULT_VENUE = Object.freeze({
   themeId: "venue",
   venueName: "Venue",
 });
-const VENUE_METADATA = Object.freeze({
-  propickle: Object.freeze({
-    fallbackUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
-    themeId: "propickle",
-    venueName: "ProPickle",
-  }),
-  broadway: Object.freeze({
-    fallbackUrl: "https://clubspark.au/Broadway/Booking/BookByDate#?role=guest",
-    themeId: "broadway",
-    venueName: "Broadway Pickleball",
-  }),
-});
-
-type VenueMetadata = {
-  fallbackUrl: string;
-  themeId: string;
-  venueName: string;
-};
 
 function metadataForVenue(venueId: string, payload?: AvailabilityPayload | null) {
-  const metadata =
-    (VENUE_METADATA as Record<string, VenueMetadata | undefined>)[venueId] || DEFAULT_VENUE;
+  const venue = getVenueDefinition(venueId);
   return {
-    fallbackUrl: bookingUrlForDay({}, payload as Record<string, unknown>) || metadata.fallbackUrl,
-    themeId: metadata.themeId || venueId || DEFAULT_VENUE.themeId,
-    venueName: payload?.venue_name || metadata.venueName || venueId || DEFAULT_VENUE.venueName,
+    fallbackUrl: bookingUrlForDay({}, payload as Record<string, unknown>) || venue?.fallbackUrl || DEFAULT_VENUE.fallbackUrl,
+    themeId: venue?.theme.id || venueId || DEFAULT_VENUE.themeId,
+    venueName: payload?.venue_name || venue?.name || venueId || DEFAULT_VENUE.venueName,
   };
 }
 
