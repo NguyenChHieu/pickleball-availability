@@ -279,10 +279,8 @@ dd {
 .stitch-active p,
 .stitch-metric dt,
 .stitch-day-card__header p,
-.stitch-day-card__header > span,
-.stitch-interval a,
-.stitch-interval__disabled,
-.stitch-day-card__reserve,
+.stitch-day-card__hours,
+.stitch-day-card__book,
 .stitch-promo p,
 .stitch-sticky span,
 .stitch-sticky a,
@@ -510,11 +508,39 @@ dd {
   margin-top: 4px;
 }
 
-.stitch-day-card__header > span {
+.stitch-day-card__actions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+}
+
+.stitch-day-card__hours {
   background: var(--highlight-green);
   color: var(--action-foreground);
   padding: 4px 8px;
   white-space: nowrap;
+}
+
+.stitch-day-card__book {
+  align-items: center;
+  background: var(--action-surface);
+  color: var(--action-foreground);
+  display: inline-flex;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 72px;
+  padding: 12px 20px;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.stitch-day-card__book:hover {
+  background: var(--accent-blue);
+  color: var(--action-surface);
 }
 
 .stitch-intervals {
@@ -526,14 +552,14 @@ dd {
 }
 
 .stitch-interval {
-  align-items: center;
   background: var(--surface-container);
   border: 1px solid var(--outline-variant);
-  display: flex;
-  gap: 16px;
-  justify-content: space-between;
+  display: grid;
+  justify-items: center;
+  min-height: 88px;
   min-width: 0;
   padding: 16px;
+  text-align: center;
   transition:
     background-color 160ms ease,
     border-color 160ms ease,
@@ -554,6 +580,7 @@ dd {
 .stitch-interval > div {
   display: grid;
   gap: 4px;
+  justify-items: center;
   min-width: 0;
 }
 
@@ -572,60 +599,14 @@ dd {
   line-height: 18px;
 }
 
-.stitch-interval a,
-.stitch-interval__disabled {
-  align-items: center;
-  background: var(--action-surface);
-  color: var(--action-foreground);
-  display: inline-flex;
-  flex: 0 0 auto;
-  justify-content: center;
-  min-height: 44px;
-  padding: 12px 32px;
-  text-decoration: none;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.stitch-interval a:hover {
-  background: var(--accent-blue);
-  color: var(--action-surface);
-}
-
-.stitch-interval a:active,
-.stitch-day-card__reserve:active,
+.stitch-day-card__book:active,
 .stitch-sticky a:active,
 .stitch-state a:active {
   transform: translateY(1px);
 }
 
-.stitch-interval__disabled {
-  background: transparent;
-  border: 1px solid var(--outline-variant);
-  color: var(--on-surface-variant);
-}
-
 .stitch-interval--empty {
   opacity: 0.45;
-}
-
-.stitch-day-card__reserve {
-  border-top: 1px solid var(--outline-variant);
-  color: var(--on-surface);
-  display: none;
-  min-height: 44px;
-  padding: 12px;
-  text-align: center;
-  text-decoration: none;
-  transition:
-    background-color 160ms ease,
-    color 160ms ease;
-}
-
-.stitch-day-card__reserve:hover {
-  background: var(--action-surface);
-  color: var(--action-foreground);
 }
 
 .stitch-promo {
@@ -925,7 +906,7 @@ dd {
   }
 
   .stitch-day-card__header {
-    align-items: start;
+    align-items: center;
     border-bottom: 0;
     border-top: 2px solid var(--accent-blue);
     padding: 16px 16px 0;
@@ -944,9 +925,8 @@ dd {
   .stitch-interval {
     background: var(--surface-container-highest);
     border-color: var(--outline);
-    display: block;
-    min-height: 40px;
-    padding: 8px;
+    min-height: 56px;
+    padding: 10px;
     text-align: center;
   }
 
@@ -965,14 +945,8 @@ dd {
     color: var(--action-foreground);
   }
 
-  .stitch-interval__detail,
-  .stitch-interval a,
-  .stitch-interval__disabled {
+  .stitch-interval__detail {
     display: none;
-  }
-
-  .stitch-day-card__reserve {
-    display: block;
   }
 
   .stitch-promo {
@@ -1108,8 +1082,9 @@ dd {
     display: grid;
   }
 
-  .stitch-day-card__header > span {
-    justify-self: start;
+  .stitch-day-card__actions {
+    justify-content: space-between;
+    width: 100%;
   }
 
   .stitch-intervals {

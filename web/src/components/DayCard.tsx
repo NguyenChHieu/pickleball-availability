@@ -27,6 +27,7 @@ export function DayCard({ day, index }: DayCardProps) {
   const titleId = `stitch-day-${index}`;
   const { weekday, dateDetail } = splitDateLabel(day.date);
   const hoursLabel = `${formatHours(day.totalOpenHours)} HR`;
+  const bookingLabel = `Open booking page for ${weekday} ${dateDetail} to choose a time`;
 
   return (
     <article className="stitch-day-card" aria-labelledby={titleId}>
@@ -37,7 +38,21 @@ export function DayCard({ day, index }: DayCardProps) {
           </h2>
           <p>{statusLabel(day)}</p>
         </div>
-        <span className="tabular-nums">{hoursLabel}</span>
+        <div className="stitch-day-card__actions">
+          <span className="stitch-day-card__hours tabular-nums">{hoursLabel}</span>
+          {day.bookingUrl ? (
+            <a
+              className="stitch-day-card__book"
+              href={day.bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={bookingLabel}
+              aria-label={bookingLabel}
+            >
+              Book
+            </a>
+          ) : null}
+        </div>
       </header>
 
       {day.openIntervals.length ? (
@@ -48,13 +63,6 @@ export function DayCard({ day, index }: DayCardProps) {
                 <span className="stitch-interval__time tabular-nums">{interval.label}</span>
                 <span className="stitch-interval__detail">{day.title} - available court window</span>
               </div>
-              {day.bookingUrl ? (
-                <a href={day.bookingUrl} target="_blank" rel="noopener noreferrer">
-                  Book
-                </a>
-              ) : (
-                <span className="stitch-interval__disabled">Book</span>
-              )}
             </li>
           ))}
         </ul>
@@ -64,15 +72,8 @@ export function DayCard({ day, index }: DayCardProps) {
             <span className="stitch-interval__time">No open intervals</span>
             <span className="stitch-interval__detail">Open booking to confirm the live schedule.</span>
           </div>
-          <span className="stitch-interval__disabled">Full</span>
         </div>
       )}
-
-      {day.bookingUrl ? (
-        <a className="stitch-day-card__reserve" href={day.bookingUrl} target="_blank" rel="noopener noreferrer">
-          Reserve Court
-        </a>
-      ) : null}
     </article>
   );
 }
