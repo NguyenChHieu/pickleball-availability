@@ -16,6 +16,11 @@ const VENUE_METADATA = Object.freeze({
     themeId: "propickle",
     venueName: "ProPickle",
   }),
+  broadway: Object.freeze({
+    fallbackUrl: "https://clubspark.au/Broadway/Booking/BookByDate#?role=guest",
+    themeId: "broadway",
+    venueName: "Broadway Pickleball",
+  }),
 });
 
 type VenueMetadata = {

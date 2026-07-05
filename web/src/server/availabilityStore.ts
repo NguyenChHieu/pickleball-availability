@@ -15,6 +15,7 @@ export type AvailabilityPayloadDay = {
   open_intervals?: AvailabilityInterval[];
   booking_date?: string;
   booking_url?: string;
+  booking_action_url?: string;
   source_url?: string;
 };
 

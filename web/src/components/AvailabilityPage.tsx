@@ -1,10 +1,13 @@
 import { DayCard } from "@/components/DayCard";
 import type { PublicAvailability, PublicAvailabilityReady } from "@/lib/publicAvailability";
+import { shareVenueLinks, type ShareVenueLink } from "@/lib/shareVenues";
 import { getVenueTheme, type VenueTheme } from "@/lib/themes";
+import Image from "next/image";
 import type { CSSProperties } from "react";
 
 type AvailabilityPageProps = Readonly<{
   availability: PublicAvailability;
+  shareToken?: string;
   venueId?: string;
 }>;
 
@@ -58,23 +61,57 @@ function displayFreshness(label: string) {
   return label.replace(/^Last read\s+/i, "");
 }
 
+function splitDateLabel(date: string) {
+  const [weekday, ...rest] = date.split(" ");
+  return {
+    weekday: (weekday || date).replace(/,$/, ""),
+    dateDetail: rest.join(" ") || date,
+  };
+}
+
 function firstOpenSlot(availability: PublicAvailabilityReady) {
   for (const day of availability.days) {
     const interval = day.openIntervals[0];
-    if (interval) return interval.startTime;
+    if (interval) {
+      const { weekday, dateDetail } = splitDateLabel(day.date);
+      return `${weekday} ${dateDetail}, ${interval.startTime}`;
+    }
   }
 
   return "--";
 }
 
-function intervalCount(availability: PublicAvailabilityReady) {
-  return availability.days.reduce((count, day) => count + day.openIntervals.length, 0);
+function openDayCount(availability: PublicAvailabilityReady) {
+  return availability.days.filter((day) => day.openIntervals.length > 0).length;
 }
 
-export function AvailabilityPage({ availability, venueId = "propickle" }: AvailabilityPageProps) {
+function VenueLinkList({ links }: Readonly<{ links: ShareVenueLink[] }>) {
+  return links.map((venue) => {
+    const content = (
+      <>
+        <span>{venue.name}</span>
+        <small>{venue.isCurrent ? "Current venue" : "View availability"}</small>
+      </>
+    );
+
+    return venue.isCurrent ? (
+      <span className="stitch-venue-link stitch-venue-link--current" aria-current="page" key={venue.id}>
+        {content}
+      </span>
+    ) : (
+      <a className="stitch-venue-link" href={venue.href} key={venue.id}>
+        {content}
+      </a>
+    );
+  });
+}
+
+export function AvailabilityPage({ availability, shareToken = "", venueId = "propickle" }: AvailabilityPageProps) {
   const themeId = availability.state === "ready" ? availability.themeId : venueId;
   const theme = getVenueTheme(themeId);
   const isReady = availability.state === "ready";
+  const currentVenueId = isReady ? availability.venueId : venueId;
+  const venueLinks = shareVenueLinks(shareToken, currentVenueId);
   const venueName = isReady ? availability.venueName : theme.name;
   const freshnessLabel =
     isReady && availability.freshnessLabel
@@ -82,7 +119,7 @@ export function AvailabilityPage({ availability, venueId = "propickle" }: Availa
       : theme.copy.freshnessFallback;
   const syncedAt = displayFreshness(freshnessLabel);
   const fallbackUrl = availability.fallbackUrl || "#";
-  const availableIntervals = isReady ? intervalCount(availability) : 0;
+  const availableDays = isReady ? openDayCount(availability) : 0;
   const openHours = isReady ? formatHours(availability.summary.totalOpenHours) : "0";
   const nextSlot = isReady ? firstOpenSlot(availability) : "--";
 
@@ -96,7 +133,14 @@ export function AvailabilityPage({ availability, venueId = "propickle" }: Availa
       <header className="stitch-topbar">
         <div className="stitch-topbar__inner">
           <a className="stitch-brand" href={fallbackUrl} target="_blank" rel="noopener noreferrer">
-            <span className="stitch-brand__icon" aria-hidden="true" />
+            <Image
+              aria-hidden="true"
+              className="stitch-brand__logo"
+              src={theme.identity.logoSrc}
+              alt=""
+              width={38}
+              height={38}
+            />
             <span className="stitch-brand__copy">
               <span className="stitch-brand__venue">{venueName}</span>
               <span className="stitch-brand__product">{theme.identity.productLabel}</span>
@@ -104,10 +148,17 @@ export function AvailabilityPage({ availability, venueId = "propickle" }: Availa
           </a>
           <div className="stitch-topbar__actions" aria-label="Share page status">
             <nav className="stitch-nav" aria-label="Primary">
-              <a href="#schedule">Schedule</a>
-              <span>Venues</span>
+              {venueLinks.length ? (
+                <details className="stitch-venue-menu">
+                  <summary>Venues</summary>
+                  <div className="stitch-venue-menu__panel">
+                    <VenueLinkList links={venueLinks} />
+                  </div>
+                </details>
+              ) : (
+                <span>Venues</span>
+              )}
             </nav>
-            <span className="stitch-refresh" aria-hidden="true" />
           </div>
         </div>
       </header>
@@ -138,18 +189,31 @@ export function AvailabilityPage({ availability, venueId = "propickle" }: Availa
           </div>
 
           {isReady && availability.isStale ? <p className="stitch-warning">{theme.copy.staleWarning}</p> : null}
+          {theme.copy.bookingNote ? <p className="stitch-note">{theme.copy.bookingNote}</p> : null}
 
           <dl className="stitch-metrics" aria-label="Availability summary">
-            <div className="stitch-metric stitch-metric--accent">
-              <dt>Available</dt>
-              <dd className="tabular-nums">{availableIntervals}</dd>
+            <div
+              className="stitch-metric stitch-metric--accent"
+              data-tooltip="Days in this cached read that have at least one open interval."
+              tabIndex={0}
+            >
+              <dt>Open Days</dt>
+              <dd className="tabular-nums">{availableDays}</dd>
             </div>
-            <div className="stitch-metric">
+            <div
+              className="stitch-metric"
+              data-tooltip="Total open court hours across all listed days in the latest read."
+              tabIndex={0}
+            >
               <dt>Open Hours</dt>
               <dd className="tabular-nums">{openHours}</dd>
             </div>
-            <div className="stitch-metric">
-              <dt>Next Slot</dt>
+            <div
+              className="stitch-metric"
+              data-tooltip="Earliest open interval found in the cached availability read."
+              tabIndex={0}
+            >
+              <dt>Next Open</dt>
               <dd className="tabular-nums">{nextSlot}</dd>
             </div>
           </dl>
@@ -159,14 +223,14 @@ export function AvailabilityPage({ availability, venueId = "propickle" }: Availa
 
         <section className="stitch-promo" aria-label="System status">
           <div>
-            <p>Elite Performance Access</p>
-            <span>Join ProPickle for advance booking.</span>
+            <p>Booking Access</p>
+            <span>Open the venue booking page to reserve directly.</span>
           </div>
           <div>
             <span className="stitch-bolt" aria-hidden="true" />
             <div>
               <p>System Status</p>
-              <span>Live court tracking active.</span>
+              <span>Cached availability tracking active.</span>
             </div>
           </div>
         </section>
@@ -185,18 +249,21 @@ export function AvailabilityPage({ availability, venueId = "propickle" }: Availa
       </div>
 
       <nav className="stitch-mobile-nav" aria-label="Mobile">
-        <a href="#schedule" aria-current="page">
-          <span className="stitch-nav-icon stitch-nav-icon--schedule" aria-hidden="true" />
-          <span>Schedules</span>
+        {venueLinks.length ? (
+          <details className="stitch-mobile-venue-menu">
+            <summary>
+              <span className="stitch-nav-icon stitch-nav-icon--courts" aria-hidden="true" />
+              <span>Venues</span>
+            </summary>
+            <div className="stitch-mobile-venue-menu__panel">
+              <VenueLinkList links={venueLinks} />
+            </div>
+          </details>
+        ) : null}
+        <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
+          <span className="stitch-nav-icon stitch-nav-icon--booking" aria-hidden="true" />
+          <span>Booking</span>
         </a>
-        <span>
-          <span className="stitch-nav-icon stitch-nav-icon--courts" aria-hidden="true" />
-          <span>Courts</span>
-        </span>
-        <span>
-          <span className="stitch-nav-icon stitch-nav-icon--settings" aria-hidden="true" />
-          <span>Preferences</span>
-        </span>
       </nav>
 
       <footer className="stitch-footer">{theme.copy.footerNote}</footer>

@@ -19,5 +19,5 @@ export default async function AvailabilityRoute({ params }: AvailabilityRoutePro
     notFound();
   }
 
-  return <AvailabilityPage availability={availability} venueId={venueId} />;
+  return <AvailabilityPage availability={availability} shareToken={shareToken} venueId={venueId} />;
 }

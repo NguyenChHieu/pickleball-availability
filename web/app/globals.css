@@ -182,51 +182,30 @@ dd {
   text-decoration: none;
 }
 
-.stitch-brand__icon {
-  align-items: center;
-  background: var(--accent-blue);
-  color: var(--action-foreground);
-  display: inline-flex;
+.stitch-brand__logo {
   flex: 0 0 auto;
-  height: 32px;
-  justify-content: center;
-  position: relative;
+  height: 38px;
+  object-fit: contain;
   transition: transform 180ms ease;
-  width: 32px;
+  width: 38px;
 }
 
-.stitch-brand:hover .stitch-brand__icon {
+.stitch-page[data-venue-theme="broadway"] .stitch-brand__logo {
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+  padding: 2px;
+}
+
+.stitch-brand:hover .stitch-brand__logo {
   transform: translateY(-1px) scale(1.04);
 }
 
-.stitch-brand:active .stitch-brand__icon {
+.stitch-brand:active .stitch-brand__logo {
   transform: translateY(0) scale(0.98);
 }
 
-.stitch-page[data-venue-motion="venue-pop"] .stitch-brand__icon {
+.stitch-page[data-venue-motion="venue-pop"] .stitch-brand__logo {
   animation: venue-mark-pop 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.stitch-page[data-venue-motion="venue-pop"] .stitch-brand__icon::before {
-  animation: venue-mark-pulse 2.4s ease-in-out infinite;
-}
-
-.stitch-brand__icon::before {
-  border: 3px solid var(--action-foreground);
-  border-radius: 999px;
-  content: "";
-  height: 15px;
-  transform: translate(-2px, -2px);
-  width: 15px;
-}
-
-.stitch-brand__icon::after {
-  background: var(--action-foreground);
-  content: "";
-  height: 12px;
-  position: absolute;
-  transform: translate(8px, 8px) rotate(45deg);
-  width: 3px;
 }
 
 .stitch-brand__copy {
@@ -273,7 +252,9 @@ dd {
 
 .stitch-nav a,
 .stitch-nav span,
-.stitch-refresh,
+.stitch-venue-menu summary,
+.stitch-mobile-venue-menu summary span:last-child,
+.stitch-venue-link small,
 .stitch-freshness p,
 .stitch-active span,
 .stitch-active p,
@@ -293,8 +274,10 @@ dd {
   text-transform: uppercase;
 }
 
-.stitch-nav a {
+.stitch-nav a,
+.stitch-venue-menu summary {
   color: var(--on-surface);
+  cursor: pointer;
   text-decoration: none;
 }
 
@@ -302,24 +285,81 @@ dd {
   color: var(--on-surface-variant);
 }
 
-.stitch-refresh {
-  border: 2px solid var(--on-surface);
-  border-left-color: transparent;
-  border-radius: 999px;
-  display: inline-block;
-  height: 22px;
+.stitch-venue-menu {
   position: relative;
-  width: 22px;
 }
 
-.stitch-refresh::after {
-  border-left: 5px solid var(--on-surface);
-  border-top: 4px solid transparent;
-  border-bottom: 4px solid transparent;
-  content: "";
+.stitch-venue-menu summary {
+  list-style: none;
+}
+
+.stitch-venue-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.stitch-venue-menu summary::after {
+  content: " +";
+}
+
+.stitch-venue-menu[open] summary {
+  color: var(--highlight-green);
+}
+
+.stitch-venue-menu__panel {
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  box-shadow: 0 18px 32px rgb(var(--on-surface-rgb) / 16%);
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+  padding: 8px;
   position: absolute;
-  right: -2px;
-  top: 1px;
+  right: 0;
+  top: calc(100% + 14px);
+  z-index: 30;
+}
+
+.stitch-venue-link {
+  background: var(--surface-container);
+  border: 1px solid var(--outline-variant);
+  color: var(--on-surface);
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.stitch-venue-link:hover {
+  background: rgb(var(--accent-blue-rgb) / 10%);
+  border-color: var(--accent-blue);
+  transform: translateY(-1px);
+}
+
+.stitch-venue-link--current {
+  background: rgb(var(--highlight-green-rgb) / 16%);
+  border-color: var(--highlight-green);
+}
+
+.stitch-venue-link span {
+  font-family: var(--font-headline);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stitch-venue-link small {
+  color: var(--on-surface-variant);
 }
 
 .stitch-freshness {
@@ -422,6 +462,15 @@ dd {
   padding: 12px 14px;
 }
 
+.stitch-note {
+  background: rgb(var(--accent-blue-rgb) / 10%);
+  border: 1px solid rgb(var(--accent-blue-rgb) / 28%);
+  color: var(--on-surface);
+  font-size: 13px;
+  line-height: 18px;
+  padding: 12px 14px;
+}
+
 .stitch-metrics {
   display: grid;
   gap: 0;
@@ -439,6 +488,39 @@ dd {
 
 .stitch-metric:last-child {
   border-right-width: 1px;
+}
+
+.stitch-metric[data-tooltip] {
+  cursor: help;
+  outline: none;
+}
+
+.stitch-metric[data-tooltip]::before {
+  background: var(--on-surface);
+  border: 1px solid var(--outline);
+  bottom: calc(100% + 8px);
+  color: var(--surface);
+  content: attr(data-tooltip);
+  font-size: 12px;
+  left: 16px;
+  line-height: 16px;
+  opacity: 0;
+  padding: 10px 12px;
+  pointer-events: none;
+  position: absolute;
+  right: 16px;
+  text-transform: none;
+  transform: translateY(4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  z-index: 40;
+}
+
+.stitch-metric[data-tooltip]:hover::before,
+.stitch-metric[data-tooltip]:focus::before {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .stitch-metric--accent::after {
@@ -799,17 +881,6 @@ dd {
   }
 }
 
-@keyframes venue-mark-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.68;
-  }
-}
-
 @media (max-width: 767px) {
   .stitch-page {
     padding-bottom: 112px;
@@ -973,7 +1044,8 @@ dd {
   }
 
   .stitch-mobile-nav a,
-  .stitch-mobile-nav > span {
+  .stitch-mobile-nav > span,
+  .stitch-mobile-venue-menu summary {
     align-items: center;
     color: var(--on-surface-variant);
     display: grid;
@@ -981,6 +1053,38 @@ dd {
     min-width: 82px;
     padding: 4px 12px;
     text-decoration: none;
+  }
+
+  .stitch-mobile-venue-menu {
+    position: relative;
+  }
+
+  .stitch-mobile-venue-menu summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .stitch-mobile-venue-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .stitch-mobile-venue-menu[open] summary {
+    border-bottom: 2px solid var(--highlight-green);
+    color: var(--on-surface);
+  }
+
+  .stitch-mobile-venue-menu__panel {
+    background: var(--surface);
+    border: 1px solid var(--outline);
+    bottom: calc(100% + 10px);
+    box-shadow: 0 -18px 32px rgb(var(--on-surface-rgb) / 16%);
+    display: grid;
+    gap: 8px;
+    min-width: min(320px, calc(100vw - 32px));
+    padding: 8px;
+    position: absolute;
+    right: -88px;
+    z-index: 70;
   }
 
   .stitch-mobile-nav a[aria-current="page"] {
@@ -993,20 +1097,6 @@ dd {
     height: 22px;
     position: relative;
     width: 22px;
-  }
-
-  .stitch-nav-icon--schedule {
-    border: 2px solid currentColor;
-  }
-
-  .stitch-nav-icon--schedule::before {
-    background: currentColor;
-    content: "";
-    height: 2px;
-    left: 0;
-    position: absolute;
-    right: 0;
-    top: 5px;
   }
 
   .stitch-nav-icon--courts {
@@ -1025,30 +1115,30 @@ dd {
     width: 6px;
   }
 
-  .stitch-nav-icon--settings {
+  .stitch-nav-icon--booking {
     border: 2px solid currentColor;
-    border-radius: 999px;
   }
 
-  .stitch-nav-icon--settings::before,
-  .stitch-nav-icon--settings::after {
+  .stitch-nav-icon--booking::before {
+    border-right: 2px solid currentColor;
+    border-top: 2px solid currentColor;
+    content: "";
+    height: 8px;
+    position: absolute;
+    right: -3px;
+    top: -3px;
+    width: 8px;
+  }
+
+  .stitch-nav-icon--booking::after {
     background: currentColor;
     content: "";
-    left: 9px;
+    height: 2px;
+    left: 7px;
     position: absolute;
-    width: 2px;
-  }
-
-  .stitch-nav-icon--settings::before {
-    height: 24px;
-    top: -3px;
-    transform: rotate(45deg);
-  }
-
-  .stitch-nav-icon--settings::after {
-    height: 24px;
-    top: -3px;
+    top: 8px;
     transform: rotate(-45deg);
+    width: 11px;
   }
 
   .stitch-footer {
@@ -1061,7 +1151,7 @@ dd {
     font-size: 17px;
   }
 
-  .stitch-brand__icon {
+  .stitch-brand__logo {
     height: 30px;
     width: 30px;
   }

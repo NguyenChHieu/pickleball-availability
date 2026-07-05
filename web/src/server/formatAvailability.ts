@@ -58,17 +58,19 @@ export function formatAvailability(payload: AvailabilityPayload | null | undefin
 
 export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue) {
   const normalized = String(text || "").toLowerCase();
-  if (!normalized.trim()) return "Ask me: availability propickle";
+  if (!normalized.trim()) return "Ask me: availability propickle or availability broadway";
 
+  const wantsBroadway = normalized.includes("broadway");
   const wantsProPickle =
     normalized.includes("propickle") ||
     normalized.includes("pro pickle") ||
     normalized.includes("pro pico") ||
     normalized.includes("pickle");
 
+  if (wantsBroadway) return formatAvailability(payloadsByVenue.broadway);
   if (wantsProPickle || normalized.includes("availability") || normalized.includes("available")) {
     return formatAvailability(payloadsByVenue.propickle);
   }
 
-  return "Ask me: availability propickle";
+  return "Ask me: availability propickle or availability broadway";
 }

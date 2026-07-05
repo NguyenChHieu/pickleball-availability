@@ -11,6 +11,7 @@ const MESSAGE = Object.freeze({
 
 const PROVIDER_FILES = Object.freeze({
   "playbypoint-bookbox": "providers/playbypointBookBox.js",
+  "clubspark-book-by-date": "providers/clubsparkBookByDate.js",
 });
 
 const SYNC_CONFIG_KEY = "backendSyncConfig";
