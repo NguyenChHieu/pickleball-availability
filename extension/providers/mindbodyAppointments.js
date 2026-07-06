@@ -25,6 +25,9 @@
     "December",
   ];
   const monthLookup = Object.fromEntries(monthNames.map((name, index) => [name.toLowerCase(), index]));
+  for (const [index, name] of monthNames.entries()) {
+    monthLookup[name.slice(0, 3).toLowerCase()] = index;
+  }
   const weekdayShort = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const weekdayLong = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -69,7 +72,33 @@
   const serviceButtons = () => Array.from(document.querySelectorAll("button[data-service-id]"));
   const hasServicesPage = () => serviceButtons().length > 0 && pageText().includes("Court Hire");
   const hasStaffPage = () => pageText().includes("Select your provider");
-  const hasSchedulePage = () => /Availability for [A-Za-z]+ \d{1,2}, \d{4}/.test(pageText());
+
+  const dateFromMonthParts = (monthName, day, year) => {
+    const month = monthLookup[String(monthName || "").toLowerCase()];
+    return month === undefined ? null : new Date(Number(year), month, Number(day));
+  };
+
+  const scheduleDateFromText = () => {
+    const text = pageText();
+    const fullDatePatterns = [
+      /Availability for ([A-Za-z]+) (\d{1,2}), (\d{4})/i,
+      /fully booked for (?:today,\s*)?([A-Za-z]+) (\d{1,2}), (\d{4})/i,
+      /fully booked for [A-Za-z]+,\s+([A-Za-z]+) (\d{1,2}), (\d{4})/i,
+      /(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat),\s+([A-Za-z]+) (\d{1,2}), (\d{4})/i,
+    ];
+
+    for (const pattern of fullDatePatterns) {
+      const match = text.match(pattern);
+      const date = match ? dateFromMonthParts(match[1], match[2], match[3]) : null;
+      if (date) return date;
+    }
+
+    return null;
+  };
+
+  const hasSchedulePage = () =>
+    Boolean(scheduleDateFromText()) ||
+    (pageText().includes("Select Date & Time") && pageText().includes("Appointment Details"));
   const canRead = () => hasServicesPage() || hasSchedulePage();
   const setupRequired = () => false;
 
@@ -167,11 +196,7 @@
   };
 
   const selectedScheduleDate = () => {
-    const match = pageText().match(/Availability for ([A-Za-z]+) (\d{1,2}), (\d{4})/);
-    if (!match) return null;
-    const month = monthLookup[match[1].toLowerCase()];
-    if (month === undefined) return null;
-    return new Date(Number(match[3]), month, Number(match[2]));
+    return scheduleDateFromText();
   };
 
   const selectedScheduleDateIso = () => {
