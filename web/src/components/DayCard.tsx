@@ -19,6 +19,7 @@ function splitDateLabel(date: string) {
 
 function statusLabel(day: PublicAvailabilityDay) {
   if (!day.openIntervals.length) return "No open intervals";
+  if (day.levelIntervals.length) return "Booking levels available";
   if (day.sameCourtIntervals.length) return "Same-court runs available";
   if (day.openIntervals.length <= 2) return "Limited slots";
   return "Any-court windows";
@@ -74,6 +75,32 @@ export function DayCard({ day, index }: DayCardProps) {
               ))}
             </ul>
           </div>
+
+          {day.levelIntervals.length ? (
+            <section className="stitch-levels" aria-label={`${day.date} booking levels`}>
+              <div className="stitch-interval-group__header">
+                <h3>Booking levels</h3>
+                <p>Each level is listed separately when the venue exposes service pricing.</p>
+              </div>
+              <ul>
+                {day.levelIntervals.map((level) => (
+                  <li key={`${level.levelName}-${level.price}`}>
+                    <span>
+                      {level.levelName}
+                      {level.price ? <small>{level.price}</small> : null}
+                    </span>
+                    <div>
+                      {level.intervals.map((interval) => (
+                        <span className="tabular-nums" key={`${level.levelName}-${interval.startTime}-${interval.endTime}`}>
+                          {interval.label}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           {day.sameCourtIntervals.length ? (
             <section className="stitch-same-court" aria-label={`${day.date} same-court runs`}>

@@ -15,12 +15,19 @@ export type PublicAvailabilityCourtIntervals = {
   intervals: PublicAvailabilityInterval[];
 };
 
+export type PublicAvailabilityLevelIntervals = {
+  levelName: string;
+  price: string;
+  intervals: PublicAvailabilityInterval[];
+};
+
 export type PublicAvailabilityDay = {
   date: string;
   title: string;
   totalOpenHours: number;
   openIntervals: PublicAvailabilityInterval[];
   sameCourtIntervals: PublicAvailabilityCourtIntervals[];
+  levelIntervals: PublicAvailabilityLevelIntervals[];
   bookingUrl?: string;
 };
 

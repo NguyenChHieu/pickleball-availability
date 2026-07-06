@@ -274,6 +274,24 @@
       0
     );
 
+  const levelIntervals = (slots) => {
+    const byLevel = new Map();
+    for (const slot of slots) {
+      const levelName = normalizeWhitespace(slot.title || slot.service_name || "Court hire");
+      const price = normalizeWhitespace(slot.price || "");
+      const key = `${levelName}|${price}`;
+      byLevel.set(key, [...(byLevel.get(key) || []), slot]);
+    }
+
+    return Array.from(byLevel.values())
+      .map((levelSlots) => ({
+        level_name: normalizeWhitespace(levelSlots[0]?.title || levelSlots[0]?.service_name || "Court hire"),
+        price: normalizeWhitespace(levelSlots[0]?.price || ""),
+        intervals: mergeOpenIntervals(levelSlots),
+      }))
+      .filter((group) => group.level_name && group.intervals.length);
+  };
+
   const bookingUrlForVenue = (venue = {}) => venue.publicBookingUrl || venue.startUrl || window.location.href;
 
   async function selectDate(targetDate) {
@@ -311,6 +329,7 @@
     const days = targetDates.map((dateIso) => {
       const rawSlots = slotsByDate.get(dateIso) || [];
       const openIntervals = mergeOpenIntervals(rawSlots);
+      const levels = levelIntervals(rawSlots);
       return {
         source_url: window.location.href,
         title: "Any pickleball court",
@@ -320,6 +339,7 @@
         booking_action_url: bookingUrl,
         open_intervals: openIntervals,
         same_court_intervals: [],
+        level_intervals: levels,
         remaining_hours: remainingHours(openIntervals),
         raw_slots: rawSlots,
       };

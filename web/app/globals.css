@@ -720,11 +720,13 @@ dd {
   opacity: 0.45;
 }
 
+.stitch-levels,
 .stitch-same-court {
   display: grid;
   gap: 10px;
 }
 
+.stitch-levels ul,
 .stitch-same-court ul {
   display: grid;
   gap: 8px;
@@ -733,6 +735,7 @@ dd {
   padding: 0;
 }
 
+.stitch-levels li,
 .stitch-same-court li {
   align-items: center;
   background: rgb(var(--accent-blue-rgb) / 10%);
@@ -744,8 +747,16 @@ dd {
   padding: 12px;
 }
 
+.stitch-levels li {
+  background: rgb(var(--highlight-green-rgb) / 10%);
+  border-color: rgb(var(--highlight-green-rgb) / 28%);
+}
+
+.stitch-levels li > span,
 .stitch-same-court li > span {
   color: var(--on-surface);
+  display: grid;
+  gap: 2px;
   font-size: 13px;
   font-weight: 700;
   line-height: 18px;
@@ -753,6 +764,15 @@ dd {
   overflow-wrap: anywhere;
 }
 
+.stitch-levels li > span small {
+  color: var(--on-surface-variant);
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.stitch-levels li > div,
 .stitch-same-court li > div {
   display: flex;
   flex-wrap: wrap;
@@ -760,6 +780,7 @@ dd {
   justify-content: end;
 }
 
+.stitch-levels li > div span,
 .stitch-same-court li > div span {
   background: var(--surface-container-highest);
   border: 1px solid var(--outline-variant);

@@ -49,9 +49,20 @@ function normalizeCourtIntervals(group: Record<string, unknown>) {
   };
 }
 
+function normalizeLevelIntervals(group: Record<string, unknown>) {
+  const levelName = String(group?.level_name || group?.levelName || group?.title || group?.service_name || "");
+  const intervals = Array.isArray(group?.intervals) ? group.intervals : [];
+  return {
+    levelName,
+    price: String(group?.price || ""),
+    intervals: intervals.map((interval) => normalizeInterval(interval as Record<string, unknown>)),
+  };
+}
+
 function normalizeDay(day: AvailabilityPayloadDay, payload: AvailabilityPayload) {
   const openIntervals = Array.isArray(day?.open_intervals) ? day.open_intervals : [];
   const sameCourtIntervals = Array.isArray(day?.same_court_intervals) ? day.same_court_intervals : [];
+  const levelIntervals = Array.isArray(day?.level_intervals) ? day.level_intervals : [];
   return {
     date: day?.date || "Unknown date",
     title: day?.title || "Court booking",
@@ -60,6 +71,9 @@ function normalizeDay(day: AvailabilityPayloadDay, payload: AvailabilityPayload)
     sameCourtIntervals: sameCourtIntervals
       .map((group) => normalizeCourtIntervals(group as Record<string, unknown>))
       .filter((group) => group.courtName && group.intervals.length),
+    levelIntervals: levelIntervals
+      .map((group) => normalizeLevelIntervals(group as Record<string, unknown>))
+      .filter((group) => group.levelName && group.intervals.length),
     bookingUrl: bookingActionUrlForDay(
       day as Record<string, unknown>,
       payload as Record<string, unknown>

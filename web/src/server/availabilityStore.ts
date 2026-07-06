@@ -16,12 +16,22 @@ export type AvailabilityCourtIntervals = {
   intervals?: AvailabilityInterval[];
 };
 
+export type AvailabilityLevelIntervals = {
+  level_name?: string;
+  levelName?: string;
+  title?: string;
+  service_name?: string;
+  price?: string;
+  intervals?: AvailabilityInterval[];
+};
+
 export type AvailabilityPayloadDay = {
   date?: string;
   title?: string;
   remaining_hours?: number;
   open_intervals?: AvailabilityInterval[];
   same_court_intervals?: AvailabilityCourtIntervals[];
+  level_intervals?: AvailabilityLevelIntervals[];
   booking_date?: string;
   booking_url?: string;
   booking_action_url?: string;
