@@ -6,6 +6,7 @@ const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton")
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
+const deepScanWarningElement = document.querySelector("#deepScanWarning");
 
 const MESSAGE = Object.freeze({
   LIST_VENUES: "AVAILABILITY_LIST_VENUES",
@@ -31,11 +32,13 @@ function setStatus(message) {
 }
 
 function syncActions() {
-  actionsElement.hidden = isBusy || !latestPayload || !latestSyncStatus?.ok;
+  actionsElement.hidden = !latestPayload || !latestSyncStatus?.ok;
 }
 
 function syncDeepScanButton() {
-  deepScanVenueButton.hidden = !selectedVenue()?.deepReadProviders;
+  const isDeepScanVenue = Boolean(selectedVenue()?.deepReadProviders);
+  deepScanVenueButton.hidden = !isDeepScanVenue;
+  deepScanWarningElement.hidden = !isDeepScanVenue;
 }
 
 function setBusy(value) {
@@ -173,8 +176,10 @@ async function loadSavedPayload() {
 async function refreshVenue(scanMode = "fast") {
   if (isBusy || !selectedVenueId) return;
 
-  setBusy(true);
   const isDeepScan = scanMode === "deep";
+  if (isDeepScan && !confirmDeepScan()) return;
+
+  setBusy(true);
   setStatus(`${isDeepScan ? "Deep scanning courts for" : "Refreshing"} ${selectedVenue()?.name || "venue"}...`);
 
   try {
@@ -283,6 +288,12 @@ async function selectVenue(venueId) {
   venueSelect.value = selectedVenueId;
   syncDeepScanButton();
   await loadSavedPayload();
+}
+
+function confirmDeepScan() {
+  return window.confirm(
+    "Deep scan checks each court/provider and can take several minutes for North Ryde. It is read-only, but slower than normal refresh. Continue?"
+  );
 }
 
 async function init() {

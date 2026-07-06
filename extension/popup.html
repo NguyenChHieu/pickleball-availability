@@ -19,8 +19,19 @@
         <div class="toolbar">
           <button id="refreshVenueButton" type="button">Refresh Venue</button>
           <button id="readCurrentPageButton" type="button" class="secondary">Read Current Page</button>
-          <button id="deepScanVenueButton" type="button" class="secondary" hidden>Deep Scan Courts</button>
+          <button
+            id="deepScanVenueButton"
+            type="button"
+            class="secondary"
+            aria-describedby="deepScanWarning"
+            hidden
+          >
+            Deep Scan Courts
+          </button>
         </div>
+        <p id="deepScanWarning" class="deep-scan-warning" hidden>
+          Deep scan checks each court/provider and can take several minutes. Use normal refresh for quick availability.
+        </p>
 
         <p id="status" class="status" aria-live="polite">Loading availability...</p>
       </section>

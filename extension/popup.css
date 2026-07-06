@@ -122,6 +122,17 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.deep-scan-warning {
+  background: #fff8e4;
+  border: 1px solid #f1d48a;
+  border-radius: 8px;
+  color: #6c5420;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+}
+
 .status {
   background: #f7fbfc;
   border: 1px solid #e1ebef;
