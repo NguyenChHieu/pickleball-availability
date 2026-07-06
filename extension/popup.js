@@ -166,7 +166,7 @@ async function loadSavedPayload() {
 
   if (!response.payload) {
     renderEmpty(
-      `No saved ${selectedVenue()?.name || "venue"} result yet. Use Refresh Venue, or open a schedule tab and use Read Current Page.`
+      `No saved ${selectedVenue()?.name || "venue"} result yet. Use Refresh Selected, or open a schedule tab and use Read Current Page.`
     );
     return false;
   }
@@ -208,7 +208,16 @@ function jobStatusMessage(job) {
   const succeeded = results.filter((result) => result.status === "success").length;
   if (job.status === "failed") return `${prefix} failed. ${job.error || "Start it again when you are ready."}`;
   if (failed || setupRequired) {
-    return `${prefix} finished with issues: ${succeeded} succeeded, ${failed} failed, ${setupRequired} need setup.`;
+    const details = results
+      .filter((result) => result.status === "failed" || result.status === "setup_required")
+      .map((result) => {
+        const reason = result.message || result.syncMessage || "No details available.";
+        return `${result.venueName || result.venueId}: ${reason}`;
+      })
+      .join("\n");
+    return `${prefix} finished with issues: ${succeeded} succeeded, ${failed} failed, ${setupRequired} need setup.${
+      details ? `\n${details}` : ""
+    }`;
   }
   return `${prefix} complete: ${succeeded || completed} venue(s) refreshed.`;
 }

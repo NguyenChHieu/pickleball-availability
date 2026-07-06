@@ -49,6 +49,7 @@
       readDays: 9,
       readProviders: false,
       deepReadProviders: true,
+      retryActiveOnFailure: true,
       maxProviders: 24,
       matchUrls: [`${NORTH_RYDE_MINDBODY_BASE}/*`],
       services: [

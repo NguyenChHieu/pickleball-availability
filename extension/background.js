@@ -429,10 +429,27 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
     if (closeWhenDone) await closeTab(tab.id);
     return { venue, payload, syncStatus, manualSetupRequired: false };
   } catch (error) {
-    if (!error.manualSetupRequired) {
-      if (closeWhenDone && tab.id) await closeTab(tab.id);
-      throw error;
+    let readError = error;
+    if (!readError.manualSetupRequired && readVenue.retryActiveOnFailure && tab.id) {
+      try {
+        await activateTab(tab.id);
+        await wait(1800);
+        const payload = await readTab(tab.id, readVenue);
+        const syncStatus = await saveVenuePayload(venue.id, payload);
+        if (closeWhenDone) await closeTab(tab.id);
+        return { venue, payload, syncStatus, manualSetupRequired: false };
+      } catch (retryError) {
+        readError = retryError.manualSetupRequired
+          ? retryError
+          : new Error(`${retryError?.message || String(retryError)} Retried after focusing the tab.`);
+      }
     }
+
+    if (!readError.manualSetupRequired) {
+      if (closeWhenDone && tab.id) await closeTab(tab.id);
+      throw readError;
+    }
+
     if (!tab.id) {
       return {
         venue,
@@ -444,13 +461,13 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
     }
 
     await activateTab(tab.id);
-    await savePendingRefresh(pendingRefreshSession(tab.id, readVenue, closeWhenDone, error));
+    await savePendingRefresh(pendingRefreshSession(tab.id, readVenue, closeWhenDone, readError));
     return {
       venue,
       payload: null,
       manualSetupRequired: true,
       pendingRefresh: true,
-      error: error?.message || String(error),
+      error: readError?.message || String(readError),
     };
   }
 }
