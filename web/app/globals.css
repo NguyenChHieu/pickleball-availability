@@ -653,7 +653,7 @@ dd {
 }
 
 .stitch-day-tabs button:hover,
-.stitch-day-tabs button[aria-selected="true"] {
+.stitch-day-tabs button[aria-pressed="true"] {
   background: rgb(var(--highlight-green-rgb) / 16%);
   color: var(--on-surface);
 }

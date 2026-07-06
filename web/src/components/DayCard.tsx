@@ -31,6 +31,19 @@ function statusLabel(day: PublicAvailabilityDay) {
 
 type DayTab = "overview" | "levels" | "courts";
 
+function continuityMessage(day: PublicAvailabilityDay) {
+  if (day.continuityStatus === "failed") {
+    return "Provider or court continuity could not be read this time. Overview and Levels are still available.";
+  }
+  if (day.continuityStatus === "partial") {
+    return "Some provider or court continuity could not be read. Overview and Levels are still available.";
+  }
+  if (day.continuityStatus === "available") {
+    return "No same-court or same-provider runs were found for this day. Use the Overview tab for any-court availability.";
+  }
+  return "Provider or court continuity is not exposed by this booking page yet. Use the Overview tab for any-court availability, then open booking before planning a longer session.";
+}
+
 export function DayCard({ day, index }: DayCardProps) {
   const titleId = `stitch-day-${index}`;
   const { weekday, dateDetail } = splitDateLabel(day.date);
@@ -72,15 +85,12 @@ export function DayCard({ day, index }: DayCardProps) {
 
       {day.openIntervals.length ? (
         <>
-          <div className="stitch-day-tabs" role="tablist" aria-label={`${day.date} availability views`}>
+          <div className="stitch-day-tabs" role="group" aria-label={`${day.date} availability views`}>
             {tabs.map((tab) => (
               <button
-                aria-controls={`${titleId}-${tab.id}`}
-                aria-selected={selectedTab === tab.id}
-                id={`${titleId}-${tab.id}-tab`}
+                aria-pressed={selectedTab === tab.id}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                role="tab"
                 type="button"
               >
                 {tab.label}
@@ -92,8 +102,6 @@ export function DayCard({ day, index }: DayCardProps) {
             <div
               className="stitch-interval-group"
               id={`${titleId}-overview`}
-              role="tabpanel"
-              aria-labelledby={`${titleId}-overview-tab`}
             >
               <div className="stitch-interval-group__header">
                 <h3>Any-court windows</h3>
@@ -116,8 +124,6 @@ export function DayCard({ day, index }: DayCardProps) {
             <section
               className="stitch-levels"
               id={`${titleId}-levels`}
-              role="tabpanel"
-              aria-labelledby={`${titleId}-levels-tab`}
             >
               <div className="stitch-interval-group__header">
                 <h3>Booking levels</h3>
@@ -148,12 +154,13 @@ export function DayCard({ day, index }: DayCardProps) {
               <section
                 className="stitch-same-court"
                 id={`${titleId}-courts`}
-                role="tabpanel"
-                aria-labelledby={`${titleId}-courts-tab`}
               >
                 <div className="stitch-interval-group__header">
                   <h3>Courts / providers</h3>
-                  <p>These runs are grouped by the bookable resource exposed by the venue.</p>
+                  <p>
+                    These runs are grouped by the bookable resource exposed by the venue.
+                    {day.continuityStatus === "partial" ? " Some resources could not be read." : ""}
+                  </p>
                 </div>
                 <ul>
                   {day.sameCourtIntervals.map((court) => (
@@ -181,11 +188,8 @@ export function DayCard({ day, index }: DayCardProps) {
               <p
                 className="stitch-continuity-note"
                 id={`${titleId}-courts`}
-                role="tabpanel"
-                aria-labelledby={`${titleId}-courts-tab`}
               >
-                Provider or court continuity is not exposed by this booking page yet. Use the Overview tab for
-                any-court availability, then open booking before planning a longer session.
+                {continuityMessage(day)}
               </p>
             )
           ) : (

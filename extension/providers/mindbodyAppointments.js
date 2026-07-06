@@ -385,12 +385,17 @@
     const providerSlotsByDate = new Map();
     let targetDates = [];
     let baseDateIso = "";
+    let providerOptionCount = 0;
+    let providerReadAttemptCount = 0;
+    let providerReadFailureCount = 0;
+    let providerReadSuccessCount = 0;
 
     for (const service of services) {
       await openServiceStaffPage(service);
       const providerOptions = shouldReadProviders
         ? discoverProviderOptions().slice(0, maxProviders > 0 ? maxProviders : undefined)
         : [];
+      providerOptionCount += providerOptions.length;
 
       await openProviderSchedule(service, firstAvailableOption);
 
@@ -408,6 +413,7 @@
       }
 
       for (const provider of providerOptions) {
+        providerReadAttemptCount += 1;
         try {
           await openServiceStaffPage(service);
           await openProviderSchedule(service, provider);
@@ -419,7 +425,9 @@
             const slots = extractOpenSlots(dateIso, service, provider);
             providerSlotsByDate.set(dateIso, [...(providerSlotsByDate.get(dateIso) || []), ...slots]);
           }
+          providerReadSuccessCount += 1;
         } catch (error) {
+          providerReadFailureCount += 1;
           console.warn(
             `Skipped ${service.name} provider ${provider.providerName}:`,
             error instanceof Error ? error.message : String(error)
@@ -429,6 +437,13 @@
     }
 
     const bookingUrl = bookingUrlForVenue(venue);
+    const continuityStatus = (() => {
+      if (!shouldReadProviders || !providerOptionCount) return "unavailable";
+      if (providerReadSuccessCount && providerReadFailureCount) return "partial";
+      if (providerReadSuccessCount) return "available";
+      if (providerReadAttemptCount || providerReadFailureCount) return "failed";
+      return "unavailable";
+    })();
     const days = targetDates.map((dateIso) => {
       const rawSlots = slotsByDate.get(dateIso) || [];
       const rawProviderSlots = providerSlotsByDate.get(dateIso) || [];
@@ -444,6 +459,7 @@
         booking_action_url: bookingUrl,
         open_intervals: openIntervals,
         same_court_intervals: providerRuns,
+        continuity_status: continuityStatus,
         level_intervals: levels,
         remaining_hours: remainingHours(openIntervals),
         raw_slots: rawSlots,

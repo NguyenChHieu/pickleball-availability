@@ -25,6 +25,7 @@ export function formatDay(day: AvailabilityPayloadDay) {
   const intervals = Array.isArray(day.open_intervals) ? day.open_intervals : [];
   const sameCourtIntervals = Array.isArray(day.same_court_intervals) ? day.same_court_intervals : [];
   const levelIntervals = Array.isArray(day.level_intervals) ? day.level_intervals : [];
+  const continuityStatus = stringField(day.continuity_status);
   const label = day.date || "Unknown date";
   if (!intervals.length) return `${label}: no open intervals`;
 
@@ -55,7 +56,13 @@ export function formatDay(day: AvailabilityPayloadDay) {
     })
     .filter(Boolean)
     .join("; ");
-  return `${label}: any court ${times}${suffix}${levels ? `; levels ${levels}` : ""}${sameCourt ? `; courts/providers ${sameCourt}` : ""}`;
+  const continuityNote =
+    continuityStatus === "failed"
+      ? "; courts/providers could not be read"
+      : continuityStatus === "partial"
+        ? "; courts/providers partially read"
+        : "";
+  return `${label}: any court ${times}${suffix}${levels ? `; levels ${levels}` : ""}${sameCourt ? `; courts/providers ${sameCourt}` : ""}${continuityNote}`;
 }
 
 export function formatAvailability(payload: AvailabilityPayload | null | undefined, { maxDays = 8 } = {}) {

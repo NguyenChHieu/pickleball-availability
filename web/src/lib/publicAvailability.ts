@@ -30,6 +30,7 @@ export type PublicAvailabilityDay = {
   totalOpenHours: number;
   openIntervals: PublicAvailabilityInterval[];
   sameCourtIntervals: PublicAvailabilityCourtIntervals[];
+  continuityStatus: string;
   levelIntervals: PublicAvailabilityLevelIntervals[];
   bookingUrl?: string;
 };

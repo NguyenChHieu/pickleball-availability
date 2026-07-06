@@ -74,6 +74,7 @@ function normalizeDay(day: AvailabilityPayloadDay, payload: AvailabilityPayload)
     sameCourtIntervals: sameCourtIntervals
       .map((group) => normalizeCourtIntervals(group as Record<string, unknown>))
       .filter((group) => group.courtName && group.intervals.length),
+    continuityStatus: String(day?.continuity_status || ""),
     levelIntervals: levelIntervals
       .map((group) => normalizeLevelIntervals(group as Record<string, unknown>))
       .filter((group) => group.levelName && group.intervals.length),

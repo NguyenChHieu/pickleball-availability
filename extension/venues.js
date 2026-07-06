@@ -48,7 +48,7 @@
       readinessTimeoutMs: 15000,
       readDays: 9,
       readProviders: true,
-      maxProviders: 12,
+      maxProviders: 24,
       matchUrls: [`${NORTH_RYDE_MINDBODY_BASE}/*`],
       services: [
         {

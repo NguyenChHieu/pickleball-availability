@@ -34,6 +34,7 @@ export type AvailabilityPayloadDay = {
   remaining_hours?: number;
   open_intervals?: AvailabilityInterval[];
   same_court_intervals?: AvailabilityCourtIntervals[];
+  continuity_status?: string;
   level_intervals?: AvailabilityLevelIntervals[];
   booking_date?: string;
   booking_url?: string;
