@@ -1,5 +1,6 @@
 const venueSelect = document.querySelector("#venueSelect");
 const refreshVenueButton = document.querySelector("#refreshVenueButton");
+const refreshAllButton = document.querySelector("#refreshAllButton");
 const deepScanVenueButton = document.querySelector("#deepScanVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
 const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton");
@@ -12,7 +13,8 @@ const MESSAGE = Object.freeze({
   LIST_VENUES: "AVAILABILITY_LIST_VENUES",
   GET_VENUE_PAYLOAD: "AVAILABILITY_GET_VENUE_PAYLOAD",
   SET_SELECTED_VENUE: "AVAILABILITY_SET_SELECTED_VENUE",
-  REFRESH_VENUE: "AVAILABILITY_REFRESH_VENUE",
+  START_REFRESH_JOB: "AVAILABILITY_START_REFRESH_JOB",
+  GET_REFRESH_JOB: "AVAILABILITY_GET_REFRESH_JOB",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
 });
 
@@ -26,6 +28,7 @@ let selectedVenueId = "";
 let latestPayload = null;
 let latestSyncStatus = null;
 let isBusy = false;
+let refreshJobPollTimer = null;
 
 function setStatus(message) {
   statusElement.textContent = message;
@@ -44,6 +47,7 @@ function syncDeepScanButton() {
 function setBusy(value) {
   isBusy = value;
   refreshVenueButton.disabled = value;
+  refreshAllButton.disabled = value;
   deepScanVenueButton.disabled = value;
   readCurrentPageButton.disabled = value;
   venueSelect.disabled = value;
@@ -173,41 +177,119 @@ async function loadSavedPayload() {
   return true;
 }
 
-async function refreshVenue(scanMode = "fast") {
+function isActiveJob(job) {
+  return job?.status === "queued" || job?.status === "running";
+}
+
+function stopRefreshJobPolling() {
+  if (refreshJobPollTimer) clearInterval(refreshJobPollTimer);
+  refreshJobPollTimer = null;
+}
+
+function startRefreshJobPolling() {
+  if (refreshJobPollTimer) return;
+  refreshJobPollTimer = setInterval(() => {
+    loadRefreshJobStatus().catch((error) => setStatus(error?.message || String(error)));
+  }, 1200);
+}
+
+function jobStatusMessage(job) {
+  if (!job) return "";
+  const total = Number(job.total || job.venueIds?.length || 0);
+  const completed = Number(job.completed || 0);
+  const current = job.currentVenueName ? ` ${job.currentVenueName}` : "";
+  const prefix = job.scanMode === "deep" ? "Deep scan" : job.label || "Refresh";
+
+  if (isActiveJob(job)) return `${prefix} running: ${completed}/${total}${current ? ` - ${current}` : ""}.`;
+
+  const results = Array.isArray(job.results) ? job.results : [];
+  const failed = results.filter((result) => result.status === "failed").length;
+  const setupRequired = results.filter((result) => result.status === "setup_required").length;
+  const succeeded = results.filter((result) => result.status === "success").length;
+  if (job.status === "failed") return `${prefix} failed. ${job.error || "Start it again when you are ready."}`;
+  if (failed || setupRequired) {
+    return `${prefix} finished with issues: ${succeeded} succeeded, ${failed} failed, ${setupRequired} need setup.`;
+  }
+  return `${prefix} complete: ${succeeded || completed} venue(s) refreshed.`;
+}
+
+async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {
+  const response = await sendMessage({ type: MESSAGE.GET_REFRESH_JOB });
+  if (!response?.ok) throw new Error(response?.error || "Could not load refresh status.");
+
+  const job = response.job || null;
+  const active = isActiveJob(job);
+  setBusy(active);
+  if (!job) return null;
+  if (silentWhenInactive && (job.status === "completed" || job.status === "completed_with_issues")) return job;
+
+  setStatus(jobStatusMessage(job));
+  if (active) {
+    startRefreshJobPolling();
+    return job;
+  }
+
+  stopRefreshJobPolling();
+  if (job.venueIds?.includes(selectedVenueId)) {
+    try {
+      await loadSavedPayload();
+    } catch {
+      // The job status is still more useful than failing to refresh the popup snapshot.
+    }
+    setStatus(jobStatusMessage(job));
+  }
+  return job;
+}
+
+async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh" }) {
   if (isBusy || !selectedVenueId) return;
 
   const isDeepScan = scanMode === "deep";
   if (isDeepScan && !confirmDeepScan()) return;
 
   setBusy(true);
-  setStatus(`${isDeepScan ? "Deep scanning courts for" : "Refreshing"} ${selectedVenue()?.name || "venue"}...`);
+  setStatus(`${isDeepScan ? "Starting deep scan" : `Starting ${label.toLowerCase()}`}...`);
 
   try {
     const response = await sendMessage({
-      type: MESSAGE.REFRESH_VENUE,
-      venueId: selectedVenueId,
+      type: MESSAGE.START_REFRESH_JOB,
+      venueIds,
       scanMode,
+      label,
     });
-    if (!response?.ok) throw new Error(response?.error || "Refresh failed.");
+    if (!response?.ok) throw new Error(response?.error || "Refresh job failed to start.");
 
-    if (response.manualSetupRequired) {
-      syncActions();
-      const followUp = response.pendingRefresh
-        ? "Finish setup in the opened tab. I will continue automatically when the schedule appears."
-        : "Finish setup in the opened tab, then try again.";
-      setStatus(`${response.error} ${followUp}`);
-      return;
-    }
-
-    rememberPayload(response.payload, response.syncStatus);
-    setStatus(
-      readStatus(response.payload, response.syncStatus, `${isDeepScan ? "Deep scan" : "Read"} for ${response.venue.name}:`)
-    );
+    setStatus(response.alreadyRunning ? "A refresh is already running." : jobStatusMessage(response.job));
+    startRefreshJobPolling();
   } catch (error) {
-    setStatus(savedFallbackStatus(isDeepScan ? "Deep scan" : "Refresh", error));
-  } finally {
+    setStatus(savedFallbackStatus(isDeepScan ? "Deep scan" : label, error));
     setBusy(false);
+    stopRefreshJobPolling();
   }
+}
+
+async function refreshVenue() {
+  await startRefreshJob({
+    venueIds: [selectedVenueId],
+    scanMode: "fast",
+    label: "Refresh selected",
+  });
+}
+
+async function refreshAllVenues() {
+  await startRefreshJob({
+    venueIds: venues.map((venue) => venue.id),
+    scanMode: "fast",
+    label: "Refresh all",
+  });
+}
+
+async function deepScanVenue() {
+  await startRefreshJob({
+    venueIds: [selectedVenueId],
+    scanMode: "deep",
+    label: "Deep scan",
+  });
 }
 
 async function readCurrentPage() {
@@ -304,13 +386,15 @@ async function init() {
   selectedVenueId = response.selectedVenueId || AvailabilityRegistry.DEFAULT_VENUE_ID;
   populateVenues();
   await loadSavedPayload();
+  await loadRefreshJobStatus({ silentWhenInactive: true });
 }
 
 venueSelect.addEventListener("change", () => {
   selectVenue(venueSelect.value).catch((error) => setStatus(error?.message || String(error)));
 });
 refreshVenueButton.addEventListener("click", () => refreshVenue());
-deepScanVenueButton.addEventListener("click", () => refreshVenue("deep"));
+refreshAllButton.addEventListener("click", () => refreshAllVenues());
+deepScanVenueButton.addEventListener("click", () => deepScanVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
 viewAvailabilityButton.addEventListener("click", viewAvailability);
 copyShareLinkButton.addEventListener("click", copyShareLink);

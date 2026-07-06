@@ -4,7 +4,8 @@ const MESSAGE = Object.freeze({
   LIST_VENUES: "AVAILABILITY_LIST_VENUES",
   GET_VENUE_PAYLOAD: "AVAILABILITY_GET_VENUE_PAYLOAD",
   SET_SELECTED_VENUE: "AVAILABILITY_SET_SELECTED_VENUE",
-  REFRESH_VENUE: "AVAILABILITY_REFRESH_VENUE",
+  START_REFRESH_JOB: "AVAILABILITY_START_REFRESH_JOB",
+  GET_REFRESH_JOB: "AVAILABILITY_GET_REFRESH_JOB",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
   READ_CURRENT_PAGE: "AVAILABILITY_READ_CURRENT_PAGE",
 });
@@ -19,12 +20,14 @@ const SYNC_CONFIG_KEY = "backendSyncConfig";
 const OLD_LOCAL_BACKEND_URL = "http://localhost:8787";
 const DEFAULT_BACKEND_URL = "http://localhost:3007";
 const PENDING_REFRESH_KEY = "pendingVenueRefreshes";
+const REFRESH_JOB_KEY = "activeRefreshJob";
 const PENDING_REFRESH_TTL_MS = 5 * 60 * 1000;
 const PENDING_REFRESH_RETRY_MS = 8000;
 
-const refreshInFlight = new Map();
 const pendingRefreshAttempts = new Set();
 const pendingRefreshTimers = new Map();
+let refreshJobPromise = null;
+let activeRefreshJob = null;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -452,14 +455,154 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
   }
 }
 
-async function refreshVenue(venueId, scanMode = "fast") {
-  const venue = AvailabilityRegistry.getVenue(venueId);
-  const refreshKey = venue.id;
-  if (refreshInFlight.has(refreshKey)) return refreshInFlight.get(refreshKey);
+function isActiveRefreshJob(job) {
+  return job?.status === "queued" || job?.status === "running";
+}
 
-  const refreshPromise = refreshVenueNow(venue.id, scanMode).finally(() => refreshInFlight.delete(refreshKey));
-  refreshInFlight.set(refreshKey, refreshPromise);
-  return refreshPromise;
+function refreshJobSummary(job) {
+  const results = Array.isArray(job?.results) ? job.results : [];
+  const failed = results.filter((result) => result.status === "failed").length;
+  const setupRequired = results.filter((result) => result.status === "setup_required").length;
+  const succeeded = results.filter((result) => result.status === "success").length;
+  return { failed, setupRequired, succeeded };
+}
+
+async function saveRefreshJob(job) {
+  activeRefreshJob = job;
+  await chrome.storage.local.set({ [REFRESH_JOB_KEY]: job });
+  return job;
+}
+
+async function storedRefreshJob() {
+  const stored = await chrome.storage.local.get(REFRESH_JOB_KEY);
+  return stored[REFRESH_JOB_KEY] || null;
+}
+
+async function currentRefreshJob() {
+  const job = activeRefreshJob || (await storedRefreshJob());
+  if (isActiveRefreshJob(job) && !refreshJobPromise) {
+    return saveRefreshJob({
+      ...job,
+      status: "failed",
+      error: "Refresh was interrupted. Start it again when you are ready.",
+      updatedAt: new Date().toISOString(),
+    });
+  }
+  return job;
+}
+
+function normalizeRefreshJobVenues(venueIds) {
+  const allVenueIds = AvailabilityRegistry.getVenues().map((venue) => venue.id);
+  const requested = Array.isArray(venueIds) && venueIds.length ? venueIds : [allVenueIds[0]];
+  const normalized = requested.filter((venueId, index) => allVenueIds.includes(venueId) && requested.indexOf(venueId) === index);
+  return normalized.length ? normalized : [allVenueIds[0]];
+}
+
+function makeRefreshJob({ venueIds, scanMode = "fast", label = "" }) {
+  const normalizedVenueIds = normalizeRefreshJobVenues(venueIds);
+  const now = new Date().toISOString();
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    status: "queued",
+    label,
+    scanMode,
+    venueIds: normalizedVenueIds,
+    total: normalizedVenueIds.length,
+    completed: 0,
+    currentVenueId: "",
+    currentVenueName: "",
+    results: [],
+    startedAt: now,
+    updatedAt: now,
+  };
+}
+
+async function updateRefreshJob(job, updates) {
+  return saveRefreshJob({
+    ...job,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+async function runRefreshJob(initialJob) {
+  let job = await updateRefreshJob(initialJob, { status: "running" });
+  const results = [];
+
+  for (const venueId of job.venueIds) {
+    const venue = AvailabilityRegistry.getVenue(venueId);
+    job = await updateRefreshJob(job, {
+      currentVenueId: venue.id,
+      currentVenueName: venue.name,
+      completed: results.length,
+      results,
+    });
+
+    try {
+      const result = await refreshVenueNow(venue.id, job.scanMode);
+      if (result.manualSetupRequired) {
+        results.push({
+          venueId: venue.id,
+          venueName: venue.name,
+          status: "setup_required",
+          message: result.error || "Manual setup required.",
+          pendingRefresh: Boolean(result.pendingRefresh),
+        });
+      } else {
+        results.push({
+          venueId: venue.id,
+          venueName: venue.name,
+          status: "success",
+          dayCount: Array.isArray(result.payload?.days) ? result.payload.days.length : 0,
+          syncOk: Boolean(result.syncStatus?.ok),
+          syncMessage: result.syncStatus?.error || result.syncStatus?.reason || "",
+        });
+      }
+    } catch (error) {
+      results.push({
+        venueId: venue.id,
+        venueName: venue.name,
+        status: "failed",
+        message: error?.message || String(error),
+      });
+    }
+
+    job = await updateRefreshJob(job, {
+      completed: results.length,
+      results,
+    });
+
+    await wait(600);
+  }
+
+  const summary = refreshJobSummary({ results });
+  return updateRefreshJob(job, {
+    status: summary.failed || summary.setupRequired ? "completed_with_issues" : "completed",
+    completed: results.length,
+    currentVenueId: "",
+    currentVenueName: "",
+    results,
+  });
+}
+
+async function startRefreshJob(request = {}) {
+  const existingJob = await currentRefreshJob();
+  if (isActiveRefreshJob(existingJob)) return { job: existingJob, alreadyRunning: true };
+
+  const job = makeRefreshJob(request);
+  await saveRefreshJob(job);
+  refreshJobPromise = runRefreshJob(job)
+    .catch((error) =>
+      updateRefreshJob(job, {
+        status: "failed",
+        error: error?.message || String(error),
+      })
+    )
+    .finally(() => {
+      refreshJobPromise = null;
+    });
+
+  return { job, alreadyRunning: false };
 }
 
 const fallbackVenueForTab = (tab) => ({
@@ -500,7 +643,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === MESSAGE.LIST_VENUES) return listVenues();
     if (message?.type === MESSAGE.GET_VENUE_PAYLOAD) return getVenuePayload(message.venueId);
     if (message?.type === MESSAGE.SET_SELECTED_VENUE) return setSelectedVenue(message.venueId);
-    if (message?.type === MESSAGE.REFRESH_VENUE) return refreshVenue(message.venueId, message.scanMode);
+    if (message?.type === MESSAGE.START_REFRESH_JOB) return startRefreshJob(message);
+    if (message?.type === MESSAGE.GET_REFRESH_JOB) return { job: await currentRefreshJob() };
     if (message?.type === MESSAGE.READ_ACTIVE_TAB) return readActiveTab();
     throw new Error("Unknown availability message.");
   })()
