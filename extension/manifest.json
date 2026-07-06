@@ -7,6 +7,7 @@
   "host_permissions": [
     "https://book.propickle.com.au/*",
     "https://clubspark.au/Broadway/*",
+    "https://go.mindbodyonline.com/book/widgets/appointments/view/7b9803fef1/*",
     "http://localhost:3007/*",
     "https://*.vercel.app/*"
   ],
@@ -22,6 +23,11 @@
     {
       "matches": ["https://clubspark.au/Broadway/*"],
       "js": ["providers/clubsparkBookByDate.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://go.mindbodyonline.com/book/widgets/appointments/view/7b9803fef1/*"],
+      "js": ["providers/mindbodyAppointments.js"],
       "run_at": "document_idle"
     }
   ],

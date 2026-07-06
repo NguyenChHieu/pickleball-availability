@@ -150,6 +150,27 @@
     return Number(parts[2]);
   };
 
+  const courtNameForSlot = (element) => {
+    const resource = element.closest(".resource");
+    if (!resource) return "";
+
+    const explicit =
+      resource.getAttribute("data-resource-name") ||
+      resource.getAttribute("aria-label") ||
+      "";
+
+    if (normalizeWhitespace(explicit)) return normalizeWhitespace(explicit);
+
+    const labelled = resource.querySelector(".resource-name, .resource-title, .resource-heading");
+    const labelledText = labelled?.innerText || labelled?.textContent || "";
+    if (normalizeWhitespace(labelledText)) return normalizeWhitespace(labelledText);
+
+    const heading = Array.from(resource.querySelectorAll("h2, h3, h4, h5, strong")).find((candidate) =>
+      normalizeWhitespace(candidate.innerText || candidate.textContent || "")
+    );
+    return normalizeWhitespace(heading?.innerText || heading?.textContent || "");
+  };
+
   const parseOpenSlot = (element) => {
     const text = normalizeWhitespace(element.innerText || element.textContent || "");
     const testIdStart = startMinutesFromTestId(element);
@@ -165,6 +186,7 @@
       start_time: range?.[1] || minutesToTime(startMinutes),
       end_time: range?.[2] || minutesToTime(startMinutes + SLOT_MINUTES),
       status: "open",
+      court_name: courtNameForSlot(element),
     };
   };
 
@@ -189,6 +211,22 @@
       start_time: minutesToTime(interval.start),
       end_time: minutesToTime(interval.end),
     }));
+  };
+
+  const sameCourtIntervals = (slots) => {
+    const byCourt = new Map();
+    for (const slot of slots) {
+      const courtName = normalizeWhitespace(slot.court_name || slot.resource_name || "");
+      if (!courtName) continue;
+      byCourt.set(courtName, [...(byCourt.get(courtName) || []), slot]);
+    }
+
+    return Array.from(byCourt.entries())
+      .map(([courtName, courtSlots]) => ({
+        court_name: courtName,
+        intervals: mergeOpenIntervals(courtSlots),
+      }))
+      .filter((group) => group.intervals.length);
   };
 
   const remainingHours = (intervals) =>
@@ -230,6 +268,7 @@
       const currentDateIso = pageDate() || dateIso;
       const openSlots = extractOpenSlots();
       const openIntervals = mergeOpenIntervals(openSlots);
+      const courtIntervals = sameCourtIntervals(openSlots);
       const dayBookingUrl = bookingUrlForDate(currentDateIso, venue);
       results.push({
         source_url: window.location.href,
@@ -239,7 +278,9 @@
         booking_url: dayBookingUrl,
         booking_action_url: dayBookingUrl,
         open_intervals: openIntervals,
+        same_court_intervals: courtIntervals,
         remaining_hours: remainingHours(openIntervals),
+        raw_slots: openSlots,
       });
     }
 

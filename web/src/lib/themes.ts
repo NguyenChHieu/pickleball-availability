@@ -104,3 +104,39 @@ export const broadwayTheme: VenueTheme = {
     footerNote: "Read-only page. Availability comes from the latest browser-extension read of ClubSpark.",
   },
 };
+
+export const northRydeTheme: VenueTheme = {
+  id: "northryde",
+  name: "North Ryde Pickleball",
+  identity: {
+    productLabel: "Court Times",
+    logoSrc: "/venues/northryde-logo.svg",
+    motion: "venue-pop",
+  },
+  colors: {
+    background: "#07100c",
+    surface: "#101a15",
+    surfaceHigh: "#17241d",
+    surfaceHighest: "#203126",
+    foreground: "#f4f8f2",
+    muted: "#a9b9ad",
+    accent: "#1f8bd4",
+    highlight: "#c5d400",
+    border: "#28382f",
+    borderStrong: "#3d5145",
+    actionSurface: "#c5d400",
+    actionForeground: "#07100c",
+    warning: "#f0b429",
+  },
+  copy: {
+    freshnessFallback: "Cached North Ryde availability",
+    emptyHeading: "No cached North Ryde availability yet",
+    emptyBody: "Refresh North Ryde Pickleball from the extension, then reopen this page.",
+    noDaysHeading: "No North Ryde booking days found",
+    noDaysBody: "The latest read did not include visible Mindbody booking days. Try a manual refresh after the schedule has loaded.",
+    errorBody: "Check the link or open Tennis World North Ryde booking directly.",
+    staleWarning: "This is an older read. Open Mindbody to confirm live availability before making plans.",
+    bookingNote: "Availability is visible as guest through Mindbody. Booking may require account or payment steps.",
+    footerNote: "Read-only page. Availability comes from the latest browser-extension read of the Mindbody booking widget.",
+  },
+};

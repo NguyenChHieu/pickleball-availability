@@ -328,6 +328,7 @@
         date: currentDate,
         booking_date: currentDate,
         open_intervals: openIntervals,
+        same_court_intervals: [],
         remaining_hours: remainingHours(openIntervals),
         raw_slots: slots,
       });

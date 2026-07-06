@@ -23,6 +23,7 @@ export function formatInterval(interval: Record<string, unknown>) {
 
 export function formatDay(day: AvailabilityPayloadDay) {
   const intervals = Array.isArray(day.open_intervals) ? day.open_intervals : [];
+  const sameCourtIntervals = Array.isArray(day.same_court_intervals) ? day.same_court_intervals : [];
   const label = day.date || "Unknown date";
   if (!intervals.length) return `${label}: no open intervals`;
 
@@ -30,7 +31,17 @@ export function formatDay(day: AvailabilityPayloadDay) {
   const hours = Number(day.remaining_hours || 0);
   const hoursLabel = Number.isInteger(hours) ? String(hours) : hours.toFixed(1).replace(/\.0$/, "");
   const suffix = hours > 0 ? ` (${hoursLabel}h)` : "";
-  return `${label}: ${times}${suffix}`;
+  const sameCourt = sameCourtIntervals
+    .map((group) => {
+      const courtName = group.court_name || group.courtName || group.resource_name || group.provider_name || "";
+      const courtTimes = Array.isArray(group.intervals)
+        ? group.intervals.map((interval) => formatInterval(interval as Record<string, unknown>)).join(", ")
+        : "";
+      return courtName && courtTimes ? `${courtName}: ${courtTimes}` : "";
+    })
+    .filter(Boolean)
+    .join("; ");
+  return `${label}: any court ${times}${suffix}${sameCourt ? `; same court ${sameCourt}` : ""}`;
 }
 
 export function formatAvailability(payload: AvailabilityPayload | null | undefined, { maxDays = 8 } = {}) {

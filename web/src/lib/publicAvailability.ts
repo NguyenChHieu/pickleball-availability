@@ -10,11 +10,17 @@ export type PublicAvailabilityInterval = {
   label: string;
 };
 
+export type PublicAvailabilityCourtIntervals = {
+  courtName: string;
+  intervals: PublicAvailabilityInterval[];
+};
+
 export type PublicAvailabilityDay = {
   date: string;
   title: string;
   totalOpenHours: number;
   openIntervals: PublicAvailabilityInterval[];
+  sameCourtIntervals: PublicAvailabilityCourtIntervals[];
   bookingUrl?: string;
 };
 

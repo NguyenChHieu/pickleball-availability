@@ -1,9 +1,13 @@
 (() => {
   const PLAYBYPOINT_PROVIDER_ID = "playbypoint-bookbox";
   const CLUBSPARK_PROVIDER_ID = "clubspark-book-by-date";
+  const MINDBODY_PROVIDER_ID = "mindbody-appointments";
   const SELECTED_VENUE_KEY = "selectedVenueId";
   const DEFAULT_VENUE_ID = "propickle";
   const BROADWAY_BOOKING_BASE = "https://clubspark.au/Broadway/Booking/BookByDate";
+  const NORTH_RYDE_WIDGET_ID = "7b9803fef1";
+  const NORTH_RYDE_MINDBODY_BASE = `https://go.mindbodyonline.com/book/widgets/appointments/view/${NORTH_RYDE_WIDGET_ID}`;
+  const NORTH_RYDE_PUBLIC_BOOKING_URL = "https://www.tennisworldonline.com.au/bookacourt/#bookacourt";
 
   const localDateIso = (date = new Date()) => {
     const year = date.getFullYear();
@@ -35,9 +39,39 @@
       readDays: 9,
       matchUrls: ["https://clubspark.au/Broadway/*"],
     },
+    {
+      id: "northryde",
+      name: "North Ryde Pickleball",
+      providerId: MINDBODY_PROVIDER_ID,
+      startUrl: `${NORTH_RYDE_MINDBODY_BASE}/services`,
+      publicBookingUrl: NORTH_RYDE_PUBLIC_BOOKING_URL,
+      readinessTimeoutMs: 15000,
+      readDays: 9,
+      matchUrls: [`${NORTH_RYDE_MINDBODY_BASE}/*`],
+      services: [
+        {
+          name: "Standard Pickleball",
+          serviceButtonId: "asrv_115VZ4iBaZ9TAxVYTx",
+          serviceId: "120",
+          slotMinutes: 30,
+          price: "A$12.50",
+        },
+        {
+          name: "Premium Pickleball",
+          serviceButtonId: "asrv_115VZ4iBaZ9TAxVYf9",
+          serviceId: "132",
+          slotMinutes: 30,
+          price: "A$15.00",
+        },
+      ],
+    },
   ];
 
-  const copyVenue = (venue) => ({ ...venue, matchUrls: [...venue.matchUrls] });
+  const copyVenue = (venue) => ({
+    ...venue,
+    matchUrls: [...venue.matchUrls],
+    services: venue.services?.map((service) => ({ ...service })),
+  });
   const venuePayloadKey = (venueId) => `availability:venue:${venueId}`;
 
   const wildcardToRegExp = (pattern) =>
@@ -54,6 +88,7 @@
   globalThis.AvailabilityRegistry = Object.freeze({
     PLAYBYPOINT_PROVIDER_ID,
     CLUBSPARK_PROVIDER_ID,
+    MINDBODY_PROVIDER_ID,
     SELECTED_VENUE_KEY,
     DEFAULT_VENUE_ID,
     getVenues,

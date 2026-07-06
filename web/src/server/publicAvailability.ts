@@ -40,13 +40,26 @@ function normalizeInterval(interval: Record<string, unknown>) {
   };
 }
 
+function normalizeCourtIntervals(group: Record<string, unknown>) {
+  const courtName = String(group?.court_name || group?.courtName || group?.resource_name || group?.provider_name || "");
+  const intervals = Array.isArray(group?.intervals) ? group.intervals : [];
+  return {
+    courtName,
+    intervals: intervals.map((interval) => normalizeInterval(interval as Record<string, unknown>)),
+  };
+}
+
 function normalizeDay(day: AvailabilityPayloadDay, payload: AvailabilityPayload) {
   const openIntervals = Array.isArray(day?.open_intervals) ? day.open_intervals : [];
+  const sameCourtIntervals = Array.isArray(day?.same_court_intervals) ? day.same_court_intervals : [];
   return {
     date: day?.date || "Unknown date",
     title: day?.title || "Court booking",
     totalOpenHours: numberOrZero(day?.remaining_hours),
     openIntervals: openIntervals.map((interval) => normalizeInterval(interval as Record<string, unknown>)),
+    sameCourtIntervals: sameCourtIntervals
+      .map((group) => normalizeCourtIntervals(group as Record<string, unknown>))
+      .filter((group) => group.courtName && group.intervals.length),
     bookingUrl: bookingActionUrlForDay(
       day as Record<string, unknown>,
       payload as Record<string, unknown>

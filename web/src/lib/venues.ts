@@ -1,4 +1,4 @@
-import { broadwayTheme, propickleTheme, type VenueTheme } from "@/lib/themes";
+import { broadwayTheme, northRydeTheme, propickleTheme, type VenueTheme } from "@/lib/themes";
 
 export type VenueDefinition = Readonly<{
   id: string;
@@ -19,6 +19,12 @@ export const venues = [
     name: "Broadway Pickleball",
     fallbackUrl: "https://clubspark.au/Broadway/Booking/BookByDate#?role=guest",
     theme: broadwayTheme,
+  },
+  {
+    id: "northryde",
+    name: "North Ryde Pickleball",
+    fallbackUrl: "https://www.tennisworldonline.com.au/bookacourt/#bookacourt",
+    theme: northRydeTheme,
   },
 ] as const satisfies readonly VenueDefinition[];
 

@@ -8,11 +8,20 @@ export type AvailabilityInterval = {
   endTime?: string;
 };
 
+export type AvailabilityCourtIntervals = {
+  court_name?: string;
+  courtName?: string;
+  resource_name?: string;
+  provider_name?: string;
+  intervals?: AvailabilityInterval[];
+};
+
 export type AvailabilityPayloadDay = {
   date?: string;
   title?: string;
   remaining_hours?: number;
   open_intervals?: AvailabilityInterval[];
+  same_court_intervals?: AvailabilityCourtIntervals[];
   booking_date?: string;
   booking_url?: string;
   booking_action_url?: string;

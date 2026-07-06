@@ -19,8 +19,9 @@ function splitDateLabel(date: string) {
 
 function statusLabel(day: PublicAvailabilityDay) {
   if (!day.openIntervals.length) return "No open intervals";
+  if (day.sameCourtIntervals.length) return "Same-court runs available";
   if (day.openIntervals.length <= 2) return "Limited slots";
-  return "Open availability";
+  return "Any-court windows";
 }
 
 export function DayCard({ day, index }: DayCardProps) {
@@ -56,16 +57,51 @@ export function DayCard({ day, index }: DayCardProps) {
       </header>
 
       {day.openIntervals.length ? (
-        <ul className="stitch-intervals" aria-label={`${day.date} open intervals`}>
-          {day.openIntervals.map((interval) => (
-            <li className="stitch-interval" key={`${interval.startTime}-${interval.endTime}`}>
-              <div>
-                <span className="stitch-interval__time tabular-nums">{interval.label}</span>
-                <span className="stitch-interval__detail">{day.title} - available court window</span>
+        <>
+          <div className="stitch-interval-group">
+            <div className="stitch-interval-group__header">
+              <h3>Any-court windows</h3>
+              <p>Adjacent slots may use different courts.</p>
+            </div>
+            <ul className="stitch-intervals" aria-label={`${day.date} any-court open windows`}>
+              {day.openIntervals.map((interval) => (
+                <li className="stitch-interval" key={`${interval.startTime}-${interval.endTime}`}>
+                  <div>
+                    <span className="stitch-interval__time tabular-nums">{interval.label}</span>
+                    <span className="stitch-interval__detail">{day.title} - at least one court open</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {day.sameCourtIntervals.length ? (
+            <section className="stitch-same-court" aria-label={`${day.date} same-court runs`}>
+              <div className="stitch-interval-group__header">
+                <h3>Same-court runs</h3>
+                <p>These runs should not require changing courts.</p>
               </div>
-            </li>
-          ))}
-        </ul>
+              <ul>
+                {day.sameCourtIntervals.map((court) => (
+                  <li key={court.courtName}>
+                    <span>{court.courtName}</span>
+                    <div>
+                      {court.intervals.map((interval) => (
+                        <span className="tabular-nums" key={`${court.courtName}-${interval.startTime}-${interval.endTime}`}>
+                          {interval.label}
+                        </span>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <p className="stitch-continuity-note">
+              Same-court continuity is not exposed by this booking page. Open booking before planning a longer session.
+            </p>
+          )}
+        </>
       ) : (
         <div className="stitch-interval stitch-interval--empty">
           <div>
