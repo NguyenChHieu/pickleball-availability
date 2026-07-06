@@ -383,7 +383,6 @@
     const maxProviders = Number(venue.maxProviders || 0);
     const slotsByDate = new Map();
     const providerSlotsByDate = new Map();
-    const providerReadErrors = [];
     let targetDates = [];
     let baseDateIso = "";
 
@@ -421,11 +420,10 @@
             providerSlotsByDate.set(dateIso, [...(providerSlotsByDate.get(dateIso) || []), ...slots]);
           }
         } catch (error) {
-          providerReadErrors.push({
-            service_name: service.name,
-            provider_name: provider.providerName,
-            message: error instanceof Error ? error.message : String(error),
-          });
+          console.warn(
+            `Skipped ${service.name} provider ${provider.providerName}:`,
+            error instanceof Error ? error.message : String(error)
+          );
         }
       }
     }
@@ -449,7 +447,6 @@
         level_intervals: levels,
         remaining_hours: remainingHours(openIntervals),
         raw_slots: rawSlots,
-        raw_provider_slots: rawProviderSlots,
       };
     });
 
@@ -460,7 +457,6 @@
       venue_name: venue.name || "North Ryde Pickleball",
       provider_id: providerId,
       booking_url: bookingUrl,
-      provider_read_errors: providerReadErrors,
       days,
     };
   }
