@@ -100,6 +100,20 @@ async function readTab(tabId, venue) {
   return response.payload;
 }
 
+function venueForScanMode(venue, scanMode = "fast") {
+  const readVenue = {
+    ...venue,
+    matchUrls: [...(venue.matchUrls || [])],
+    services: venue.services?.map((service) => ({ ...service })),
+  };
+
+  if (readVenue.deepReadProviders) {
+    readVenue.readProviders = scanMode === "deep";
+  }
+
+  return readVenue;
+}
+
 async function saveVenuePayload(venueId, payload) {
   await chrome.storage.local.set({ [AvailabilityRegistry.venuePayloadKey(venueId)]: payload });
   return syncVenuePayload(venueId, payload);
@@ -255,6 +269,7 @@ function pendingRefreshSession(tabId, venue, closeWhenDone, error) {
   return {
     tabId: Number(tabId),
     venueId: venue.id,
+    scanMode: venue.scanMode || "fast",
     closeWhenDone: Boolean(closeWhenDone),
     startedAt: now,
     expiresAt: now + (venue.pendingRefreshTimeoutMs || PENDING_REFRESH_TTL_MS),
@@ -362,14 +377,15 @@ async function continuePendingRefresh(tabId, _reason) {
   pendingRefreshAttempts.add(key);
   try {
     const venue = AvailabilityRegistry.getVenue(session.venueId);
+    const readVenue = venueForScanMode(venue, session.scanMode);
     const tab = await chrome.tabs.get(Number(tabId)).catch(() => null);
-    if (shouldReturnToVenueStart(tab, venue, session, null)) {
-      await returnPendingRefreshToVenueStart(tabId, venue, session, null);
+    if (shouldReturnToVenueStart(tab, readVenue, session, null)) {
+      await returnPendingRefreshToVenueStart(tabId, readVenue, session, null);
       return null;
     }
 
     await wait(300);
-    const payload = await readTab(Number(tabId), venue);
+    const payload = await readTab(Number(tabId), readVenue);
     const syncStatus = await saveVenuePayload(venue.id, payload);
     await clearPendingRefresh(tabId);
     if (session.closeWhenDone) await closeTab(Number(tabId));
@@ -377,9 +393,10 @@ async function continuePendingRefresh(tabId, _reason) {
   } catch (error) {
     if (error.manualSetupRequired) {
       const venue = AvailabilityRegistry.getVenue(session.venueId);
+      const readVenue = venueForScanMode(venue, session.scanMode);
       const tab = await chrome.tabs.get(Number(tabId)).catch(() => null);
-      if (shouldReturnToVenueStart(tab, venue, session, error)) {
-        await returnPendingRefreshToVenueStart(tabId, venue, session, error);
+      if (shouldReturnToVenueStart(tab, readVenue, session, error)) {
+        await returnPendingRefreshToVenueStart(tabId, readVenue, session, error);
         return null;
       }
 
@@ -395,14 +412,16 @@ async function continuePendingRefresh(tabId, _reason) {
   }
 }
 
-async function refreshVenueNow(venueId) {
+async function refreshVenueNow(venueId, scanMode = "fast") {
   const venue = AvailabilityRegistry.getVenue(venueId);
-  const { tab, closeWhenDone } = await tabForVenue(venue);
+  const readVenue = venueForScanMode(venue, scanMode);
+  readVenue.scanMode = scanMode;
+  const { tab, closeWhenDone } = await tabForVenue(readVenue);
 
   try {
     await waitForTabComplete(tab.id);
     await wait(1200);
-    const payload = await readTab(tab.id, venue);
+    const payload = await readTab(tab.id, readVenue);
     const syncStatus = await saveVenuePayload(venue.id, payload);
     if (closeWhenDone) await closeTab(tab.id);
     return { venue, payload, syncStatus, manualSetupRequired: false };
@@ -422,7 +441,7 @@ async function refreshVenueNow(venueId) {
     }
 
     await activateTab(tab.id);
-    await savePendingRefresh(pendingRefreshSession(tab.id, venue, closeWhenDone, error));
+    await savePendingRefresh(pendingRefreshSession(tab.id, readVenue, closeWhenDone, error));
     return {
       venue,
       payload: null,
@@ -433,12 +452,13 @@ async function refreshVenueNow(venueId) {
   }
 }
 
-async function refreshVenue(venueId) {
+async function refreshVenue(venueId, scanMode = "fast") {
   const venue = AvailabilityRegistry.getVenue(venueId);
-  if (refreshInFlight.has(venue.id)) return refreshInFlight.get(venue.id);
+  const refreshKey = venue.id;
+  if (refreshInFlight.has(refreshKey)) return refreshInFlight.get(refreshKey);
 
-  const refreshPromise = refreshVenueNow(venue.id).finally(() => refreshInFlight.delete(venue.id));
-  refreshInFlight.set(venue.id, refreshPromise);
+  const refreshPromise = refreshVenueNow(venue.id, scanMode).finally(() => refreshInFlight.delete(refreshKey));
+  refreshInFlight.set(refreshKey, refreshPromise);
   return refreshPromise;
 }
 
@@ -480,7 +500,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === MESSAGE.LIST_VENUES) return listVenues();
     if (message?.type === MESSAGE.GET_VENUE_PAYLOAD) return getVenuePayload(message.venueId);
     if (message?.type === MESSAGE.SET_SELECTED_VENUE) return setSelectedVenue(message.venueId);
-    if (message?.type === MESSAGE.REFRESH_VENUE) return refreshVenue(message.venueId);
+    if (message?.type === MESSAGE.REFRESH_VENUE) return refreshVenue(message.venueId, message.scanMode);
     if (message?.type === MESSAGE.READ_ACTIVE_TAB) return readActiveTab();
     throw new Error("Unknown availability message.");
   })()

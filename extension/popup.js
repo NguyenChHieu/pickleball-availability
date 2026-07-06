@@ -1,5 +1,6 @@
 const venueSelect = document.querySelector("#venueSelect");
 const refreshVenueButton = document.querySelector("#refreshVenueButton");
+const deepScanVenueButton = document.querySelector("#deepScanVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
 const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton");
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
@@ -33,9 +34,14 @@ function syncActions() {
   actionsElement.hidden = isBusy || !latestPayload || !latestSyncStatus?.ok;
 }
 
+function syncDeepScanButton() {
+  deepScanVenueButton.hidden = !selectedVenue()?.deepReadProviders;
+}
+
 function setBusy(value) {
   isBusy = value;
   refreshVenueButton.disabled = value;
+  deepScanVenueButton.disabled = value;
   readCurrentPageButton.disabled = value;
   venueSelect.disabled = value;
   syncActions();
@@ -141,6 +147,7 @@ function populateVenues() {
     venueSelect.append(option);
   }
   venueSelect.value = selectedVenueId;
+  syncDeepScanButton();
 }
 
 async function loadSavedPayload() {
@@ -163,16 +170,18 @@ async function loadSavedPayload() {
   return true;
 }
 
-async function refreshVenue() {
+async function refreshVenue(scanMode = "fast") {
   if (isBusy || !selectedVenueId) return;
 
   setBusy(true);
-  setStatus(`Refreshing ${selectedVenue()?.name || "venue"}...`);
+  const isDeepScan = scanMode === "deep";
+  setStatus(`${isDeepScan ? "Deep scanning courts for" : "Refreshing"} ${selectedVenue()?.name || "venue"}...`);
 
   try {
     const response = await sendMessage({
       type: MESSAGE.REFRESH_VENUE,
       venueId: selectedVenueId,
+      scanMode,
     });
     if (!response?.ok) throw new Error(response?.error || "Refresh failed.");
 
@@ -186,9 +195,11 @@ async function refreshVenue() {
     }
 
     rememberPayload(response.payload, response.syncStatus);
-    setStatus(readStatus(response.payload, response.syncStatus, `Read for ${response.venue.name}:`));
+    setStatus(
+      readStatus(response.payload, response.syncStatus, `${isDeepScan ? "Deep scan" : "Read"} for ${response.venue.name}:`)
+    );
   } catch (error) {
-    setStatus(savedFallbackStatus("Refresh", error));
+    setStatus(savedFallbackStatus(isDeepScan ? "Deep scan" : "Refresh", error));
   } finally {
     setBusy(false);
   }
@@ -270,6 +281,7 @@ async function selectVenue(venueId) {
   if (!response?.ok) throw new Error(response?.error || "Could not select venue.");
   selectedVenueId = response.venue.id;
   venueSelect.value = selectedVenueId;
+  syncDeepScanButton();
   await loadSavedPayload();
 }
 
@@ -287,6 +299,7 @@ venueSelect.addEventListener("change", () => {
   selectVenue(venueSelect.value).catch((error) => setStatus(error?.message || String(error)));
 });
 refreshVenueButton.addEventListener("click", () => refreshVenue());
+deepScanVenueButton.addEventListener("click", () => refreshVenue("deep"));
 readCurrentPageButton.addEventListener("click", readCurrentPage);
 viewAvailabilityButton.addEventListener("click", viewAvailability);
 copyShareLinkButton.addEventListener("click", copyShareLink);

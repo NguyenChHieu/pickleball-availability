@@ -438,7 +438,8 @@
 
     const bookingUrl = bookingUrlForVenue(venue);
     const continuityStatus = (() => {
-      if (!shouldReadProviders || !providerOptionCount) return "unavailable";
+      if (!shouldReadProviders) return "not_scanned";
+      if (!providerOptionCount) return "unavailable";
       if (providerReadSuccessCount && providerReadFailureCount) return "partial";
       if (providerReadSuccessCount) return "available";
       if (providerReadAttemptCount || providerReadFailureCount) return "failed";

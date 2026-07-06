@@ -118,6 +118,10 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
 }
 
+#deepScanVenueButton {
+  grid-column: 1 / -1;
+}
+
 .status {
   background: #f7fbfc;
   border: 1px solid #e1ebef;

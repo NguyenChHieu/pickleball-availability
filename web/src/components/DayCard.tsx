@@ -38,6 +38,9 @@ function continuityMessage(day: PublicAvailabilityDay) {
   if (day.continuityStatus === "partial") {
     return "Some provider or court continuity could not be read. Overview and Levels are still available.";
   }
+  if (day.continuityStatus === "not_scanned") {
+    return "Court or provider continuity was skipped for a faster refresh. Use a deep scan when you need same-court runs.";
+  }
   if (day.continuityStatus === "available") {
     return "No same-court or same-provider runs were found for this day. Use the Overview tab for any-court availability.";
   }
