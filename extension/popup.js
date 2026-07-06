@@ -206,6 +206,7 @@ function jobStatusMessage(job) {
   const failed = results.filter((result) => result.status === "failed").length;
   const setupRequired = results.filter((result) => result.status === "setup_required").length;
   const succeeded = results.filter((result) => result.status === "success").length;
+  const cacheHits = results.filter((result) => result.status === "success" && result.cacheHit).length;
   if (job.status === "failed") return `${prefix} failed. ${job.error || "Start it again when you are ready."}`;
   if (failed || setupRequired) {
     const details = results
@@ -219,7 +220,9 @@ function jobStatusMessage(job) {
       details ? `\n${details}` : ""
     }`;
   }
-  return `${prefix} complete: ${succeeded || completed} venue(s) refreshed.`;
+  return `${prefix} complete: ${succeeded || completed} venue(s) refreshed.${
+    cacheHits ? ` ${cacheHits} recent cache reused.` : ""
+  }`;
 }
 
 async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {
@@ -288,7 +291,7 @@ async function refreshVenue() {
 async function refreshAllVenues() {
   await startRefreshJob({
     venueIds: venues.map((venue) => venue.id),
-    scanMode: "fast",
+    scanMode: "cache-first",
     label: "Refresh all",
   });
 }

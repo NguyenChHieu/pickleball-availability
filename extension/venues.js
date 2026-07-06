@@ -47,6 +47,8 @@
       publicBookingUrl: NORTH_RYDE_PUBLIC_BOOKING_URL,
       readinessTimeoutMs: 15000,
       readDays: 9,
+      cacheFirstReadDays: 7,
+      cacheFirstTtlMs: 20 * 60 * 1000,
       readProviders: false,
       deepReadProviders: true,
       retryActiveOnFailure: true,

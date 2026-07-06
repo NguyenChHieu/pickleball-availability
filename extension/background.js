@@ -110,6 +110,10 @@ function venueForScanMode(venue, scanMode = "fast") {
     services: venue.services?.map((service) => ({ ...service })),
   };
 
+  if (scanMode === "cache-first" && Number(readVenue.cacheFirstReadDays || 0) > 0) {
+    readVenue.readDays = Number(readVenue.cacheFirstReadDays);
+  }
+
   if (readVenue.deepReadProviders) {
     readVenue.readProviders = scanMode === "deep";
   }
@@ -120,6 +124,26 @@ function venueForScanMode(venue, scanMode = "fast") {
 async function saveVenuePayload(venueId, payload) {
   await chrome.storage.local.set({ [AvailabilityRegistry.venuePayloadKey(venueId)]: payload });
   return syncVenuePayload(venueId, payload);
+}
+
+async function storedVenuePayload(venueId) {
+  const key = AvailabilityRegistry.venuePayloadKey(venueId);
+  const stored = await chrome.storage.local.get(key);
+  return stored[key] || null;
+}
+
+function payloadAgeMs(payload) {
+  const exportedAt = new Date(payload?.exported_at || "").getTime();
+  return Number.isNaN(exportedAt) ? Infinity : Date.now() - exportedAt;
+}
+
+async function cacheFirstPayload(venue, scanMode) {
+  if (scanMode !== "cache-first" || !Number(venue.cacheFirstTtlMs || 0)) return null;
+
+  const payload = await storedVenuePayload(venue.id);
+  if (!payload) return null;
+
+  return payloadAgeMs(payload) <= Number(venue.cacheFirstTtlMs) ? payload : null;
 }
 
 function syncStatusKey(venueId) {
@@ -417,6 +441,17 @@ async function continuePendingRefresh(tabId, _reason) {
 
 async function refreshVenueNow(venueId, scanMode = "fast") {
   const venue = AvailabilityRegistry.getVenue(venueId);
+  const cachedPayload = await cacheFirstPayload(venue, scanMode);
+  if (cachedPayload) {
+    return {
+      venue,
+      payload: cachedPayload,
+      syncStatus: await syncVenuePayload(venue.id, cachedPayload),
+      manualSetupRequired: false,
+      cacheHit: true,
+    };
+  }
+
   const readVenue = venueForScanMode(venue, scanMode);
   readVenue.scanMode = scanMode;
   const { tab, closeWhenDone } = await tabForVenue(readVenue);
@@ -573,6 +608,7 @@ async function runRefreshJob(initialJob) {
           dayCount: Array.isArray(result.payload?.days) ? result.payload.days.length : 0,
           syncOk: Boolean(result.syncStatus?.ok),
           syncMessage: result.syncStatus?.error || result.syncStatus?.reason || "",
+          cacheHit: Boolean(result.cacheHit),
         });
       }
     } catch (error) {
