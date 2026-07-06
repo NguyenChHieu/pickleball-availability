@@ -61,9 +61,9 @@ select {
   border-radius: 8px;
   color: var(--ink);
   font: inherit;
-  max-width: 178px;
   min-height: 38px;
   padding: 8px 10px;
+  width: 100%;
 }
 
 button {
@@ -116,6 +116,20 @@ button:disabled {
   display: grid;
   gap: 8px;
   grid-template-columns: 1fr 1fr;
+}
+
+.target-field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.target-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 #readCurrentPageButton,

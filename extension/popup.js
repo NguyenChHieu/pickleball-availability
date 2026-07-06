@@ -111,7 +111,7 @@ function savedPayloadStatus(payload, syncStatus) {
   const age = formatAge(payload);
   const shareHint = syncStatus?.ok
     ? "View Availability and Copy Share Link are ready."
-    : "Use Refresh Venue or Read Current Page to update the share page.";
+    : "Use Refresh Selected or Read Current Page to update the share page.";
   const timeText = age || exportedAt ? ` Last read ${age || exportedAt}.` : "";
   return `Showing saved ${sourceLabel(payload)} result.${timeText} ${shareHint}`;
 }
