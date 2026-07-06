@@ -35,10 +35,12 @@ export function formatDay(day: AvailabilityPayloadDay) {
   const sameCourt = sameCourtIntervals
     .map((group) => {
       const courtName = group.court_name || group.courtName || group.resource_name || group.provider_name || "";
+      const levelName = group.level_name ? ` ${group.level_name}` : "";
+      const price = group.price ? ` ${group.price}` : "";
       const courtTimes = Array.isArray(group.intervals)
         ? group.intervals.map((interval) => formatInterval(interval as Record<string, unknown>)).join(", ")
         : "";
-      return courtName && courtTimes ? `${courtName}: ${courtTimes}` : "";
+      return courtName && courtTimes ? `${courtName}${levelName}${price}: ${courtTimes}` : "";
     })
     .filter(Boolean)
     .join("; ");
@@ -53,7 +55,7 @@ export function formatDay(day: AvailabilityPayloadDay) {
     })
     .filter(Boolean)
     .join("; ");
-  return `${label}: any court ${times}${suffix}${levels ? `; levels ${levels}` : ""}${sameCourt ? `; same court ${sameCourt}` : ""}`;
+  return `${label}: any court ${times}${suffix}${levels ? `; levels ${levels}` : ""}${sameCourt ? `; courts/providers ${sameCourt}` : ""}`;
 }
 
 export function formatAvailability(payload: AvailabilityPayload | null | undefined, { maxDays = 8 } = {}) {
@@ -81,9 +83,10 @@ export function formatAvailability(payload: AvailabilityPayload | null | undefin
 
 export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue) {
   const normalized = String(text || "").toLowerCase();
-  if (!normalized.trim()) return "Ask me: availability propickle or availability broadway";
+  if (!normalized.trim()) return "Ask me: availability propickle, broadway, or north ryde";
 
   const wantsBroadway = normalized.includes("broadway");
+  const wantsNorthRyde = normalized.includes("north ryde") || normalized.includes("northryde");
   const wantsProPickle =
     normalized.includes("propickle") ||
     normalized.includes("pro pickle") ||
@@ -91,9 +94,10 @@ export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue
     normalized.includes("pickle");
 
   if (wantsBroadway) return formatAvailability(payloadsByVenue.broadway);
+  if (wantsNorthRyde) return formatAvailability(payloadsByVenue.northryde);
   if (wantsProPickle || normalized.includes("availability") || normalized.includes("available")) {
     return formatAvailability(payloadsByVenue.propickle);
   }
 
-  return "Ask me: availability propickle or availability broadway";
+  return "Ask me: availability propickle, broadway, or north ryde";
 }

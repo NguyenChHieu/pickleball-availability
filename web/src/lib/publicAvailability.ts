@@ -12,6 +12,9 @@ export type PublicAvailabilityInterval = {
 
 export type PublicAvailabilityCourtIntervals = {
   courtName: string;
+  providerName: string;
+  levelName: string;
+  price: string;
   intervals: PublicAvailabilityInterval[];
 };
 

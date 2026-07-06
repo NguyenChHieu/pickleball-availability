@@ -13,6 +13,9 @@ export type AvailabilityCourtIntervals = {
   courtName?: string;
   resource_name?: string;
   provider_name?: string;
+  provider_id?: string;
+  level_name?: string;
+  price?: string;
   intervals?: AvailabilityInterval[];
 };
 

@@ -45,6 +45,9 @@ function normalizeCourtIntervals(group: Record<string, unknown>) {
   const intervals = Array.isArray(group?.intervals) ? group.intervals : [];
   return {
     courtName,
+    providerName: String(group?.provider_name || group?.court_name || group?.courtName || ""),
+    levelName: String(group?.level_name || group?.levelName || group?.title || group?.service_name || ""),
+    price: String(group?.price || ""),
     intervals: intervals.map((interval) => normalizeInterval(interval as Record<string, unknown>)),
   };
 }

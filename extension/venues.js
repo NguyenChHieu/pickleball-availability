@@ -47,6 +47,8 @@
       publicBookingUrl: NORTH_RYDE_PUBLIC_BOOKING_URL,
       readinessTimeoutMs: 15000,
       readDays: 9,
+      readProviders: true,
+      maxProviders: 12,
       matchUrls: [`${NORTH_RYDE_MINDBODY_BASE}/*`],
       services: [
         {
