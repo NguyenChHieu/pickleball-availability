@@ -250,6 +250,7 @@ button:disabled {
 .pickle-loader {
   align-items: center;
   display: flex;
+  gap: 12px;
   height: 34px;
   justify-content: center;
   margin-top: 8px;
@@ -257,36 +258,43 @@ button:disabled {
 }
 
 .loader-paddle {
-  background: linear-gradient(135deg, #172128 0%, #324650 100%);
-  border-radius: 999px 999px 10px 10px;
-  height: 28px;
+  background:
+    radial-gradient(circle at 36% 32%, rgba(255, 255, 255, 0.22) 0 3px, transparent 4px),
+    linear-gradient(135deg, #1b2b34 0%, #314b56 100%);
+  border: 1px solid rgba(14, 35, 44, 0.45);
+  border-radius: 18px 18px 15px 15px;
+  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.12);
+  height: 24px;
   position: relative;
-  transform-origin: 50% 100%;
-  width: 19px;
+  transform-origin: 50% 80%;
+  width: 34px;
   animation: paddle-swing 900ms ease-in-out infinite;
 }
 
 .loader-paddle::after {
-  background: #172128;
-  border-radius: 999px;
-  bottom: -9px;
+  background: linear-gradient(180deg, #172128 0%, #2a3d46 100%);
+  border-radius: 4px;
+  bottom: -15px;
   content: "";
-  height: 12px;
-  left: 7px;
+  height: 18px;
+  left: 13px;
   position: absolute;
-  width: 5px;
+  transform: rotate(4deg);
+  width: 8px;
 }
 
 .loader-ball {
   background:
-    radial-gradient(circle at 35% 35%, #f6ff5c 0 11%, transparent 12%),
-    radial-gradient(circle at 64% 31%, #5f6410 0 7%, transparent 8%),
-    radial-gradient(circle at 38% 68%, #5f6410 0 7%, transparent 8%),
+    radial-gradient(circle at 30% 29%, rgba(66, 74, 9, 0.92) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 62% 25%, rgba(66, 74, 9, 0.86) 0 1.8px, transparent 2.4px),
+    radial-gradient(circle at 72% 57%, rgba(66, 74, 9, 0.82) 0 1.8px, transparent 2.5px),
+    radial-gradient(circle at 42% 72%, rgba(66, 74, 9, 0.8) 0 1.7px, transparent 2.4px),
+    radial-gradient(circle at 52% 48%, rgba(255, 255, 255, 0.25) 0 4px, transparent 5px),
     var(--lime);
   border: 1px solid #a7c72f;
   border-radius: 50%;
+  box-shadow: inset -2px -2px 0 rgba(112, 132, 23, 0.28);
   height: 15px;
-  margin-left: 11px;
   width: 15px;
   animation: ball-bounce 900ms ease-in-out infinite;
 }
@@ -294,10 +302,10 @@ button:disabled {
 @keyframes paddle-swing {
   0%,
   100% {
-    transform: rotate(-18deg);
+    transform: rotate(-10deg);
   }
   50% {
-    transform: rotate(18deg);
+    transform: rotate(12deg);
   }
 }
 

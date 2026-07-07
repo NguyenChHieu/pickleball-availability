@@ -577,55 +577,82 @@ async function updateRefreshJob(job, updates) {
   });
 }
 
+async function refreshVenueForJob(venueId, scanMode) {
+  const venue = AvailabilityRegistry.getVenue(venueId);
+  try {
+    const result = await refreshVenueNow(venue.id, scanMode);
+    if (result.manualSetupRequired) {
+      return {
+        venueId: venue.id,
+        venueName: venue.name,
+        status: "setup_required",
+        message: result.error || "Manual setup required.",
+        pendingRefresh: Boolean(result.pendingRefresh),
+      };
+    }
+
+    return {
+      venueId: venue.id,
+      venueName: venue.name,
+      status: "success",
+      dayCount: Array.isArray(result.payload?.days) ? result.payload.days.length : 0,
+      syncOk: Boolean(result.syncStatus?.ok),
+      syncMessage: result.syncStatus?.error || result.syncStatus?.reason || "",
+      cacheHit: Boolean(result.cacheHit),
+    };
+  } catch (error) {
+    return {
+      venueId: venue.id,
+      venueName: venue.name,
+      status: "failed",
+      message: error?.message || String(error),
+    };
+  }
+}
+
 async function runRefreshJob(initialJob) {
   let job = await updateRefreshJob(initialJob, { status: "running" });
   const results = [];
+  const isParallelRefresh = job.scanMode === "cache-first" && job.venueIds.length > 1;
 
-  for (const venueId of job.venueIds) {
-    const venue = AvailabilityRegistry.getVenue(venueId);
+  if (isParallelRefresh) {
     job = await updateRefreshJob(job, {
-      currentVenueId: venue.id,
-      currentVenueName: venue.name,
-      completed: results.length,
+      currentVenueId: "",
+      currentVenueName: "Multiple venues",
+      completed: 0,
       results,
     });
 
-    try {
-      const result = await refreshVenueNow(venue.id, job.scanMode);
-      if (result.manualSetupRequired) {
-        results.push({
-          venueId: venue.id,
-          venueName: venue.name,
-          status: "setup_required",
-          message: result.error || "Manual setup required.",
-          pendingRefresh: Boolean(result.pendingRefresh),
+    await Promise.all(
+      job.venueIds.map(async (venueId) => {
+        const result = await refreshVenueForJob(venueId, job.scanMode);
+        results.push(result);
+        results.sort((left, right) => job.venueIds.indexOf(left.venueId) - job.venueIds.indexOf(right.venueId));
+        job = await updateRefreshJob(job, {
+          completed: results.length,
+          results: [...results],
         });
-      } else {
-        results.push({
-          venueId: venue.id,
-          venueName: venue.name,
-          status: "success",
-          dayCount: Array.isArray(result.payload?.days) ? result.payload.days.length : 0,
-          syncOk: Boolean(result.syncStatus?.ok),
-          syncMessage: result.syncStatus?.error || result.syncStatus?.reason || "",
-          cacheHit: Boolean(result.cacheHit),
-        });
-      }
-    } catch (error) {
-      results.push({
-        venueId: venue.id,
-        venueName: venue.name,
-        status: "failed",
-        message: error?.message || String(error),
+      })
+    );
+  } else {
+    for (const venueId of job.venueIds) {
+      const venue = AvailabilityRegistry.getVenue(venueId);
+      job = await updateRefreshJob(job, {
+        currentVenueId: venue.id,
+        currentVenueName: venue.name,
+        completed: results.length,
+        results,
       });
+
+      results.push(await refreshVenueForJob(venue.id, job.scanMode));
+
+      job = await updateRefreshJob(job, {
+        completed: results.length,
+        results,
+      });
+
+      await wait(600);
     }
-
-    job = await updateRefreshJob(job, {
-      completed: results.length,
-      results,
-    });
-
-    await wait(600);
   }
 
   const summary = refreshJobSummary({ results });

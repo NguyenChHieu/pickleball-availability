@@ -48,7 +48,7 @@
       readinessTimeoutMs: 15000,
       readDays: 9,
       cacheFirstReadDays: 7,
-      cacheFirstTtlMs: 20 * 60 * 1000,
+      cacheFirstTtlMs: 5 * 60 * 1000,
       readProviders: false,
       deepReadProviders: true,
       retryActiveOnFailure: true,
