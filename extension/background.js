@@ -6,6 +6,7 @@ const MESSAGE = Object.freeze({
   SET_SELECTED_VENUE: "AVAILABILITY_SET_SELECTED_VENUE",
   START_REFRESH_JOB: "AVAILABILITY_START_REFRESH_JOB",
   GET_REFRESH_JOB: "AVAILABILITY_GET_REFRESH_JOB",
+  GET_REFRESH_HISTORY: "AVAILABILITY_GET_REFRESH_HISTORY",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
   READ_CURRENT_PAGE: "AVAILABILITY_READ_CURRENT_PAGE",
 });
@@ -21,6 +22,8 @@ const OLD_LOCAL_BACKEND_URL = "http://localhost:8787";
 const DEFAULT_BACKEND_URL = "http://localhost:3007";
 const PENDING_REFRESH_KEY = "pendingVenueRefreshes";
 const REFRESH_JOB_KEY = "activeRefreshJob";
+const REFRESH_HISTORY_KEY = "refreshJobHistory";
+const MAX_REFRESH_HISTORY = 5;
 const PENDING_REFRESH_TTL_MS = 5 * 60 * 1000;
 const PENDING_REFRESH_RETRY_MS = 8000;
 
@@ -530,6 +533,31 @@ async function storedRefreshJob() {
   return stored[REFRESH_JOB_KEY] || null;
 }
 
+async function storedRefreshHistory() {
+  const stored = await chrome.storage.local.get(REFRESH_HISTORY_KEY);
+  return Array.isArray(stored[REFRESH_HISTORY_KEY]) ? stored[REFRESH_HISTORY_KEY] : [];
+}
+
+async function recordRefreshJob(job) {
+  if (isActiveRefreshJob(job)) return;
+  const finishedAt = job.finishedAt || job.updatedAt || new Date().toISOString();
+  const entry = {
+    id: job.id,
+    label: job.label || "",
+    scanMode: job.scanMode || "fast",
+    status: job.status || "failed",
+    total: Number(job.total || job.venueIds?.length || 0),
+    completed: Number(job.completed || 0),
+    startedAt: job.startedAt || finishedAt,
+    finishedAt,
+    results: Array.isArray(job.results) ? job.results : [],
+    error: job.error || "",
+  };
+  const history = await storedRefreshHistory();
+  const nextHistory = [entry, ...history.filter((item) => item.id !== entry.id)].slice(0, MAX_REFRESH_HISTORY);
+  await chrome.storage.local.set({ [REFRESH_HISTORY_KEY]: nextHistory });
+}
+
 async function currentRefreshJob() {
   const job = activeRefreshJob || (await storedRefreshJob());
   if (isActiveRefreshJob(job) && !refreshJobPromise) {
@@ -661,13 +689,16 @@ async function runRefreshJob(initialJob) {
   }
 
   const summary = refreshJobSummary({ results });
-  return updateRefreshJob(job, {
+  const finishedJob = await updateRefreshJob(job, {
     status: summary.failed || summary.setupRequired ? "completed_with_issues" : "completed",
     completed: results.length,
     currentVenueId: "",
     currentVenueName: "",
     results,
+    finishedAt: new Date().toISOString(),
   });
+  await recordRefreshJob(finishedJob).catch((error) => console.warn(error));
+  return finishedJob;
 }
 
 async function startRefreshJob(request = {}) {
@@ -677,12 +708,15 @@ async function startRefreshJob(request = {}) {
   const job = makeRefreshJob(request);
   await saveRefreshJob(job);
   refreshJobPromise = runRefreshJob(job)
-    .catch((error) =>
-      updateRefreshJob(job, {
+    .catch(async (error) => {
+      const failedJob = await updateRefreshJob(job, {
         status: "failed",
         error: error?.message || String(error),
-      })
-    )
+        finishedAt: new Date().toISOString(),
+      });
+      await recordRefreshJob(failedJob).catch((historyError) => console.warn(historyError));
+      return failedJob;
+    })
     .finally(() => {
       refreshJobPromise = null;
     });
@@ -730,6 +764,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === MESSAGE.SET_SELECTED_VENUE) return setSelectedVenue(message.venueId);
     if (message?.type === MESSAGE.START_REFRESH_JOB) return startRefreshJob(message);
     if (message?.type === MESSAGE.GET_REFRESH_JOB) return { job: await currentRefreshJob() };
+    if (message?.type === MESSAGE.GET_REFRESH_HISTORY) return { history: await storedRefreshHistory() };
     if (message?.type === MESSAGE.READ_ACTIVE_TAB) return readActiveTab();
     throw new Error("Unknown availability message.");
   })()

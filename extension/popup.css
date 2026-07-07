@@ -234,6 +234,23 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.more-actions {
+  margin-top: 8px;
+}
+
+.more-actions summary {
+  color: var(--brand-dark);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  list-style-position: inside;
+  padding: 4px 0;
+}
+
+.more-actions summary:hover {
+  text-decoration: underline;
+}
+
 #readCurrentPageButton,
 #deepScanVenueButton {
   width: auto;
@@ -245,7 +262,7 @@ button:disabled {
   flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .pickleball-loader {
@@ -477,6 +494,76 @@ button:disabled {
   min-height: 44px;
   padding: 10px;
   white-space: pre-line;
+}
+
+.refresh-history {
+  margin-top: 10px;
+}
+
+.refresh-history h2 {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+
+.refresh-history ul {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.refresh-history li {
+  align-items: center;
+  background: rgba(248, 251, 252, 0.86);
+  border: 1px solid #e3edf1;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 8px;
+}
+
+.refresh-history-title {
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refresh-history-meta {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.refresh-history-badge {
+  background: #eef5f7;
+  border-radius: 999px;
+  color: #40515b;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.refresh-history-badge.is-ok {
+  background: #edf7f0;
+  color: var(--ok);
+}
+
+.refresh-history-badge.is-warning {
+  background: #fff8e4;
+  color: var(--warn);
+}
+
+.refresh-history-badge.is-error {
+  background: #fdecec;
+  color: #b42318;
 }
 
 .actions {

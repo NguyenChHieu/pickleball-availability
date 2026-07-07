@@ -28,36 +28,38 @@
           <select id="venueSelect"></select>
         </label>
         <div class="toolbar">
-          <button id="refreshVenueButton" type="button">Refresh Selected</button>
           <button
             id="refreshStaleButton"
             type="button"
-            class="secondary"
             title="Refresh only venues with missing or stale saved results."
           >
             Refresh Stale
           </button>
+          <button id="refreshVenueButton" type="button" class="secondary">Refresh Selected</button>
         </div>
-        <div class="utility-row">
-          <button id="readCurrentPageButton" type="button" class="tertiary">Read current tab</button>
-          <button
-            id="refreshAllButton"
-            type="button"
-            class="tertiary"
-            title="Refresh all venues. Slow venues may reuse a recent cache to keep this fast."
-          >
-            Refresh all
-          </button>
-          <button
-            id="deepScanVenueButton"
-            type="button"
-            class="tertiary"
-            title="Same-court scan for venues that support it. Slower than normal refresh."
-            hidden
-          >
-            Deep scan courts
-          </button>
-        </div>
+        <details class="more-actions">
+          <summary>More actions</summary>
+          <div class="utility-row">
+            <button id="readCurrentPageButton" type="button" class="tertiary">Read current tab</button>
+            <button
+              id="refreshAllButton"
+              type="button"
+              class="tertiary"
+              title="Refresh all venues. Slow venues may reuse a recent cache to keep this fast."
+            >
+              Refresh all
+            </button>
+            <button
+              id="deepScanVenueButton"
+              type="button"
+              class="tertiary"
+              title="Same-court scan for venues that support it. Slower than normal refresh."
+              hidden
+            >
+              Deep scan courts
+            </button>
+          </div>
+        </details>
 
         <div id="loader" class="pickleball-loader" role="status" aria-live="polite" aria-busy="true" hidden>
           <span class="pickleball-loader__paddle" aria-hidden="true">
@@ -70,6 +72,10 @@
           </span>
         </div>
         <p id="status" class="status" aria-live="polite">Loading availability...</p>
+        <section id="refreshHistory" class="refresh-history" aria-labelledby="refreshHistoryHeading" hidden>
+          <h2 id="refreshHistoryHeading">Recent refreshes</h2>
+          <ul id="refreshHistoryList"></ul>
+        </section>
       </section>
 
       <div id="actions" class="actions" hidden>

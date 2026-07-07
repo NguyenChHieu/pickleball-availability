@@ -11,6 +11,8 @@ const savedSummaryElement = document.querySelector("#savedSummary");
 const loaderElement = document.querySelector("#loader");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
+const refreshHistoryElement = document.querySelector("#refreshHistory");
+const refreshHistoryListElement = document.querySelector("#refreshHistoryList");
 
 const MESSAGE = Object.freeze({
   LIST_VENUES: "AVAILABILITY_LIST_VENUES",
@@ -18,6 +20,7 @@ const MESSAGE = Object.freeze({
   SET_SELECTED_VENUE: "AVAILABILITY_SET_SELECTED_VENUE",
   START_REFRESH_JOB: "AVAILABILITY_START_REFRESH_JOB",
   GET_REFRESH_JOB: "AVAILABILITY_GET_REFRESH_JOB",
+  GET_REFRESH_HISTORY: "AVAILABILITY_GET_REFRESH_HISTORY",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
 });
 
@@ -88,6 +91,11 @@ function formatAge(payload) {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
+function formatIsoAge(isoString) {
+  if (!isoString) return "";
+  return formatAge({ exported_at: isoString });
+}
+
 function formatDuration(ms) {
   const duration = Number(ms || 0);
   if (!duration || duration < 0) return "";
@@ -99,6 +107,13 @@ function formatDuration(ms) {
   const minutes = Math.floor(seconds / 60);
   const remainder = seconds % 60;
   return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
+}
+
+function formatElapsed(startIso, finishIso) {
+  const startedAt = new Date(startIso || "").getTime();
+  const finishedAt = new Date(finishIso || "").getTime();
+  if (Number.isNaN(startedAt) || Number.isNaN(finishedAt)) return "";
+  return formatDuration(finishedAt - startedAt);
 }
 
 function payloadAgeMs(payload) {
@@ -363,6 +378,75 @@ function jobStatusMessage(job) {
   }${timings ? `\nTimings: ${timings}` : ""}`;
 }
 
+function jobCounts(job) {
+  const results = Array.isArray(job?.results) ? job.results : [];
+  return {
+    failed: results.filter((result) => result.status === "failed").length,
+    setupRequired: results.filter((result) => result.status === "setup_required").length,
+    succeeded: results.filter((result) => result.status === "success").length,
+    cacheHits: results.filter((result) => result.status === "success" && result.cacheHit).length,
+  };
+}
+
+function historyBadge(job) {
+  if (job.status === "completed") return { text: "ok", className: "is-ok" };
+  if (job.status === "completed_with_issues") return { text: "issues", className: "is-warning" };
+  return { text: "failed", className: "is-error" };
+}
+
+function historyTitle(job) {
+  if (job.label) return job.label;
+  return job.scanMode === "deep" ? "Deep scan" : "Refresh";
+}
+
+function historyMeta(job) {
+  const counts = jobCounts(job);
+  const total = Number(job.total || 0);
+  const pieces = [];
+  if (counts.succeeded) pieces.push(`${counts.succeeded}/${total || counts.succeeded} ok`);
+  if (counts.failed) pieces.push(`${counts.failed} failed`);
+  if (counts.setupRequired) pieces.push(`${counts.setupRequired} setup`);
+  if (counts.cacheHits) pieces.push(`${counts.cacheHits} cached`);
+  const elapsed = formatElapsed(job.startedAt, job.finishedAt);
+  const age = formatIsoAge(job.finishedAt);
+  if (elapsed) pieces.push(elapsed);
+  if (age) pieces.push(age);
+  return pieces.join(" / ") || "No details";
+}
+
+function renderRefreshHistory(history) {
+  const items = Array.isArray(history) ? history.slice(0, 5) : [];
+  refreshHistoryElement.hidden = !items.length;
+  refreshHistoryListElement.replaceChildren(
+    ...items.map((job) => {
+      const badge = historyBadge(job);
+      const item = document.createElement("li");
+      const body = document.createElement("div");
+      const title = document.createElement("div");
+      title.className = "refresh-history-title";
+      title.textContent = historyTitle(job);
+      const meta = document.createElement("div");
+      meta.className = "refresh-history-meta";
+      meta.textContent = historyMeta(job);
+      body.append(title, meta);
+
+      const badgeElement = document.createElement("span");
+      badgeElement.className = `refresh-history-badge ${badge.className}`;
+      badgeElement.textContent = badge.text;
+
+      item.title = job.error || "";
+      item.append(body, badgeElement);
+      return item;
+    })
+  );
+}
+
+async function loadRefreshHistory() {
+  const response = await sendMessage({ type: MESSAGE.GET_REFRESH_HISTORY });
+  if (!response?.ok) throw new Error(response?.error || "Could not load refresh history.");
+  renderRefreshHistory(response.history || []);
+}
+
 async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {
   const response = await sendMessage({ type: MESSAGE.GET_REFRESH_JOB });
   if (!response?.ok) throw new Error(response?.error || "Could not load refresh status.");
@@ -380,6 +464,7 @@ async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {
   }
 
   stopRefreshJobPolling();
+  await loadRefreshHistory();
   if (job.venueIds?.includes(selectedVenueId)) {
     try {
       await loadSavedPayload();
@@ -410,6 +495,7 @@ async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh" 
     if (!response?.ok) throw new Error(response?.error || "Refresh job failed to start.");
 
     setStatus(response.alreadyRunning ? "A refresh is already running." : jobStatusMessage(response.job));
+    await loadRefreshHistory();
     startRefreshJobPolling();
   } catch (error) {
     setStatus(savedFallbackStatus(isDeepScan ? "Deep scan" : label, error));
@@ -557,6 +643,7 @@ async function init() {
   populateVenues();
   await refreshVenueStatusList();
   await loadSavedPayload();
+  await loadRefreshHistory();
   await loadRefreshJobStatus({ silentWhenInactive: true });
 }
 
