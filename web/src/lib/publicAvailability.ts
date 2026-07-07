@@ -43,7 +43,7 @@ export type PublicAvailabilityReady = {
   lastReadAt: string | null;
   freshnessLabel: string;
   isStale: boolean;
-  staleThresholdHours: number;
+  staleThresholdMinutes: number;
   summary: {
     dayCount: number;
     totalOpenHours: number;

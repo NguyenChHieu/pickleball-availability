@@ -122,6 +122,7 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
   const availableDays = isReady ? openDayCount(availability) : 0;
   const openHours = isReady ? formatHours(availability.summary.totalOpenHours) : "0";
   const nextSlot = isReady ? firstOpenSlot(availability) : "--";
+  const readStatusLabel = isReady && availability.isStale ? "Older read" : "Active";
 
   return (
     <div
@@ -182,7 +183,7 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
             <div className="stitch-active">
               <span>
                 <span aria-hidden="true" />
-                Active
+                {readStatusLabel}
               </span>
               <p className="tabular-nums">Synced {syncedAt}</p>
             </div>

@@ -3,9 +3,9 @@ import type { AvailabilityPayload, AvailabilityPayloadDay, AvailabilityRecord } 
 import { bookingActionUrlForDay, bookingUrlForDay } from "./bookingLinks";
 import { formatDateTime } from "./formatAvailability";
 
-export const STALE_THRESHOLD_HOURS = 12;
+export const STALE_THRESHOLD_MINUTES = 5;
 
-const STALE_THRESHOLD_MS = STALE_THRESHOLD_HOURS * 60 * 60 * 1000;
+const STALE_THRESHOLD_MS = STALE_THRESHOLD_MINUTES * 60 * 1000;
 const DEFAULT_VENUE = Object.freeze({
   fallbackUrl: "",
   themeId: "venue",
@@ -125,7 +125,7 @@ export function buildPublicAvailabilityResponse(
       lastReadAt,
       freshnessLabel: formatDateTime(lastReadAt),
       isStale: isStaleTimestamp(lastReadAt, now),
-      staleThresholdHours: STALE_THRESHOLD_HOURS,
+      staleThresholdMinutes: STALE_THRESHOLD_MINUTES,
       summary: {
         dayCount: days.length,
         totalOpenHours: days.reduce((total, day) => total + day.totalOpenHours, 0),
