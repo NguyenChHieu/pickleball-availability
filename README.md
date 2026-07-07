@@ -1,8 +1,8 @@
 # Pickleball Availability Helper
 
-Small read-only Chrome extension plus a full-stack Next.js availability share app for Playbypoint booking pages.
+Small read-only Chrome extension plus a full-stack Next.js availability share app for pickleball booking pages.
 
-It can read the current booking page or refresh a configured venue such as ProPickle. It reads visible booking day tabs, merges adjacent open time slots, and keeps the last successful result in the extension popup.
+It can refresh configured venues such as ProPickle, Broadway Pickleball, and North Ryde; read compatible current pages; merge adjacent open time slots; and keep the last successful result in the extension popup and share app.
 
 ## Guardrails
 
@@ -26,11 +26,12 @@ After code changes, return to `chrome://extensions` and click the reload icon on
 ## Use: Venue Flow
 
 1. Click the extension icon.
-2. Pick **ProPickle**.
-3. Click **Refresh Venue** when you want a fresh read.
+2. Pick a **Refresh target**.
+3. Click **Refresh Stale** for the normal low-noise refresh, or **Refresh Selected** when you want a fresh read for one venue.
 4. If you are already logged in, ProPickle refresh can usually open the booking page in the background, read it, sync it, and close the tab.
 5. If Chrome opens the booking page for login, waiver, or security checks, complete that setup manually.
 6. The extension keeps watching that tab and continues automatically when the schedule appears.
+7. Use **More actions** for lower-frequency tools such as **Refresh all**, **Read current tab**, or **Deep scan courts**.
 
 The extension uses your normal Chrome session. It does not store or ask for credentials.
 
@@ -43,7 +44,7 @@ If login redirects to a profile/account page, an active venue refresh can return
 3. Accept any waiver/conditions manually only if you genuinely agree.
 4. Navigate to the actual availability page.
 5. Click the extension icon.
-6. Click **Read Current Page**.
+6. Open **More actions** and click **Read current tab**.
 
 The share page shows each loaded day with merged open intervals, for example:
 
@@ -64,7 +65,9 @@ Each day on the share page includes **Open booking**, which opens the venue book
 
 ## Persistence
 
-The latest successful read is stored in Chrome local extension storage per venue. If you close or unfocus the popup, reopening it shows the saved result for the selected venue without refreshing. Click **Refresh Venue** when you want fresh data.
+The latest successful read is stored in Chrome local extension storage per venue. If you close or unfocus the popup, reopening it shows the saved result for the selected venue without refreshing. Click **Refresh Stale** or **Refresh Selected** when you want fresh data.
+
+Recent completed refresh jobs are also kept in a small popup history so you can see which runs completed, reused cache, failed, needed setup, and how long they took.
 
 This matters for future venues: ProPickle, Broadway Pickleball, and North Ryde should not overwrite each other.
 
@@ -103,7 +106,11 @@ For deployed cache persistence, use Supabase by setting `SUPABASE_URL` and `SUPA
 
 ## Compatibility
 
-This extension targets Playbypoint pages that render a `BookBox` booking widget with visible day buttons and time-slot buttons.
+This extension targets venue-specific public/readable booking widgets through small providers:
+
+- Playbypoint `BookBox` pages for ProPickle.
+- ClubSpark `BookByDate` pages for Broadway Pickleball.
+- Mindbody appointment pages for North Ryde.
 
 Some logged-out Playbypoint pages still render date buttons but hide times behind a login prompt. The reader treats those pages as setup-required so it does not sync a false empty result.
 
@@ -119,7 +126,7 @@ If the direct booking URL still asks for setup, use the venue's setup URL:
 https://book.propickle.com.au/f/ProPickle/booking_waiver
 ```
 
-Other Playbypoint venues may work if they use the same booking widget. Add a venue config first, then reuse the Playbypoint provider.
+Other venues may work if they use one of the existing provider shapes. Add a venue config first, then reuse or add the smallest provider needed.
 
 ## Architecture
 
@@ -127,6 +134,8 @@ The project uses a small adapter/registry shape:
 
 - `venues.js`: configured venues and storage keys.
 - `providers/playbypointBookBox.js`: Playbypoint `BookBox` reader.
+- `providers/clubsparkBookByDate.js`: ClubSpark day grid reader.
+- `providers/mindbodyAppointments.js`: Mindbody appointment reader.
 - `contentScript.js`: message bridge injected into readable pages.
 - `background.js`: venue refresh orchestration and persistence.
 - `popup.js`: venue selector, rendering, exports, and current-page actions.
@@ -150,6 +159,8 @@ extension/
   venues.js
   providers/
     playbypointBookBox.js
+    clubsparkBookByDate.js
+    mindbodyAppointments.js
 web/
   supabase.sql
   app/

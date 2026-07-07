@@ -3,8 +3,8 @@
 ## Current Snapshot
 
 - Path: `C:\Users\nguye\Downloads\propickle-buddy`
-- Git branch: `feature/second-venue`
-- Git status: active migration toward a single full-stack Next.js deployment.
+- Git branch: `main`
+- Git status: single full-stack Next.js deployment is in place; current work is extension refresh UX, provider polish, and future venue additions.
 - Local instructions: `AGENTS.md` plus `.ai/agent-router.md`.
 
 ## Stack
@@ -18,8 +18,8 @@
 
 ## Directory Map
 
-- `extension/`: MV3 popup/options/background/content scripts, venue config, Playbypoint provider, booking deep-link helper.
-- `extension/providers/`: Playbypoint `BookBox` reader.
+- `extension/`: MV3 popup/options/background/content scripts, venue config, refresh orchestration, booking deep-link helper.
+- `extension/providers/`: Playbypoint, ClubSpark, and Mindbody readers.
 - `web/app/`: Next.js routes, share page, API routes, webhook routes, and global styles.
 - `web/src/components/`: availability page/card UI components.
 - `web/src/lib/`: public availability loader and venue themes.
@@ -53,14 +53,16 @@ node --check extension\options.js
 node --check extension\venues.js
 node --check extension\bookingDeepLink.js
 node --check extension\providers\playbypointBookBox.js
+node --check extension\providers\clubsparkBookByDate.js
+node --check extension\providers\mindbodyAppointments.js
 python -m json.tool extension\manifest.json
 ```
 
 ## Architecture Notes
 
-- Main execution path: user manually triggers extension read/refresh, extension reads visible Playbypoint availability, Next API route stores latest payload, Next share UI renders cached availability.
-- Data flow: Playbypoint DOM -> content/provider scripts -> background persistence/sync -> `POST /api/availability/:venueId` on the Next app -> local dev cache or Supabase -> `/s/:shareToken/:venueId`, `/api/public/:shareToken/:venueId`, or `/s/:shareToken/:venueId/text`.
-- State management: Chrome local storage per venue in extension; one latest cached payload per venue in the Next/Supabase cache; share page reads cached display data server-side.
+- Main execution path: user manually triggers extension read/refresh, extension reads visible venue availability, Next API route stores latest payload, Next share UI renders cached availability.
+- Data flow: booking widget DOM -> content/provider scripts -> background persistence/sync -> `POST /api/availability/:venueId` on the Next app -> local dev cache or Supabase -> `/s/:shareToken/:venueId`, `/api/public/:shareToken/:venueId`, or `/s/:shareToken/:venueId/text`.
+- State management: Chrome local storage per venue in extension; one latest cached payload per venue in the Next/Supabase cache; small extension refresh-job history; share page reads cached display data server-side.
 - API boundaries: extension never owns server secrets; Next API protects sync with `AVAILABILITY_SYNC_TOKEN`; public share uses unguessable `SHARE_TOKEN`.
 - Error handling pattern: preserve last good cached result; distinguish setup-required/login-hidden states from true empty availability; invalid share tokens return 404.
 - Logging/observability pattern: Next server logs/dry-run Messenger replies; extension popup presents user-facing status.
@@ -86,23 +88,20 @@ python -m json.tool extension\manifest.json
 
 - Logged-out Playbypoint pages can show day buttons while hiding time slots; treat this as setup-required, not no availability.
 - Popup should show saved data on open and refresh only when the user clicks refresh/read.
+- Normal multi-venue refresh should prefer stale-only or cache-first paths; deep provider/court scans stay explicit because North Ryde can be slow.
 - Share page reads cached availability only; it must not trigger scraping.
 - Future venues should be added through venue/provider/theme configuration before inventing a new scraper flow.
 - The repo has `.ai/` workflow files; keep them aligned when architecture/deployment decisions change.
 
 ## Current Validation Baseline
 
-Last checked during the latest UI work before this onboarding update:
+Last checked during the July 7 refresh UX work:
 
-- Web typecheck: `npm.cmd --prefix web run typecheck` passed.
+- Web typecheck: `npm.cmd --prefix web run typecheck -- --incremental false` passed.
 - Web lint: `npm.cmd --prefix web run lint` passed.
 - Web build: `npm.cmd --prefix web run build` passed.
-- UI smoke: local Playwright desktop/mobile page checks passed for the ProPickle share page before the single-app migration.
-
-Not rerun during this onboarding update:
-
-- Extension syntax checks.
-- Manifest JSON validation.
+- Extension syntax checks passed for background, content, popup, options, venues, booking deep-link, and all providers.
+- Manifest JSON validation passed.
 
 ## Agent Notes
 
@@ -114,4 +113,4 @@ Not rerun during this onboarding update:
 
 ## Next Exploration Step
 
-Start Phase 2 by researching the next target venue, preferably Broadway Pickleball or North Ryde. Confirm whether it is Playbypoint-compatible, then add it through `extension/venues.js`, host permissions, a venue theme in `web/src/lib/themes.ts`, and focused extension/web validation.
+After refresh UX cleanup, discuss the next venue. Confirm its booking platform first, then add it through `extension/venues.js`, host permissions, the smallest compatible provider, a venue theme/logo in `web/src/lib/themes.ts`, and focused extension/web validation.
