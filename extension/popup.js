@@ -8,6 +8,7 @@ const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
 const venueStatusListElement = document.querySelector("#venueStatusList");
 const savedSummaryElement = document.querySelector("#savedSummary");
 const loaderElement = document.querySelector("#loader");
+const loadingDotsElement = document.querySelector("#loadingDots");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
 
@@ -31,6 +32,8 @@ let latestPayload = null;
 let latestSyncStatus = null;
 let isBusy = false;
 let refreshJobPollTimer = null;
+let loaderDotsTimer = null;
+let loaderDotCount = 0;
 
 function setStatus(message) {
   statusElement.textContent = message;
@@ -45,6 +48,23 @@ function syncDeepScanButton() {
   deepScanVenueButton.hidden = !isDeepScanVenue;
 }
 
+function syncLoader(value) {
+  loaderElement.hidden = !value;
+  if (!value) {
+    if (loaderDotsTimer) clearInterval(loaderDotsTimer);
+    loaderDotsTimer = null;
+    loaderDotCount = 0;
+    loadingDotsElement.textContent = "";
+    return;
+  }
+
+  if (loaderDotsTimer) return;
+  loaderDotsTimer = setInterval(() => {
+    loaderDotCount = (loaderDotCount + 1) % 4;
+    loadingDotsElement.textContent = ".".repeat(loaderDotCount);
+  }, 400);
+}
+
 function setBusy(value) {
   isBusy = value;
   refreshVenueButton.disabled = value;
@@ -52,7 +72,7 @@ function setBusy(value) {
   deepScanVenueButton.disabled = value;
   readCurrentPageButton.disabled = value;
   venueSelect.disabled = value;
-  loaderElement.hidden = !value;
+  syncLoader(value);
   syncActions();
 }
 
@@ -79,6 +99,19 @@ function formatAge(payload) {
 
   const days = Math.round(hours / 24);
   return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function formatDuration(ms) {
+  const duration = Number(ms || 0);
+  if (!duration || duration < 0) return "";
+  if (duration < 1000) return "<1s";
+
+  const seconds = Math.round(duration / 1000);
+  if (seconds < 60) return `${seconds}s`;
+
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
 }
 
 function payloadAgeMs(payload) {
@@ -146,7 +179,7 @@ function savedVenueMeta(payload, venue) {
   if (age) parts.push(age);
   if (dayCount) parts.push(`${dayCount} day${dayCount === 1 ? "" : "s"}`);
   if (scan) parts.push(scan);
-  return parts.join(" · ") || "Saved";
+  return parts.join(" / ") || "Saved";
 }
 
 function venueBadge(payload, syncStatus) {
@@ -303,22 +336,30 @@ function jobStatusMessage(job) {
   const setupRequired = results.filter((result) => result.status === "setup_required").length;
   const succeeded = results.filter((result) => result.status === "success").length;
   const cacheHits = results.filter((result) => result.status === "success" && result.cacheHit).length;
+  const timings = results
+    .map((result) => {
+      const duration = formatDuration(result.durationMs);
+      return duration ? `${result.venueName || result.venueId}: ${duration}` : "";
+    })
+    .filter(Boolean)
+    .join(", ");
   if (job.status === "failed") return `${prefix} failed. ${job.error || "Start it again when you are ready."}`;
   if (failed || setupRequired) {
     const details = results
       .filter((result) => result.status === "failed" || result.status === "setup_required")
       .map((result) => {
         const reason = result.message || result.syncMessage || "No details available.";
-        return `${result.venueName || result.venueId}: ${reason}`;
+        const duration = formatDuration(result.durationMs);
+        return `${result.venueName || result.venueId}: ${reason}${duration ? ` (${duration})` : ""}`;
       })
       .join("\n");
     return `${prefix} finished with issues: ${succeeded} succeeded, ${failed} failed, ${setupRequired} need setup.${
       details ? `\n${details}` : ""
-    }`;
+    }${timings ? `\nTimings: ${timings}` : ""}`;
   }
   return `${prefix} complete: ${succeeded || completed} venue(s) refreshed.${
     cacheHits ? ` ${cacheHits} recent cache reused.` : ""
-  }`;
+  }${timings ? `\nTimings: ${timings}` : ""}`;
 }
 
 async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {

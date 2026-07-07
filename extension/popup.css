@@ -250,11 +250,18 @@ button:disabled {
 .pickle-loader {
   align-items: center;
   display: flex;
-  gap: 12px;
-  height: 34px;
+  gap: 10px;
+  min-height: 42px;
   justify-content: center;
-  margin-top: 8px;
+  margin: 14px 0 6px;
+  padding: 4px 0;
   position: relative;
+}
+
+.loader-icon {
+  align-items: center;
+  display: flex;
+  gap: 10px;
 }
 
 .loader-paddle {
@@ -262,13 +269,12 @@ button:disabled {
     radial-gradient(circle at 36% 32%, rgba(255, 255, 255, 0.22) 0 3px, transparent 4px),
     linear-gradient(135deg, #1b2b34 0%, #314b56 100%);
   border: 1px solid rgba(14, 35, 44, 0.45);
-  border-radius: 18px 18px 15px 15px;
+  border-radius: 15px 15px 13px 13px;
   box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.12);
-  height: 24px;
+  height: 23px;
   position: relative;
-  transform-origin: 50% 80%;
-  width: 34px;
-  animation: paddle-swing 900ms ease-in-out infinite;
+  transform: rotate(-14deg);
+  width: 29px;
 }
 
 .loader-paddle::after {
@@ -277,9 +283,9 @@ button:disabled {
   bottom: -15px;
   content: "";
   height: 18px;
-  left: 13px;
+  left: 10px;
   position: absolute;
-  transform: rotate(4deg);
+  transform: rotate(10deg);
   width: 8px;
 }
 
@@ -296,34 +302,17 @@ button:disabled {
   box-shadow: inset -2px -2px 0 rgba(112, 132, 23, 0.28);
   height: 15px;
   width: 15px;
-  animation: ball-bounce 900ms ease-in-out infinite;
 }
 
-@keyframes paddle-swing {
-  0%,
-  100% {
-    transform: rotate(-10deg);
-  }
-  50% {
-    transform: rotate(12deg);
-  }
-}
-
-@keyframes ball-bounce {
-  0%,
-  100% {
-    transform: translate(0, 3px);
-  }
-  50% {
-    transform: translate(8px, -7px);
-  }
+.loader-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 72px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loader-paddle,
-  .loader-ball,
   button {
-    animation: none;
     transition: none;
   }
 }

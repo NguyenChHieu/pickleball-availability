@@ -579,6 +579,8 @@ async function updateRefreshJob(job, updates) {
 
 async function refreshVenueForJob(venueId, scanMode) {
   const venue = AvailabilityRegistry.getVenue(venueId);
+  const startedAt = Date.now();
+  const durationMs = () => Date.now() - startedAt;
   try {
     const result = await refreshVenueNow(venue.id, scanMode);
     if (result.manualSetupRequired) {
@@ -588,6 +590,7 @@ async function refreshVenueForJob(venueId, scanMode) {
         status: "setup_required",
         message: result.error || "Manual setup required.",
         pendingRefresh: Boolean(result.pendingRefresh),
+        durationMs: durationMs(),
       };
     }
 
@@ -599,6 +602,7 @@ async function refreshVenueForJob(venueId, scanMode) {
       syncOk: Boolean(result.syncStatus?.ok),
       syncMessage: result.syncStatus?.error || result.syncStatus?.reason || "",
       cacheHit: Boolean(result.cacheHit),
+      durationMs: durationMs(),
     };
   } catch (error) {
     return {
@@ -606,6 +610,7 @@ async function refreshVenueForJob(venueId, scanMode) {
       venueName: venue.name,
       status: "failed",
       message: error?.message || String(error),
+      durationMs: durationMs(),
     };
   }
 }
