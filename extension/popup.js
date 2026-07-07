@@ -9,7 +9,6 @@ const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
 const venueStatusListElement = document.querySelector("#venueStatusList");
 const savedSummaryElement = document.querySelector("#savedSummary");
 const loaderElement = document.querySelector("#loader");
-const loadingDotsElement = document.querySelector("#loadingDots");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
 
@@ -34,8 +33,6 @@ let latestPayload = null;
 let latestSyncStatus = null;
 let isBusy = false;
 let refreshJobPollTimer = null;
-let loaderDotsTimer = null;
-let loaderDotCount = 0;
 
 function setStatus(message) {
   statusElement.textContent = message;
@@ -52,19 +49,6 @@ function syncDeepScanButton() {
 
 function syncLoader(value) {
   loaderElement.hidden = !value;
-  if (!value) {
-    if (loaderDotsTimer) clearInterval(loaderDotsTimer);
-    loaderDotsTimer = null;
-    loaderDotCount = 0;
-    loadingDotsElement.textContent = "";
-    return;
-  }
-
-  if (loaderDotsTimer) return;
-  loaderDotsTimer = setInterval(() => {
-    loaderDotCount = (loaderDotCount + 1) % 4;
-    loadingDotsElement.textContent = ".".repeat(loaderDotCount);
-  }, 400);
 }
 
 function setBusy(value) {

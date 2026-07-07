@@ -59,12 +59,15 @@
           </button>
         </div>
 
-        <div id="loader" class="pickle-loader" aria-hidden="true" hidden>
-          <span class="loader-icon">
-            <span class="loader-paddle"></span>
-            <span class="loader-ball"></span>
+        <div id="loader" class="pickleball-loader" role="status" aria-live="polite" aria-busy="true" hidden>
+          <span class="pickleball-loader__paddle" aria-hidden="true">
+            <span class="pickleball-loader__paddle-head"></span>
           </span>
-          <span class="loader-label">Loading<span id="loadingDots"></span></span>
+          <span class="pickleball-loader__arc" aria-hidden="true"></span>
+          <span class="pickleball-loader__ball" aria-hidden="true"></span>
+          <span class="pickleball-loader__text">
+            Loading<span class="pickleball-loader__dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+          </span>
         </div>
         <p id="status" class="status" aria-live="polite">Loading availability...</p>
       </section>

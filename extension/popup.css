@@ -248,71 +248,220 @@ button:disabled {
   margin-top: 8px;
 }
 
-.pickle-loader {
+.pickleball-loader {
+  --pickleball-dark: #526817;
+  --paddle: #1f2933;
+  --handle: #6ea36f;
+
   align-items: center;
+  color: var(--ink);
   display: flex;
-  gap: 10px;
-  min-height: 42px;
+  gap: 9px;
   justify-content: center;
-  margin: 14px 0 6px;
+  margin: 16px 0 7px;
+  min-height: 54px;
   padding: 4px 0;
+}
+
+.pickleball-loader__paddle {
+  animation: paddle-nod 760ms ease-in-out infinite;
+  height: 48px;
   position: relative;
+  transform-origin: 50% 78%;
+  width: 34px;
 }
 
-.loader-icon {
-  align-items: center;
-  display: flex;
-  gap: 10px;
-}
-
-.loader-paddle {
+.pickleball-loader__paddle-head {
   background:
-    radial-gradient(circle at 36% 32%, rgba(255, 255, 255, 0.22) 0 3px, transparent 4px),
-    linear-gradient(135deg, #1b2b34 0%, #314b56 100%);
-  border: 1px solid rgba(14, 35, 44, 0.45);
-  border-radius: 15px 15px 13px 13px;
-  box-shadow: inset -3px -4px 0 rgba(0, 0, 0, 0.12);
-  height: 23px;
-  position: relative;
-  transform: rotate(-14deg);
-  width: 29px;
-}
-
-.loader-paddle::after {
-  background: linear-gradient(180deg, #172128 0%, #2a3d46 100%);
-  border-radius: 4px;
-  bottom: -15px;
-  content: "";
-  height: 18px;
-  left: 10px;
+    linear-gradient(145deg, rgba(255, 255, 255, 0.14), transparent 45%),
+    repeating-linear-gradient(155deg, transparent 0 6px, rgba(255, 255, 255, 0.08) 6px 8px),
+    var(--paddle);
+  border: 1px solid #111827;
+  border-radius: 12px 13px 11px 13px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.14);
+  height: 33px;
+  left: 5px;
   position: absolute;
-  transform: rotate(10deg);
-  width: 8px;
+  top: 0;
+  transform: rotate(34deg);
+  width: 27px;
 }
 
-.loader-ball {
+.pickleball-loader__paddle-head::after {
+  background: linear-gradient(#8ac17e, var(--handle));
+  border: 1px solid #243024;
+  border-radius: 999px;
+  content: "";
+  height: 21px;
+  left: 9px;
+  position: absolute;
+  top: 27px;
+  width: 7px;
+}
+
+.pickleball-loader__arc {
+  animation: arc-fade 760ms ease-in-out infinite;
+  border-bottom: 2px solid rgba(17, 24, 39, 0.32);
+  border-radius: 0 0 999px 999px;
+  height: 13px;
+  transform: rotate(-10deg);
+  width: 22px;
+}
+
+.pickleball-loader__ball {
+  animation: bounce-ball 760ms cubic-bezier(0.24, 0.7, 0.28, 1.12) infinite;
   background:
-    radial-gradient(circle at 30% 29%, rgba(66, 74, 9, 0.92) 0 2px, transparent 2.5px),
-    radial-gradient(circle at 62% 25%, rgba(66, 74, 9, 0.86) 0 1.8px, transparent 2.4px),
-    radial-gradient(circle at 72% 57%, rgba(66, 74, 9, 0.82) 0 1.8px, transparent 2.5px),
-    radial-gradient(circle at 42% 72%, rgba(66, 74, 9, 0.8) 0 1.7px, transparent 2.4px),
-    radial-gradient(circle at 52% 48%, rgba(255, 255, 255, 0.25) 0 4px, transparent 5px),
+    radial-gradient(circle at 30% 25%, #f5ff9b 0 8%, transparent 9%),
     var(--lime);
-  border: 1px solid #a7c72f;
-  border-radius: 50%;
-  box-shadow: inset -2px -2px 0 rgba(112, 132, 23, 0.28);
-  height: 15px;
-  width: 15px;
+  border: 1px solid rgba(70, 90, 15, 0.45);
+  border-radius: 999px;
+  box-shadow: 0 5px 12px rgba(85, 112, 12, 0.22);
+  height: 22px;
+  position: relative;
+  width: 22px;
 }
 
-.loader-label {
+.pickleball-loader__ball::before {
+  background:
+    radial-gradient(circle at 1px 1px, var(--pickleball-dark) 0 1.3px, transparent 1.6px),
+    radial-gradient(circle at 10px 2px, var(--pickleball-dark) 0 1.3px, transparent 1.6px),
+    radial-gradient(circle at 6px 9px, var(--pickleball-dark) 0 1.3px, transparent 1.6px),
+    radial-gradient(circle at 15px 12px, var(--pickleball-dark) 0 1.3px, transparent 1.6px),
+    radial-gradient(circle at 4px 16px, var(--pickleball-dark) 0 1.3px, transparent 1.6px);
+  content: "";
+  inset: 4px;
+  opacity: 0.82;
+  position: absolute;
+}
+
+.pickleball-loader__text {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
-  min-width: 72px;
+  min-width: 78px;
+  white-space: nowrap;
+}
+
+.pickleball-loader__dots {
+  display: inline-flex;
+  margin-left: 2px;
+  width: 24px;
+}
+
+.pickleball-loader__dots span {
+  animation-duration: 1.3s;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  opacity: 0;
+}
+
+.pickleball-loader__dots span:nth-child(1) {
+  animation-name: dot-one;
+}
+
+.pickleball-loader__dots span:nth-child(2) {
+  animation-name: dot-two;
+}
+
+.pickleball-loader__dots span:nth-child(3) {
+  animation-name: dot-three;
+}
+
+@keyframes bounce-ball {
+  0%,
+  100% {
+    transform: translateY(8px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes paddle-nod {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes arc-fade {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: translateY(5px) rotate(-10deg) scale(0.85);
+  }
+
+  50% {
+    opacity: 0.55;
+    transform: translateY(0) rotate(-10deg) scale(1);
+  }
+}
+
+@keyframes dot-one {
+  0%,
+  24% {
+    opacity: 0;
+  }
+
+  25%,
+  99% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes dot-two {
+  0%,
+  49% {
+    opacity: 0;
+  }
+
+  50%,
+  99% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes dot-three {
+  0%,
+  74% {
+    opacity: 0;
+  }
+
+  75%,
+  99% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pickleball-loader__paddle,
+  .pickleball-loader__arc,
+  .pickleball-loader__ball,
+  .pickleball-loader__dots span {
+    animation: none;
+  }
+
+  .pickleball-loader__dots span {
+    opacity: 1;
+  }
+
   button {
     transition: none;
   }
