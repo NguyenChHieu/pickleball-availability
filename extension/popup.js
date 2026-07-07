@@ -5,9 +5,11 @@ const deepScanVenueButton = document.querySelector("#deepScanVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
 const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton");
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
+const venueStatusListElement = document.querySelector("#venueStatusList");
+const savedSummaryElement = document.querySelector("#savedSummary");
+const loaderElement = document.querySelector("#loader");
 const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
-const deepScanWarningElement = document.querySelector("#deepScanWarning");
 
 const MESSAGE = Object.freeze({
   LIST_VENUES: "AVAILABILITY_LIST_VENUES",
@@ -41,7 +43,6 @@ function syncActions() {
 function syncDeepScanButton() {
   const isDeepScanVenue = Boolean(selectedVenue()?.deepReadProviders);
   deepScanVenueButton.hidden = !isDeepScanVenue;
-  deepScanWarningElement.hidden = !isDeepScanVenue;
 }
 
 function setBusy(value) {
@@ -51,6 +52,7 @@ function setBusy(value) {
   deepScanVenueButton.disabled = value;
   readCurrentPageButton.disabled = value;
   venueSelect.disabled = value;
+  loaderElement.hidden = !value;
   syncActions();
 }
 
@@ -77,6 +79,11 @@ function formatAge(payload) {
 
   const days = Math.round(hours / 24);
   return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function payloadAgeMs(payload) {
+  const exportedAt = new Date(payload?.exported_at || "").getTime();
+  return Number.isNaN(exportedAt) ? Infinity : Date.now() - exportedAt;
 }
 
 function selectedVenue() {
@@ -114,6 +121,39 @@ function savedPayloadStatus(payload, syncStatus) {
     : "Use Refresh Selected or Read Current Page to update the share page.";
   const timeText = age || exportedAt ? ` Last read ${age || exportedAt}.` : "";
   return `Showing saved ${sourceLabel(payload)} result.${timeText} ${shareHint}`;
+}
+
+function scanLabel(payload, venue) {
+  if (!payload?.days?.length) return "";
+  if (!venue?.deepReadProviders) return "";
+
+  const statuses = payload.days
+    .map((day) => day.continuity_status)
+    .filter(Boolean);
+  if (!statuses.length || statuses.includes("not_scanned")) return "quick";
+  if (statuses.includes("partial")) return "partial deep";
+  if (statuses.includes("available")) return "deep";
+  return "";
+}
+
+function savedVenueMeta(payload, venue) {
+  if (!payload) return "No saved result";
+
+  const parts = [];
+  const age = formatAge(payload);
+  const dayCount = Array.isArray(payload.days) ? payload.days.length : 0;
+  const scan = scanLabel(payload, venue);
+  if (age) parts.push(age);
+  if (dayCount) parts.push(`${dayCount} day${dayCount === 1 ? "" : "s"}`);
+  if (scan) parts.push(scan);
+  return parts.join(" · ") || "Saved";
+}
+
+function venueBadge(payload, syncStatus) {
+  if (!payload) return { text: "empty", className: "" };
+  if (payloadAgeMs(payload) > 2 * 60 * 60 * 1000) return { text: "stale", className: "is-stale" };
+  if (syncStatus?.ok) return { text: "synced", className: "is-synced" };
+  return { text: "saved", className: "" };
 }
 
 function savedFallbackStatus(action, error) {
@@ -157,6 +197,58 @@ function populateVenues() {
   syncDeepScanButton();
 }
 
+async function loadVenueSummary(venue) {
+  try {
+    const response = await sendMessage({
+      type: MESSAGE.GET_VENUE_PAYLOAD,
+      venueId: venue.id,
+    });
+    const syncStatus = await storedSyncStatus(venue.id);
+    return {
+      venue,
+      payload: response?.ok ? response.payload : null,
+      syncStatus,
+    };
+  } catch {
+    return { venue, payload: null, syncStatus: null };
+  }
+}
+
+async function refreshVenueStatusList() {
+  if (!venues.length) {
+    venueStatusListElement.replaceChildren();
+    savedSummaryElement.textContent = "No venues";
+    return;
+  }
+
+  const summaries = await Promise.all(venues.map((venue) => loadVenueSummary(venue)));
+  const savedCount = summaries.filter((summary) => summary.payload).length;
+  savedSummaryElement.textContent = `${savedCount}/${summaries.length} saved`;
+  venueStatusListElement.replaceChildren(
+    ...summaries.map(({ venue, payload, syncStatus }) => {
+      const badge = venueBadge(payload, syncStatus);
+      const item = document.createElement("li");
+      item.className = `venue-status${venue.id === selectedVenueId ? " is-selected" : ""}`;
+
+      const body = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "venue-status-name";
+      name.textContent = venue.name;
+      const meta = document.createElement("div");
+      meta.className = "venue-status-meta";
+      meta.textContent = savedVenueMeta(payload, venue);
+      body.append(name, meta);
+
+      const badgeElement = document.createElement("span");
+      badgeElement.className = `venue-status-badge ${badge.className}`.trim();
+      badgeElement.textContent = badge.text;
+
+      item.append(body, badgeElement);
+      return item;
+    })
+  );
+}
+
 async function loadSavedPayload() {
   const response = await sendMessage({
     type: MESSAGE.GET_VENUE_PAYLOAD,
@@ -168,12 +260,14 @@ async function loadSavedPayload() {
     renderEmpty(
       `No saved ${selectedVenue()?.name || "venue"} result yet. Use Refresh Selected, or open a schedule tab and use Read Current Page.`
     );
+    await refreshVenueStatusList();
     return false;
   }
 
   const syncStatus = await storedSyncStatus(selectedVenueId);
   rememberPayload(response.payload, syncStatus?.ok ? syncStatus : null);
   setStatus(savedPayloadStatus(response.payload, syncStatus));
+  await refreshVenueStatusList();
   return true;
 }
 
@@ -200,7 +294,9 @@ function jobStatusMessage(job) {
   const current = job.currentVenueName ? ` ${job.currentVenueName}` : "";
   const prefix = job.scanMode === "deep" ? "Deep scan" : job.label || "Refresh";
 
-  if (isActiveJob(job)) return `${prefix} running: ${completed}/${total}${current ? ` - ${current}` : ""}.`;
+  if (isActiveJob(job)) {
+    return `${prefix} running: ${completed}/${total}${current ? ` - ${current}` : ""}. Last saved results stay available.`;
+  }
 
   const results = Array.isArray(job.results) ? job.results : [];
   const failed = results.filter((result) => result.status === "failed").length;
@@ -320,6 +416,7 @@ async function readCurrentPage() {
     }
     rememberPayload(response.payload, response.syncStatus);
     setStatus(readStatus(response.payload, response.syncStatus, "Read from the current page:"));
+    await refreshVenueStatusList();
   } catch (error) {
     setStatus(savedFallbackStatus("Current page read", error));
   } finally {
@@ -397,6 +494,7 @@ async function init() {
   venues = response.venues || [];
   selectedVenueId = response.selectedVenueId || AvailabilityRegistry.DEFAULT_VENUE_ID;
   populateVenues();
+  await refreshVenueStatusList();
   await loadSavedPayload();
   await loadRefreshJobStatus({ silentWhenInactive: true });
 }
