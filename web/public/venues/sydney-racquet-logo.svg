@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" role="img" aria-label="Sydney Racquet Club">
+  <rect width="520" height="120" rx="18" fill="#ffffff"/>
+  <path d="M0 0h520v16H0z" fill="#77d7ff"/>
+  <path d="M0 104h520v16H0z" fill="#ff4fa3"/>
+  <circle cx="66" cy="60" r="34" fill="#ff4fa3"/>
+  <circle cx="66" cy="60" r="22" fill="#ffffff"/>
+  <path d="M52 61h28M66 47v28" stroke="#102333" stroke-width="6" stroke-linecap="round"/>
+  <text x="118" y="52" fill="#102333" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="800">SYDNEY</text>
+  <text x="118" y="86" fill="#ff4fa3" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">RACQUET CLUB</text>
+</svg>

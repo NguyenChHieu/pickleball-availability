@@ -8,6 +8,8 @@
     "https://book.propickle.com.au/*",
     "https://clubspark.au/Broadway/*",
     "https://go.mindbodyonline.com/book/widgets/appointments/view/7b9803fef1/*",
+    "https://playtomic.com/*",
+    "https://houseofpickle.podplay.app/*",
     "http://localhost:3007/*",
     "https://*.vercel.app/*"
   ],
@@ -28,6 +30,11 @@
     {
       "matches": ["https://go.mindbodyonline.com/book/widgets/appointments/view/7b9803fef1/*"],
       "js": ["providers/mindbodyAppointments.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://houseofpickle.podplay.app/book/darling-harbour*"],
+      "js": ["providers/podplayDom.js"],
       "run_at": "document_idle"
     }
   ],

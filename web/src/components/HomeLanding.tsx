@@ -12,33 +12,78 @@ type HomeLandingProps = Readonly<{
 type ThemeMode = "light" | "dark";
 
 const slots = [
-  { day: "Tue", times: ["08:00 AM", "09:30 AM", "10:30 AM"] },
-  { day: "Wed", times: ["07:00 AM", "08:30 AM"] },
-  { day: "Thu", times: ["06:30 PM", "08:00 PM"] },
+  { day: "Pro", times: ["Playbypoint", "Login-aware", "9 days"] },
+  { day: "Bwy", times: ["ClubSpark", "Guest-visible", "9 days"] },
+  { day: "NR", times: ["Mindbody", "Fast refresh", "Deep scan"] },
+  { day: "SRC", times: ["Playtomic", "Guest JSON", "5 courts"] },
+  { day: "HOP", times: ["PodPlay", "Visible rows", "Court labels"] },
 ];
 
 const steps = [
   {
-    title: "Extension reads",
-    body: "You open the real venue schedule and trigger one polite read from the browser extension.",
+    title: "Refresh stale",
+    body: "The extension checks only venues with missing or older cached results, keeping normal refreshes quick and polite.",
     index: "01",
   },
   {
-    title: "Web cache updates",
-    body: "The web app stores the latest normalized availability so the result stays easy to revisit.",
+    title: "Cache updates",
+    body: "The web app stores the latest normalized availability so every venue has a share page ready to revisit.",
     index: "02",
   },
   {
-    title: "Share the page",
-    body: "Friends get a phone-friendly summary of open intervals without raw JSON or booking automation.",
+    title: "Share or inspect",
+    body: "Friends see phone-friendly open intervals, and the popup keeps recent refresh history and timings.",
     index: "03",
   },
 ];
 
-const venues = [
-  { name: "ProPickle", status: "Active", detail: "Read-only Playbypoint availability is live." },
-  { name: "Broadway", status: "Coming soon", detail: "Next venue target after the provider check." },
-  { name: "North Ryde", status: "Coming soon", detail: "Same interface, venue-specific palette." },
+const venueGroups = [
+  {
+    label: "Supported now",
+    venues: [
+      {
+        name: "ProPickle",
+        status: "Active",
+        tone: "active",
+        detail: "Playbypoint reader with login-aware setup handling and day booking shortcuts.",
+      },
+      {
+        name: "Broadway Pickleball",
+        status: "Active",
+        tone: "active",
+        detail: "ClubSpark guest availability reader with venue-specific share page styling.",
+      },
+      {
+        name: "North Ryde Pickleball",
+        status: "Active",
+        tone: "active",
+        detail: "Mindbody reader with fast refresh by default and optional same-court deep scan.",
+      },
+      {
+        name: "Sydney Racquet Club",
+        status: "Active",
+        tone: "active",
+        detail: "Mixed padel/pickleball Playtomic venue; this reader uses the pickleball sport feed only.",
+      },
+      {
+        name: "House of Pickle Darling Harbour",
+        status: "Active",
+        tone: "active",
+        detail: "PodPlay DOM reader for visible guest booking rows, preserving exposed court labels where available.",
+      },
+    ],
+  },
+  {
+    label: "Research queue",
+    venues: [
+      {
+        name: "WOTSO Pickleball",
+        status: "Probing",
+        tone: "research",
+        detail: "Hamlet booking flow is being checked for guest-visible availability and safe read-only hooks.",
+      },
+    ],
+  },
 ];
 
 function getInitialTheme(): ThemeMode {
@@ -82,7 +127,7 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
         </Link>
         <nav className="home-links" aria-label="Homepage">
           <a href="#how-it-works">How it works</a>
-          <a href="#roadmap">Roadmap</a>
+          <a href="#venues">Venues</a>
         </nav>
         <button
           className="home-theme"
@@ -104,8 +149,8 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
             </p>
             <h1 id="home-title">Stop clicking through every day just to find open court time.</h1>
             <p className="home-lede">
-              Pickleball Buddy turns venue schedules into a clean cached page, so the useful answer is
-              one tap away after the extension reads it.
+              Pickleball Buddy now tracks ProPickle, Broadway, North Ryde, Sydney Racquet Club, and House of Pickle
+              with a small browser extension, cached share pages, refresh history, and venue-specific booking links.
             </p>
             <div className="home-actions">
               <a className="home-button home-button--primary" href="#how-it-works">
@@ -116,8 +161,8 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
                   View availability
                 </a>
               ) : (
-                <a className="home-button home-button--secondary" href="#preview">
-                  See sample
+                <a className="home-button home-button--secondary" href="#venues">
+                  See venues
                 </a>
               )}
             </div>
@@ -128,10 +173,10 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
             <div className="home-preview" id="preview">
               <div className="home-preview__header">
                 <div>
-                  <p>Sample availability preview</p>
-                  <h2>ProPickle demo</h2>
+                  <p>Current support snapshot</p>
+                  <h2>5 venues live</h2>
                 </div>
-                <span>Demo</span>
+                <span>Read-only</span>
               </div>
               <div className="home-slot-list">
                 {slots.map((day) => (
@@ -150,9 +195,9 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
         </section>
 
         <section className="home-band" aria-label="Project guardrails">
-          <span>Read-only</span>
+          <span>5 venues supported</span>
+          <span>5 min stale refresh</span>
           <span>No booking automation</span>
-          <span>Cached share pages</span>
         </section>
 
         <section className="home-section" id="how-it-works" aria-labelledby="how-title">
@@ -171,20 +216,25 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
           </div>
         </section>
 
-        <section className="home-section home-section--split" id="roadmap" aria-labelledby="roadmap-title">
+        <section className="home-section home-section--split" id="venues" aria-labelledby="venues-title">
           <div className="home-section__intro">
-            <p className="home-eyebrow">Venue roadmap</p>
-            <h2 id="roadmap-title">Built to pick up new venues without redesigning the whole app.</h2>
+            <p className="home-eyebrow">Venues</p>
+            <h2 id="venues-title">Five live venues, with the next booking platform being probed.</h2>
           </div>
           <div className="home-venues">
-            {venues.map((venue) => (
-              <article className="home-venue" key={venue.name}>
-                <div>
-                  <h3>{venue.name}</h3>
-                  <span>{venue.status}</span>
-                </div>
-                <p>{venue.detail}</p>
-              </article>
+            {venueGroups.map((group) => (
+              <div className="home-venue-group" key={group.label}>
+                <p>{group.label}</p>
+                {group.venues.map((venue) => (
+                  <article className={`home-venue home-venue--${venue.tone}`} key={venue.name}>
+                    <div>
+                      <h3>{venue.name}</h3>
+                      <span>{venue.status}</span>
+                    </div>
+                    <p>{venue.detail}</p>
+                  </article>
+                ))}
+              </div>
             ))}
           </div>
         </section>

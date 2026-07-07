@@ -1,4 +1,11 @@
-import { broadwayTheme, northRydeTheme, propickleTheme, type VenueTheme } from "@/lib/themes";
+import {
+  broadwayTheme,
+  houseOfPickleTheme,
+  northRydeTheme,
+  propickleTheme,
+  sydneyRacquetTheme,
+  type VenueTheme,
+} from "@/lib/themes";
 
 export type VenueDefinition = Readonly<{
   id: string;
@@ -25,6 +32,18 @@ export const venues = [
     name: "North Ryde Pickleball",
     fallbackUrl: "https://www.tennisworldonline.com.au/bookacourt/#bookacourt",
     theme: northRydeTheme,
+  },
+  {
+    id: "sydneyracquet",
+    name: "Sydney Racquet Club",
+    fallbackUrl: "https://playtomic.com/clubs/sydney-racquet-club?sport_id=PICKLEBALL",
+    theme: sydneyRacquetTheme,
+  },
+  {
+    id: "houseofpickle-darlingharbour",
+    name: "House of Pickle Darling Harbour",
+    fallbackUrl: "https://houseofpickle.podplay.app/book/darling-harbour?pod=darling-harbour-pickleball-courts",
+    theme: houseOfPickleTheme,
   },
 ] as const satisfies readonly VenueDefinition[];
 

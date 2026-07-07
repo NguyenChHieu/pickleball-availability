@@ -41,5 +41,9 @@ node --check extension\options.js
 node --check extension\venues.js
 node --check extension\bookingDeepLink.js
 node --check extension\providers\playbypointBookBox.js
+node --check extension\providers\clubsparkBookByDate.js
+node --check extension\providers\mindbodyAppointments.js
+node --check extension\providers\playtomicAvailability.js
+node --check extension\providers\podplayDom.js
 python -m json.tool extension\manifest.json
 ```

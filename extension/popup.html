@@ -37,6 +37,10 @@
           </button>
           <button id="refreshVenueButton" type="button" class="secondary">Refresh Selected</button>
         </div>
+        <div id="actions" class="actions" hidden>
+          <button id="viewAvailabilityButton" type="button">View Availability</button>
+          <button id="copyShareLinkButton" type="button" class="secondary">Copy Share Link</button>
+        </div>
         <details class="more-actions">
           <summary>More actions</summary>
           <div class="utility-row">
@@ -72,16 +76,14 @@
           </span>
         </div>
         <p id="status" class="status" aria-live="polite">Loading availability...</p>
-        <section id="refreshHistory" class="refresh-history" aria-labelledby="refreshHistoryHeading" hidden>
-          <h2 id="refreshHistoryHeading">Recent refreshes</h2>
+        <details id="refreshHistory" class="refresh-history" hidden>
+          <summary>
+            <span id="refreshHistoryHeading">Recent refreshes</span>
+            <span id="refreshHistoryCount" class="refresh-history-count"></span>
+          </summary>
           <ul id="refreshHistoryList"></ul>
-        </section>
+        </details>
       </section>
-
-      <div id="actions" class="actions" hidden>
-        <button id="viewAvailabilityButton" type="button">View Availability</button>
-        <button id="copyShareLinkButton" type="button" class="secondary">Copy Share Link</button>
-      </div>
     </main>
 
     <script src="venues.js"></script>

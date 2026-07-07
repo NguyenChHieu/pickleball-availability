@@ -92,10 +92,19 @@ export function formatAvailability(payload: AvailabilityPayload | null | undefin
 
 export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue) {
   const normalized = String(text || "").toLowerCase();
-  if (!normalized.trim()) return "Ask me: availability propickle, broadway, or north ryde";
+  if (!normalized.trim()) return "Ask me: availability propickle, broadway, north ryde, sydney racquet, or house of pickle";
 
   const wantsBroadway = normalized.includes("broadway");
   const wantsNorthRyde = normalized.includes("north ryde") || normalized.includes("northryde");
+  const wantsHouseOfPickle =
+    normalized.includes("house of pickle") ||
+    normalized.includes("darling harbour") ||
+    normalized.includes("houseofpickle") ||
+    /\bhop\b/.test(normalized);
+  const wantsSydneyRacquet =
+    normalized.includes("sydney racquet") ||
+    normalized.includes("racquet club") ||
+    normalized.includes("playtomic");
   const wantsProPickle =
     normalized.includes("propickle") ||
     normalized.includes("pro pickle") ||
@@ -104,9 +113,11 @@ export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue
 
   if (wantsBroadway) return formatAvailability(payloadsByVenue.broadway);
   if (wantsNorthRyde) return formatAvailability(payloadsByVenue.northryde);
+  if (wantsHouseOfPickle) return formatAvailability(payloadsByVenue["houseofpickle-darlingharbour"]);
+  if (wantsSydneyRacquet) return formatAvailability(payloadsByVenue.sydneyracquet);
   if (wantsProPickle || normalized.includes("availability") || normalized.includes("available")) {
     return formatAvailability(payloadsByVenue.propickle);
   }
 
-  return "Ask me: availability propickle, broadway, or north ryde";
+  return "Ask me: availability propickle, broadway, north ryde, sydney racquet, or house of pickle";
 }

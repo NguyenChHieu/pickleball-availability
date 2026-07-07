@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="House of Pickle">
+  <rect width="120" height="120" rx="24" fill="#090909"/>
+  <path d="M28 78V42h12v13h40V42h12v36H80V66H40v12H28Z" fill="#fbfbf3"/>
+  <circle cx="60" cy="60" r="20" fill="#d7ff45"/>
+  <g fill="#090909">
+    <circle cx="51" cy="51" r="3"/>
+    <circle cx="63" cy="49" r="3"/>
+    <circle cx="70" cy="60" r="3"/>
+    <circle cx="58" cy="64" r="3"/>
+    <circle cx="49" cy="70" r="3"/>
+  </g>
+  <path d="M28 86h64" stroke="#ff4fb8" stroke-width="8" stroke-linecap="round"/>
+</svg>

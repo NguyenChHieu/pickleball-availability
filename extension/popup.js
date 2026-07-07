@@ -13,6 +13,7 @@ const statusElement = document.querySelector("#status");
 const actionsElement = document.querySelector("#actions");
 const refreshHistoryElement = document.querySelector("#refreshHistory");
 const refreshHistoryListElement = document.querySelector("#refreshHistoryList");
+const refreshHistoryCountElement = document.querySelector("#refreshHistoryCount");
 
 const MESSAGE = Object.freeze({
   LIST_VENUES: "AVAILABILITY_LIST_VENUES",
@@ -417,6 +418,7 @@ function historyMeta(job) {
 function renderRefreshHistory(history) {
   const items = Array.isArray(history) ? history.slice(0, 5) : [];
   refreshHistoryElement.hidden = !items.length;
+  refreshHistoryCountElement.textContent = items.length ? `${items.length}` : "";
   refreshHistoryListElement.replaceChildren(
     ...items.map((job) => {
       const badge = historyBadge(job);

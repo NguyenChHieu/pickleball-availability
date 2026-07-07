@@ -2,7 +2,7 @@
 
 Small read-only Chrome extension plus a full-stack Next.js availability share app for pickleball booking pages.
 
-It can refresh configured venues such as ProPickle, Broadway Pickleball, and North Ryde; read compatible current pages; merge adjacent open time slots; and keep the last successful result in the extension popup and share app.
+It can refresh configured venues such as ProPickle, Broadway Pickleball, North Ryde, Sydney Racquet Club, and House of Pickle Darling Harbour; read compatible current pages; merge adjacent open time slots; and keep the last successful result in the extension popup and share app.
 
 ## Guardrails
 
@@ -69,7 +69,7 @@ The latest successful read is stored in Chrome local extension storage per venue
 
 Recent completed refresh jobs are also kept in a small popup history so you can see which runs completed, reused cache, failed, needed setup, and how long they took.
 
-This matters for future venues: ProPickle, Broadway Pickleball, and North Ryde should not overwrite each other.
+This matters for future venues: ProPickle, Broadway Pickleball, North Ryde, Sydney Racquet Club, and House of Pickle Darling Harbour should not overwrite each other.
 
 ## Share Link And Web App
 
@@ -111,6 +111,8 @@ This extension targets venue-specific public/readable booking widgets through sm
 - Playbypoint `BookBox` pages for ProPickle.
 - ClubSpark `BookByDate` pages for Broadway Pickleball.
 - Mindbody appointment pages for North Ryde.
+- Playtomic public availability for Sydney Racquet Club.
+- PodPlay visible booking rows for House of Pickle Darling Harbour.
 
 Some logged-out Playbypoint pages still render date buttons but hide times behind a login prompt. The reader treats those pages as setup-required so it does not sync a false empty result.
 
@@ -136,6 +138,8 @@ The project uses a small adapter/registry shape:
 - `providers/playbypointBookBox.js`: Playbypoint `BookBox` reader.
 - `providers/clubsparkBookByDate.js`: ClubSpark day grid reader.
 - `providers/mindbodyAppointments.js`: Mindbody appointment reader.
+- `providers/playtomicAvailability.js`: Playtomic public availability reader.
+- `providers/podplayDom.js`: PodPlay rendered booking-row reader.
 - `contentScript.js`: message bridge injected into readable pages.
 - `background.js`: venue refresh orchestration and persistence.
 - `popup.js`: venue selector, rendering, exports, and current-page actions.
@@ -161,6 +165,8 @@ extension/
     playbypointBookBox.js
     clubsparkBookByDate.js
     mindbodyAppointments.js
+    playtomicAvailability.js
+    podplayDom.js
 web/
   supabase.sql
   app/

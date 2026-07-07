@@ -19,7 +19,7 @@
 ## Directory Map
 
 - `extension/`: MV3 popup/options/background/content scripts, venue config, refresh orchestration, booking deep-link helper.
-- `extension/providers/`: Playbypoint, ClubSpark, and Mindbody readers.
+- `extension/providers/`: Playbypoint, ClubSpark, Mindbody, Playtomic, and PodPlay readers.
 - `web/app/`: Next.js routes, share page, API routes, webhook routes, and global styles.
 - `web/src/components/`: availability page/card UI components.
 - `web/src/lib/`: public availability loader and venue themes.
@@ -55,6 +55,8 @@ node --check extension\bookingDeepLink.js
 node --check extension\providers\playbypointBookBox.js
 node --check extension\providers\clubsparkBookByDate.js
 node --check extension\providers\mindbodyAppointments.js
+node --check extension\providers\playtomicAvailability.js
+node --check extension\providers\podplayDom.js
 python -m json.tool extension\manifest.json
 ```
 
@@ -91,6 +93,7 @@ python -m json.tool extension\manifest.json
 - Normal multi-venue refresh should prefer stale-only or cache-first paths; deep provider/court scans stay explicit because North Ryde can be slow.
 - Share page reads cached availability only; it must not trigger scraping.
 - Future venues should be added through venue/provider/theme configuration before inventing a new scraper flow.
+- House of Pickle uses a conservative DOM-first PodPlay reader; it reads visible booking rows only and should not create Firebase anonymous identities or call booking/cart APIs.
 - The repo has `.ai/` workflow files; keep them aligned when architecture/deployment decisions change.
 
 ## Current Validation Baseline

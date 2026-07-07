@@ -1870,7 +1870,22 @@ dd {
 
 .home-venues {
   display: grid;
+  gap: 18px;
+}
+
+.home-venue-group {
+  display: grid;
   gap: 14px;
+}
+
+.home-venue-group > p {
+  color: var(--home-muted);
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+  margin: 0;
+  text-transform: uppercase;
 }
 
 .home-venue {
@@ -1889,7 +1904,7 @@ dd {
   justify-content: space-between;
 }
 
-.home-venue:not(:first-child) span {
+.home-venue--research span {
   background: var(--home-surface-alt);
   color: var(--home-muted);
 }
