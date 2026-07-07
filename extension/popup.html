@@ -30,16 +30,24 @@
         <div class="toolbar">
           <button id="refreshVenueButton" type="button">Refresh Selected</button>
           <button
-            id="refreshAllButton"
+            id="refreshStaleButton"
             type="button"
             class="secondary"
-            title="Refresh all venues. Slow venues may reuse a recent cache to keep this fast."
+            title="Refresh only venues with missing or stale saved results."
           >
-            Refresh All
+            Refresh Stale
           </button>
         </div>
         <div class="utility-row">
           <button id="readCurrentPageButton" type="button" class="tertiary">Read current tab</button>
+          <button
+            id="refreshAllButton"
+            type="button"
+            class="tertiary"
+            title="Refresh all venues. Slow venues may reuse a recent cache to keep this fast."
+          >
+            Refresh all
+          </button>
           <button
             id="deepScanVenueButton"
             type="button"

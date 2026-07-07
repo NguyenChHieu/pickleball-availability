@@ -242,6 +242,7 @@ button:disabled {
 .utility-row {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
   margin-top: 8px;

@@ -1,5 +1,6 @@
 const venueSelect = document.querySelector("#venueSelect");
 const refreshVenueButton = document.querySelector("#refreshVenueButton");
+const refreshStaleButton = document.querySelector("#refreshStaleButton");
 const refreshAllButton = document.querySelector("#refreshAllButton");
 const deepScanVenueButton = document.querySelector("#deepScanVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
@@ -25,6 +26,7 @@ const SYNC_CONFIG_KEY = "backendSyncConfig";
 const DEFAULT_BACKEND_URL = "http://localhost:3007";
 const DEFAULT_SHARE_URL_BASE = "http://localhost:3007";
 const DEFAULT_SHARE_TOKEN = "dev-share";
+const DEFAULT_STALE_TTL_MS = 5 * 60 * 1000;
 
 let venues = [];
 let selectedVenueId = "";
@@ -68,6 +70,7 @@ function syncLoader(value) {
 function setBusy(value) {
   isBusy = value;
   refreshVenueButton.disabled = value;
+  refreshStaleButton.disabled = value;
   refreshAllButton.disabled = value;
   deepScanVenueButton.disabled = value;
   readCurrentPageButton.disabled = value;
@@ -117,6 +120,14 @@ function formatDuration(ms) {
 function payloadAgeMs(payload) {
   const exportedAt = new Date(payload?.exported_at || "").getTime();
   return Number.isNaN(exportedAt) ? Infinity : Date.now() - exportedAt;
+}
+
+function venueStaleTtlMs(venue) {
+  return Number(venue?.cacheFirstTtlMs || 0) || DEFAULT_STALE_TTL_MS;
+}
+
+function isVenueStale(payload, venue) {
+  return !payload || payloadAgeMs(payload) > venueStaleTtlMs(venue);
 }
 
 function selectedVenue() {
@@ -182,9 +193,9 @@ function savedVenueMeta(payload, venue) {
   return parts.join(" / ") || "Saved";
 }
 
-function venueBadge(payload, syncStatus) {
+function venueBadge(payload, syncStatus, venue) {
   if (!payload) return { text: "empty", className: "" };
-  if (payloadAgeMs(payload) > 2 * 60 * 60 * 1000) return { text: "stale", className: "is-stale" };
+  if (isVenueStale(payload, venue)) return { text: "stale", className: "is-stale" };
   if (syncStatus?.ok) return { text: "synced", className: "is-synced" };
   return { text: "saved", className: "" };
 }
@@ -256,10 +267,16 @@ async function refreshVenueStatusList() {
 
   const summaries = await Promise.all(venues.map((venue) => loadVenueSummary(venue)));
   const savedCount = summaries.filter((summary) => summary.payload).length;
+  const staleCount = summaries.filter((summary) => isVenueStale(summary.payload, summary.venue)).length;
   savedSummaryElement.textContent = `${savedCount}/${summaries.length} saved`;
+  refreshStaleButton.disabled = isBusy || staleCount === 0;
+  refreshStaleButton.title =
+    staleCount === 0
+      ? "All saved results are fresh."
+      : `Refresh ${staleCount} venue${staleCount === 1 ? "" : "s"} with missing or stale saved results.`;
   venueStatusListElement.replaceChildren(
     ...summaries.map(({ venue, payload, syncStatus }) => {
-      const badge = venueBadge(payload, syncStatus);
+      const badge = venueBadge(payload, syncStatus, venue);
       const item = document.createElement("li");
       item.className = `venue-status${venue.id === selectedVenueId ? " is-selected" : ""}`;
 
@@ -417,6 +434,25 @@ async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh" 
   }
 }
 
+async function refreshStaleVenues() {
+  const summaries = await Promise.all(venues.map((venue) => loadVenueSummary(venue)));
+  const staleVenueIds = summaries
+    .filter((summary) => isVenueStale(summary.payload, summary.venue))
+    .map((summary) => summary.venue.id);
+
+  if (!staleVenueIds.length) {
+    setStatus("All saved results are fresh.");
+    await refreshVenueStatusList();
+    return;
+  }
+
+  await startRefreshJob({
+    venueIds: staleVenueIds,
+    scanMode: "cache-first",
+    label: "Refresh stale",
+  });
+}
+
 async function refreshVenue() {
   await startRefreshJob({
     venueIds: [selectedVenueId],
@@ -544,6 +580,7 @@ venueSelect.addEventListener("change", () => {
   selectVenue(venueSelect.value).catch((error) => setStatus(error?.message || String(error)));
 });
 refreshVenueButton.addEventListener("click", () => refreshVenue());
+refreshStaleButton.addEventListener("click", () => refreshStaleVenues());
 refreshAllButton.addEventListener("click", () => refreshAllVenues());
 deepScanVenueButton.addEventListener("click", () => deepScanVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
