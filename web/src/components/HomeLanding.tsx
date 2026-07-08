@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { ThreeHero } from "@/components/ThreeHero";
+import { venues } from "@/lib/venues";
 
 type HomeLandingProps = Readonly<{
   featuredSharePath?: string;
@@ -11,12 +12,15 @@ type HomeLandingProps = Readonly<{
 
 type ThemeMode = "light" | "dark";
 
+const THEME_STORAGE_KEY = "pbb-home-theme-v2";
+
 const slots = [
   { day: "Pro", times: ["Playbypoint", "Login-aware", "9 days"] },
   { day: "Bwy", times: ["ClubSpark", "Guest-visible", "9 days"] },
   { day: "NR", times: ["Mindbody", "Fast refresh", "Deep scan"] },
   { day: "SRC", times: ["Playtomic", "Guest JSON", "5 courts"] },
   { day: "HOP", times: ["PodPlay", "Visible rows", "Court labels"] },
+  { day: "WOT", times: ["Hamlet", "Guest session", "2 courts"] },
 ];
 
 const steps = [
@@ -37,66 +41,26 @@ const steps = [
   },
 ];
 
-const venueGroups = [
-  {
-    label: "Supported now",
-    venues: [
-      {
-        name: "ProPickle",
-        status: "Active",
-        tone: "active",
-        detail: "Playbypoint reader with login-aware setup handling and day booking shortcuts.",
-      },
-      {
-        name: "Broadway Pickleball",
-        status: "Active",
-        tone: "active",
-        detail: "ClubSpark guest availability reader with venue-specific share page styling.",
-      },
-      {
-        name: "North Ryde Pickleball",
-        status: "Active",
-        tone: "active",
-        detail: "Mindbody reader with fast refresh by default and optional same-court deep scan.",
-      },
-      {
-        name: "Sydney Racquet Club",
-        status: "Active",
-        tone: "active",
-        detail: "Mixed padel/pickleball Playtomic venue; this reader uses the pickleball sport feed only.",
-      },
-      {
-        name: "House of Pickle Darling Harbour",
-        status: "Active",
-        tone: "active",
-        detail: "PodPlay DOM reader for visible guest booking rows, preserving exposed court labels where available.",
-      },
-    ],
-  },
-  {
-    label: "Research queue",
-    venues: [
-      {
-        name: "WOTSO Pickleball",
-        status: "Probing",
-        tone: "research",
-        detail: "Hamlet booking flow is being checked for guest-visible availability and safe read-only hooks.",
-      },
-    ],
-  },
-];
+const homeVenues = venues.map((venue) => ({
+  id: venue.id,
+  name: venue.name,
+  status: "Active",
+  detail: venue.summary,
+}));
+
+const venueCount = venues.length;
 
 function getInitialTheme(): ThemeMode {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
 
-  const saved = window.localStorage.getItem("pbb-home-theme");
+  const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
   if (saved === "light" || saved === "dark") return saved;
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "dark";
 }
 
 export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
-  const [theme, setTheme] = useState<ThemeMode>("light");
+  const [theme, setTheme] = useState<ThemeMode>("dark");
   const hasFeaturedShare = Boolean(featuredSharePath);
 
   useEffect(() => {
@@ -108,7 +72,7 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("pbb-home-theme", theme);
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
   const themeLabel = theme === "dark" ? "Dark" : "Light";
@@ -149,8 +113,8 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
             </p>
             <h1 id="home-title">Stop clicking through every day just to find open court time.</h1>
             <p className="home-lede">
-              Pickleball Buddy now tracks ProPickle, Broadway, North Ryde, Sydney Racquet Club, and House of Pickle
-              with a small browser extension, cached share pages, refresh history, and venue-specific booking links.
+              Pickleball Buddy tracks {venueCount} Sydney pickleball venues with a small browser extension, cached
+              share pages, refresh history, and venue-specific booking links.
             </p>
             <div className="home-actions">
               <a className="home-button home-button--primary" href="#how-it-works">
@@ -174,7 +138,7 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
               <div className="home-preview__header">
                 <div>
                   <p>Current support snapshot</p>
-                  <h2>5 venues live</h2>
+                  <h2>{venueCount} venues live</h2>
                 </div>
                 <span>Read-only</span>
               </div>
@@ -195,7 +159,7 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
         </section>
 
         <section className="home-band" aria-label="Project guardrails">
-          <span>5 venues supported</span>
+          <span>{venueCount} venues supported</span>
           <span>5 min stale refresh</span>
           <span>No booking automation</span>
         </section>
@@ -219,22 +183,18 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
         <section className="home-section home-section--split" id="venues" aria-labelledby="venues-title">
           <div className="home-section__intro">
             <p className="home-eyebrow">Venues</p>
-            <h2 id="venues-title">Five live venues, with the next booking platform being probed.</h2>
+            <h2 id="venues-title">{venueCount} live venues across five booking platforms.</h2>
           </div>
           <div className="home-venues">
-            {venueGroups.map((group) => (
-              <div className="home-venue-group" key={group.label}>
-                <p>{group.label}</p>
-                {group.venues.map((venue) => (
-                  <article className={`home-venue home-venue--${venue.tone}`} key={venue.name}>
-                    <div>
-                      <h3>{venue.name}</h3>
-                      <span>{venue.status}</span>
-                    </div>
-                    <p>{venue.detail}</p>
-                  </article>
-                ))}
-              </div>
+            <p className="home-venue-group-label">Supported now</p>
+            {homeVenues.map((venue) => (
+              <article className="home-venue" key={venue.id}>
+                <div>
+                  <h3>{venue.name}</h3>
+                  <span>{venue.status}</span>
+                </div>
+                <p>{venue.detail}</p>
+              </article>
             ))}
           </div>
         </section>

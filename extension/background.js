@@ -17,6 +17,7 @@ const PROVIDER_FILES = Object.freeze({
   "mindbody-appointments": "providers/mindbodyAppointments.js",
   "playtomic-availability": "providers/playtomicAvailability.js",
   "podplay-dom": "providers/podplayDom.js",
+  "hamlet-experience": "providers/hamletExperience.js",
 });
 
 const SYNC_CONFIG_KEY = "backendSyncConfig";
@@ -35,6 +36,7 @@ let refreshJobPromise = null;
 let activeRefreshJob = null;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const venueDisplayName = (venue) => venue?.displayName || venue?.name || "Venue";
 
 async function selectedVenueId() {
   const stored = await chrome.storage.local.get(AvailabilityRegistry.SELECTED_VENUE_KEY);
@@ -616,7 +618,7 @@ async function refreshVenueForJob(venueId, scanMode) {
     if (result.manualSetupRequired) {
       return {
         venueId: venue.id,
-        venueName: venue.name,
+        venueName: venueDisplayName(venue),
         status: "setup_required",
         message: result.error || "Manual setup required.",
         pendingRefresh: Boolean(result.pendingRefresh),
@@ -626,7 +628,7 @@ async function refreshVenueForJob(venueId, scanMode) {
 
     return {
       venueId: venue.id,
-      venueName: venue.name,
+      venueName: venueDisplayName(venue),
       status: "success",
       dayCount: Array.isArray(result.payload?.days) ? result.payload.days.length : 0,
       syncOk: Boolean(result.syncStatus?.ok),
@@ -637,7 +639,7 @@ async function refreshVenueForJob(venueId, scanMode) {
   } catch (error) {
     return {
       venueId: venue.id,
-      venueName: venue.name,
+      venueName: venueDisplayName(venue),
       status: "failed",
       message: error?.message || String(error),
       durationMs: durationMs(),
@@ -674,7 +676,7 @@ async function runRefreshJob(initialJob) {
       const venue = AvailabilityRegistry.getVenue(venueId);
       job = await updateRefreshJob(job, {
         currentVenueId: venue.id,
-        currentVenueName: venue.name,
+        currentVenueName: venueDisplayName(venue),
         completed: results.length,
         results,
       });

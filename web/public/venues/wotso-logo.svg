@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 80" role="img" aria-labelledby="title">
+  <title id="title">WOTSO Pickleball Pyrmont</title>
+  <rect width="220" height="80" rx="10" fill="#ffffff"/>
+  <rect x="10" y="10" width="200" height="60" rx="8" fill="#f7faf4" stroke="#d7e5cf" stroke-width="2"/>
+  <circle cx="42" cy="40" r="21" fill="#58a618"/>
+  <circle cx="32" cy="31" r="2.4" fill="#162019"/>
+  <circle cx="43" cy="27" r="2.2" fill="#162019"/>
+  <circle cx="53" cy="36" r="2.3" fill="#162019"/>
+  <circle cx="33" cy="47" r="2.1" fill="#162019"/>
+  <circle cx="48" cy="53" r="2.4" fill="#162019"/>
+  <path d="M74 26l7 28 8-28h8l8 28 7-28h10l-12 40h-10l-7-25-7 25H76L64 26h10z" fill="#162019"/>
+  <path d="M126 46c0-12 9-21 21-21s21 9 21 21-9 21-21 21-21-9-21-21zm10 0c0 7 4 12 11 12s11-5 11-12-4-12-11-12-11 5-11 12z" fill="#58a618"/>
+  <path d="M174 35v-9h36v9h-13v31h-10V35h-13z" fill="#162019"/>
+</svg>

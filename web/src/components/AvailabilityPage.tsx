@@ -106,6 +106,23 @@ function VenueLinkList({ links }: Readonly<{ links: ShareVenueLink[] }>) {
   });
 }
 
+function RefreshPageButton({ variant = "desktop" }: Readonly<{ variant?: "desktop" | "mobile" }>) {
+  return (
+    <form className={`stitch-refresh-form stitch-refresh-form--${variant}`} action="" method="get">
+      <button className="stitch-refresh-button" type="submit">
+        {variant === "mobile" ? (
+          <>
+            <span className="stitch-nav-icon stitch-nav-icon--refresh" aria-hidden="true" />
+            <span>Reload</span>
+          </>
+        ) : (
+          "Refresh Page"
+        )}
+      </button>
+    </form>
+  );
+}
+
 export function AvailabilityPage({ availability, shareToken = "", venueId = "propickle" }: AvailabilityPageProps) {
   const themeId = availability.state === "ready" ? availability.themeId : venueId;
   const theme = getVenueTheme(themeId);
@@ -151,7 +168,7 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
             <nav className="stitch-nav" aria-label="Primary">
               {venueLinks.length ? (
                 <details className="stitch-venue-menu">
-                  <summary>Venues</summary>
+                  <summary>Venues ({venueLinks.length})</summary>
                   <div className="stitch-venue-menu__panel">
                     <VenueLinkList links={venueLinks} />
                   </div>
@@ -243,9 +260,12 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
             <span>Latest read</span>
             <strong className="tabular-nums">{syncedAt}</strong>
           </div>
-          <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
-            Open Booking
-          </a>
+          <div className="stitch-sticky__actions">
+            <RefreshPageButton />
+            <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
+              Open Booking
+            </a>
+          </div>
         </div>
       </div>
 
@@ -265,6 +285,7 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
           <span className="stitch-nav-icon stitch-nav-icon--booking" aria-hidden="true" />
           <span>Booking</span>
         </a>
+        <RefreshPageButton variant="mobile" />
       </nav>
 
       <footer className="stitch-footer">{theme.copy.footerNote}</footer>

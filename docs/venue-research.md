@@ -19,7 +19,7 @@ Read-only feasibility notes for candidate venues. Do not automate login, checkou
   - Pickle 7: `dc7300ee-7d6d-413a-8d89-a326ed8122b9`
   - Pickle 8: `a9a1064b-dc16-494e-8d8b-a9ac3df51521`
 
-## House of Pickle Darling Harbour
+## House of Pickle DH
 
 - Status: implemented as `houseofpickle-darlingharbour`.
 - Platform: PodPlay/Podify Next.js app.
@@ -40,16 +40,19 @@ Read-only feasibility notes for candidate venues. Do not automate login, checkou
 
 ## WOTSO Pickleball Pyrmont
 
-- Status: researched, not implemented.
+- Status: implemented as `wotso-pyrmont`.
 - Platform: Hamlet React SPA with Hasura GraphQL.
 - URL: `https://wotso.hamletapp.co/shop/experience/pyrmont`.
 - Guest visibility: availability appears as anonymous guest from the WOTSO origin.
 - Public config: `https://wotso.hamletapp.co/env-config.js`.
 - Hamlet auth/bootstrap: `https://api.hamletapp.co/v1/auth/verify`.
 - GraphQL URL: `https://data.hamletapp.co/v1/graphql`.
+- Plain unauthenticated GraphQL calls return a JWT/cookie error; the provider must run on the WOTSO page and reuse the page-created guest session.
 - WOTSO app id: `ab9ee830-212d-4ca4-a939-f7560730ab4c`.
 - Pyrmont location id: `ac2be7b5-4d0c-49b1-9840-b7d3b0832ff4`.
 - Court item ids:
   - Pickleball Court 1: `7e08d719-876f-4900-98b8-257f762c91e2`
   - Pickleball Court 2: `84be6bae-2a33-43ff-99bc-70e5823a4f5c`
-- Safer implementation path: new `hamlet-experience` provider that runs from the WOTSO page, obtains the page's anonymous bootstrap, reads master/open-hours metadata and bookings, then computes open intervals from open hours minus bookings/blockouts in `Australia/Sydney`.
+- Provider: `hamlet-experience`.
+- Safer implementation path used: content-script provider runs from the WOTSO page, obtains the page's anonymous bootstrap, reads master/open-hours metadata and bookings, then computes open intervals from open hours minus bookings in `Australia/Sydney`.
+- v1 limitation: WOTSO needs the page guest session to be ready. The extension does not create accounts, log in, add to cart, or book anything.

@@ -4,6 +4,7 @@
   const MINDBODY_PROVIDER_ID = "mindbody-appointments";
   const PLAYTOMIC_PROVIDER_ID = "playtomic-availability";
   const PODPLAY_PROVIDER_ID = "podplay-dom";
+  const HAMLET_PROVIDER_ID = "hamlet-experience";
   const SELECTED_VENUE_KEY = "selectedVenueId";
   const DEFAULT_VENUE_ID = "propickle";
   const BROADWAY_BOOKING_BASE = "https://clubspark.au/Broadway/Booking/BookByDate";
@@ -12,6 +13,7 @@
   const NORTH_RYDE_PUBLIC_BOOKING_URL = "https://www.tennisworldonline.com.au/bookacourt/#bookacourt";
   const HOUSE_OF_PICKLE_BOOKING_URL =
     "https://houseofpickle.podplay.app/book/darling-harbour?pod=darling-harbour-pickleball-courts";
+  const WOTSO_PYRMONT_BOOKING_URL = "https://wotso.hamletapp.co/shop/experience/pyrmont";
 
   const localDateIso = (date = new Date()) => {
     const year = date.getFullYear();
@@ -97,7 +99,7 @@
     },
     {
       id: "houseofpickle-darlingharbour",
-      name: "House of Pickle Darling Harbour",
+      name: "House of Pickle DH",
       providerId: PODPLAY_PROVIDER_ID,
       startUrl: HOUSE_OF_PICKLE_BOOKING_URL,
       publicBookingUrl: HOUSE_OF_PICKLE_BOOKING_URL,
@@ -111,12 +113,34 @@
       podId: "582a1846-0a56-414d-99a5-bcccc310a4e7",
       matchUrls: ["https://houseofpickle.podplay.app/book/darling-harbour*"],
     },
+    {
+      id: "wotso-pyrmont",
+      name: "WOTSO Pickleball Pyrmont",
+      providerId: HAMLET_PROVIDER_ID,
+      startUrl: WOTSO_PYRMONT_BOOKING_URL,
+      publicBookingUrl: WOTSO_PYRMONT_BOOKING_URL,
+      readinessTimeoutMs: 18000,
+      readDays: 9,
+      locationId: "ac2be7b5-4d0c-49b1-9840-b7d3b0832ff4",
+      timezone: "Australia/Sydney",
+      itemIds: [
+        "7e08d719-876f-4900-98b8-257f762c91e2",
+        "84be6bae-2a33-43ff-99bc-70e5823a4f5c",
+      ],
+      resources: [
+        { id: "7e08d719-876f-4900-98b8-257f762c91e2", name: "Pickleball Court 1" },
+        { id: "84be6bae-2a33-43ff-99bc-70e5823a4f5c", name: "Pickleball Court 2" },
+      ],
+      matchUrls: ["https://wotso.hamletapp.co/shop/experience/pyrmont*"],
+    },
   ];
 
   const copyVenue = (venue) => ({
     ...venue,
     matchUrls: [...venue.matchUrls],
     services: venue.services?.map((service) => ({ ...service })),
+    itemIds: venue.itemIds ? [...venue.itemIds] : undefined,
+    resources: venue.resources?.map((resource) => ({ ...resource })),
   });
   const venuePayloadKey = (venueId) => `availability:venue:${venueId}`;
 
@@ -137,6 +161,7 @@
     MINDBODY_PROVIDER_ID,
     PLAYTOMIC_PROVIDER_ID,
     PODPLAY_PROVIDER_ID,
+    HAMLET_PROVIDER_ID,
     SELECTED_VENUE_KEY,
     DEFAULT_VENUE_ID,
     getVenues,

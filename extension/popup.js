@@ -56,14 +56,17 @@ function syncLoader(value) {
 }
 
 function setBusy(value) {
-  isBusy = value;
-  refreshVenueButton.disabled = value;
-  refreshStaleButton.disabled = value;
-  refreshAllButton.disabled = value;
-  deepScanVenueButton.disabled = value;
-  readCurrentPageButton.disabled = value;
-  venueSelect.disabled = value;
-  syncLoader(value);
+  const nextBusy = Boolean(value);
+  if (isBusy === nextBusy) return;
+
+  isBusy = nextBusy;
+  refreshVenueButton.disabled = nextBusy;
+  refreshStaleButton.disabled = nextBusy;
+  refreshAllButton.disabled = nextBusy;
+  deepScanVenueButton.disabled = nextBusy;
+  readCurrentPageButton.disabled = nextBusy;
+  venueSelect.disabled = nextBusy;
+  syncLoader(nextBusy);
   syncActions();
 }
 
@@ -134,12 +137,16 @@ function selectedVenue() {
   return venues.find((venue) => venue.id === selectedVenueId) || venues[0] || null;
 }
 
+function venueDisplayName(venue) {
+  return venue?.displayName || venue?.name || "Venue";
+}
+
 function sendMessage(message) {
   return chrome.runtime.sendMessage(message);
 }
 
 function sourceLabel(payload) {
-  return payload?.venue_name || selectedVenue()?.name || "this page";
+  return payload?.venue_name || venueDisplayName(selectedVenue()) || "this page";
 }
 
 function syncStatusMessage(syncStatus) {
@@ -234,7 +241,7 @@ function populateVenues() {
   for (const venue of venues) {
     const option = document.createElement("option");
     option.value = venue.id;
-    option.textContent = venue.name;
+    option.textContent = venueDisplayName(venue);
     venueSelect.append(option);
   }
   venueSelect.value = selectedVenueId;
@@ -283,7 +290,7 @@ async function refreshVenueStatusList() {
       const body = document.createElement("div");
       const name = document.createElement("div");
       name.className = "venue-status-name";
-      name.textContent = venue.name;
+      name.textContent = venueDisplayName(venue);
       const meta = document.createElement("div");
       meta.className = "venue-status-meta";
       meta.textContent = savedVenueMeta(payload, venue);
@@ -308,7 +315,7 @@ async function loadSavedPayload() {
 
   if (!response.payload) {
     renderEmpty(
-      `No saved ${selectedVenue()?.name || "venue"} result yet. Use Refresh Selected, or open a schedule tab and use Read Current Page.`
+      `No saved ${venueDisplayName(selectedVenue()) || "venue"} result yet. Use Refresh Selected, or open a schedule tab and use Read Current Page.`
     );
     await refreshVenueStatusList();
     return false;

@@ -179,7 +179,7 @@ export const sydneyRacquetTheme: VenueTheme = {
 
 export const houseOfPickleTheme: VenueTheme = {
   id: "houseofpickle-darlingharbour",
-  name: "House of Pickle Darling Harbour",
+  name: "House of Pickle DH",
   identity: {
     productLabel: "Court Times",
     logoSrc: "/venues/house-of-pickle-logo.svg",
@@ -203,12 +203,48 @@ export const houseOfPickleTheme: VenueTheme = {
   copy: {
     freshnessFallback: "Cached House of Pickle availability",
     emptyHeading: "No cached House of Pickle availability yet",
-    emptyBody: "Refresh House of Pickle Darling Harbour from the extension, then reopen this page.",
+    emptyBody: "Refresh House of Pickle DH from the extension, then reopen this page.",
     noDaysHeading: "No House of Pickle booking days found",
     noDaysBody: "The latest read did not include visible PodPlay booking rows. Try a manual refresh after the booking page has loaded.",
-    errorBody: "Check the link or open House of Pickle Darling Harbour booking directly.",
+    errorBody: "Check the link or open House of Pickle DH booking directly.",
     staleWarning: "Older cached read. Open PodPlay to confirm live availability before making plans.",
-    bookingNote: "House of Pickle Darling Harbour availability is read from the visible guest booking page. Booking may require PodPlay sign-in or app steps.",
+    bookingNote: "House of Pickle DH availability is read from the visible guest booking page. Booking may require PodPlay sign-in or app steps.",
     footerNote: "Read-only page. Availability comes from the latest browser-extension read of the visible PodPlay booking page.",
+  },
+};
+
+export const wotsoTheme: VenueTheme = {
+  id: "wotso-pyrmont",
+  name: "WOTSO Pickleball Pyrmont",
+  identity: {
+    productLabel: "Court Times",
+    logoSrc: "/venues/wotso-logo.svg",
+    motion: "venue-pop",
+  },
+  colors: {
+    background: "#f7faf4",
+    surface: "#ffffff",
+    surfaceHigh: "#eef6e9",
+    surfaceHighest: "#dceecf",
+    foreground: "#162019",
+    muted: "#607067",
+    accent: "#58a618",
+    highlight: "#111111",
+    border: "#d7e5cf",
+    borderStrong: "#94bf7d",
+    actionSurface: "#58a618",
+    actionForeground: "#ffffff",
+    warning: "#b7791f",
+  },
+  copy: {
+    freshnessFallback: "Cached WOTSO availability",
+    emptyHeading: "No cached WOTSO availability yet",
+    emptyBody: "Refresh WOTSO Pickleball Pyrmont from the extension, then reopen this page.",
+    noDaysHeading: "No WOTSO booking days found",
+    noDaysBody: "The latest read did not include visible Hamlet booking days. Open WOTSO, let the guest session load, then refresh again.",
+    errorBody: "Check the link or open the WOTSO booking page directly.",
+    staleWarning: "Older cached read. Open WOTSO to confirm live availability before making plans.",
+    bookingNote: "WOTSO availability is read from Hamlet after the page creates its guest session. Booking may require WOTSO/Hamlet sign-in or payment steps.",
+    footerNote: "Read-only page. Availability comes from the latest browser-extension read of the WOTSO Hamlet booking page.",
   },
 };

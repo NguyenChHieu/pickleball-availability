@@ -265,6 +265,7 @@ dd {
 .stitch-promo p,
 .stitch-sticky span,
 .stitch-sticky a,
+.stitch-refresh-button,
 .stitch-mobile-nav span:last-child {
   font-family: var(--font-data);
   font-size: 10px;
@@ -311,10 +312,14 @@ dd {
   box-shadow: 0 18px 32px rgb(var(--on-surface-rgb) / 16%);
   display: grid;
   gap: 8px;
+  max-height: min(360px, calc(100vh - 96px));
   min-width: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 8px;
   position: absolute;
   right: 0;
+  scrollbar-gutter: stable;
   top: calc(100% + 14px);
   z-index: 30;
 }
@@ -745,6 +750,7 @@ dd {
 
 .stitch-day-card__book:active,
 .stitch-sticky a:active,
+.stitch-refresh-button:active,
 .stitch-state a:active {
   transform: translateY(1px);
 }
@@ -933,14 +939,51 @@ dd {
   letter-spacing: 0.06em;
 }
 
-.stitch-sticky a {
+.stitch-sticky__actions {
   align-items: center;
-  background: var(--accent-blue);
-  color: var(--action-surface);
+  display: flex;
+  gap: 8px;
+}
+
+.stitch-refresh-form {
+  margin: 0;
+}
+
+.stitch-sticky a,
+.stitch-refresh-button {
+  align-items: center;
+  border: 1px solid var(--accent-blue);
+  cursor: pointer;
   display: inline-flex;
+  justify-content: center;
   min-height: 44px;
   padding: 0 22px;
   text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.stitch-sticky a {
+  background: var(--accent-blue);
+  color: var(--action-surface);
+}
+
+.stitch-refresh-button {
+  background: transparent;
+  color: var(--on-surface);
+  min-width: 128px;
+  text-transform: uppercase;
+}
+
+.stitch-refresh-button:hover,
+.stitch-sticky a:hover {
+  background: var(--highlight-green);
+  border-color: var(--highlight-green);
+  color: var(--action-foreground);
+  transform: translateY(-1px);
 }
 
 .stitch-mobile-nav {
@@ -1210,7 +1253,9 @@ dd {
 
   .stitch-mobile-nav a,
   .stitch-mobile-nav > span,
-  .stitch-mobile-venue-menu summary {
+  .stitch-mobile-venue-menu summary,
+  .stitch-refresh-form--mobile,
+  .stitch-refresh-form--mobile .stitch-refresh-button {
     align-items: center;
     color: var(--on-surface-variant);
     display: grid;
@@ -1218,6 +1263,25 @@ dd {
     min-width: 82px;
     padding: 4px 12px;
     text-decoration: none;
+  }
+
+  .stitch-refresh-form--mobile {
+    margin: 0;
+  }
+
+  .stitch-refresh-form--mobile .stitch-refresh-button {
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    min-height: auto;
+    padding: 4px 12px;
+    text-transform: none;
+  }
+
+  .stitch-refresh-form--mobile .stitch-refresh-button:hover {
+    background: transparent;
+    color: var(--on-surface);
+    transform: none;
   }
 
   .stitch-mobile-venue-menu {
@@ -1245,10 +1309,14 @@ dd {
     box-shadow: 0 -18px 32px rgb(var(--on-surface-rgb) / 16%);
     display: grid;
     gap: 8px;
+    max-height: min(420px, calc(100svh - 112px));
     min-width: min(320px, calc(100vw - 32px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 8px;
     position: absolute;
     right: -88px;
+    scrollbar-gutter: stable;
     z-index: 70;
   }
 
@@ -1304,6 +1372,23 @@ dd {
     top: 8px;
     transform: rotate(-45deg);
     width: 11px;
+  }
+
+  .stitch-nav-icon--refresh {
+    border: 2px solid currentColor;
+    border-radius: 999px;
+  }
+
+  .stitch-nav-icon--refresh::before {
+    border-right: 2px solid currentColor;
+    border-top: 2px solid currentColor;
+    content: "";
+    height: 8px;
+    position: absolute;
+    right: -2px;
+    top: 1px;
+    transform: rotate(28deg);
+    width: 8px;
   }
 
   .stitch-footer {
@@ -1871,21 +1956,25 @@ dd {
 .home-venues {
   display: grid;
   gap: 18px;
+  max-height: min(640px, calc(100svh - 180px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  scrollbar-gutter: stable;
 }
 
-.home-venue-group {
-  display: grid;
-  gap: 14px;
-}
-
-.home-venue-group > p {
+.home-venue-group-label {
+  background: var(--home-bg);
   color: var(--home-muted);
   font-family: var(--font-data);
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0;
   margin: 0;
+  position: sticky;
+  top: 0;
   text-transform: uppercase;
+  z-index: 1;
 }
 
 .home-venue {
@@ -1902,11 +1991,6 @@ dd {
   display: flex;
   gap: 16px;
   justify-content: space-between;
-}
-
-.home-venue--research span {
-  background: var(--home-surface-alt);
-  color: var(--home-muted);
 }
 
 .home-note {

@@ -19,7 +19,7 @@
 ## Directory Map
 
 - `extension/`: MV3 popup/options/background/content scripts, venue config, refresh orchestration, booking deep-link helper.
-- `extension/providers/`: Playbypoint, ClubSpark, Mindbody, Playtomic, and PodPlay readers.
+- `extension/providers/`: Playbypoint, ClubSpark, Mindbody, Playtomic, PodPlay, and Hamlet readers.
 - `web/app/`: Next.js routes, share page, API routes, webhook routes, and global styles.
 - `web/src/components/`: availability page/card UI components.
 - `web/src/lib/`: public availability loader and venue themes.
@@ -93,7 +93,8 @@ python -m json.tool extension\manifest.json
 - Normal multi-venue refresh should prefer stale-only or cache-first paths; deep provider/court scans stay explicit because North Ryde can be slow.
 - Share page reads cached availability only; it must not trigger scraping.
 - Future venues should be added through venue/provider/theme configuration before inventing a new scraper flow.
-- House of Pickle uses a conservative DOM-first PodPlay reader; it reads visible booking rows only and should not create Firebase anonymous identities or call booking/cart APIs.
+- House of Pickle DH uses a conservative DOM-first PodPlay reader; it reads visible booking rows only and should not create Firebase anonymous identities or call booking/cart APIs.
+- WOTSO Pyrmont uses a Hamlet provider from the WOTSO page context; it relies on the page-created guest session and subtracts bookings from court open hours.
 - The repo has `.ai/` workflow files; keep them aligned when architecture/deployment decisions change.
 
 ## Current Validation Baseline

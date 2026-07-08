@@ -212,7 +212,7 @@
       exported_at: new Date().toISOString(),
       source_url: window.location.href,
       venue_id: venue.id || "houseofpickle-darlingharbour",
-      venue_name: venue.name || "House of Pickle Darling Harbour",
+      venue_name: venue.name || "House of Pickle DH",
       provider_id: providerId,
       booking_url: bookingUrl,
       days: [

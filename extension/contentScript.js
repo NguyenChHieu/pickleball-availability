@@ -27,6 +27,9 @@
     if (bodyText.includes("log in") || bodyText.includes("login") || bodyText.includes("sign in")) {
       return "Manual setup needed: log in on the opened page first.";
     }
+    if (bodyText.includes("wotso") || bodyText.includes("hamlet")) {
+      return "Manual setup needed: open the WOTSO page and let its guest session finish loading first.";
+    }
     return "Manual setup needed: the Playbypoint schedule widget is not visible yet.";
   };
 
@@ -34,6 +37,7 @@
     const bodyText = normalizeWhitespace(document.body?.innerText || "").toLowerCase();
     const errorText = normalizeWhitespace(error?.message || "").toLowerCase();
     return (
+      Boolean(error?.manualSetupRequired) ||
       bodyText.includes("performing security verification") ||
       bodyText.includes("cloudflare") ||
       bodyText.includes("waiver") ||
@@ -41,7 +45,9 @@
       bodyText.includes("login") ||
       bodyText.includes("log in") ||
       bodyText.includes("sign in") ||
-      errorText.includes("log in before reading")
+      errorText.includes("log in before reading") ||
+      errorText.includes("guest session is not ready") ||
+      errorText.includes("jwt")
     );
   };
 
@@ -85,10 +91,11 @@
       sendResponse({ ok: true, payload });
     })().catch((error) => {
       const isManualSetup = manualSetupVisible(error);
+      const setupError = error?.manualSetupRequired ? error?.message || manualSetupReason() : manualSetupReason();
       sendResponse({
         ok: false,
         manualSetupRequired: isManualSetup,
-        error: isManualSetup ? manualSetupReason() : error?.message || String(error),
+        error: isManualSetup ? setupError : error?.message || String(error),
       });
     });
 
