@@ -40,7 +40,7 @@ test("formatDay includes booking levels and partial continuity warning", () => {
   });
 
   assert.match(summary, /levels Premium Pickleball A\$15\.00: 09:00-09:30/);
-  assert.match(summary, /courts\/providers partially read/);
+  assert.match(summary, /continuity partially read/);
 });
 
 test("formatDay shows no open intervals without inventing court detail", () => {

@@ -58,13 +58,13 @@ export function formatDay(day: AvailabilityPayloadDay) {
     .join("; ");
   const continuityNote =
     continuityStatus === "failed"
-      ? "; courts/providers could not be read"
+      ? "; continuity could not be read"
       : continuityStatus === "partial"
-        ? "; courts/providers partially read"
+        ? "; continuity partially read"
         : continuityStatus === "not_scanned"
-          ? "; courts/providers not scanned"
+          ? "; continuity not scanned"
         : "";
-  return `${label}: any court ${times}${suffix}${levels ? `; levels ${levels}` : ""}${sameCourt ? `; courts/providers ${sameCourt}` : ""}${continuityNote}`;
+  return `${label}: any court ${times}${suffix}${levels ? `; levels ${levels}` : ""}${sameCourt ? `; same-court ${sameCourt}` : ""}${continuityNote}`;
 }
 
 export function formatAvailability(payload: AvailabilityPayload | null | undefined, { maxDays = 8 } = {}) {

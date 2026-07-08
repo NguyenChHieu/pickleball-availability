@@ -22,9 +22,9 @@ function splitDateLabel(date: string) {
 
 function statusLabel(day: PublicAvailabilityDay) {
   if (!day.openIntervals.length) return "No open intervals";
-  if (day.levelIntervals.length && day.sameCourtIntervals.length) return "Levels and courts available";
+  if (day.levelIntervals.length && day.sameCourtIntervals.length) return "Levels and continuity detail";
   if (day.levelIntervals.length) return "Booking levels available";
-  if (day.sameCourtIntervals.length) return "Same-court runs available";
+  if (day.sameCourtIntervals.length) return "Continuity detail available";
   if (day.openIntervals.length <= 2) return "Limited slots";
   return "Any-court windows";
 }
@@ -33,18 +33,18 @@ type DayTab = "overview" | "levels" | "courts";
 
 function continuityMessage(day: PublicAvailabilityDay) {
   if (day.continuityStatus === "failed") {
-    return "Provider or court continuity could not be read this time. Overview and Levels are still available.";
+    return "Exact court continuity could not be read this time. Overview and Levels are still available.";
   }
   if (day.continuityStatus === "partial") {
-    return "Some provider or court continuity could not be read. Overview and Levels are still available.";
+    return "Some exact court labels could not be read. Overview and Levels are still available.";
   }
   if (day.continuityStatus === "not_scanned") {
-    return "Court or provider continuity was skipped for a faster refresh. Use a deep scan when you need same-court runs.";
+    return "Exact court continuity was skipped for a faster refresh. Use a deep scan when you need same-court runs.";
   }
   if (day.continuityStatus === "available") {
-    return "No same-court or same-provider runs were found for this day. Use the Overview tab for any-court availability.";
+    return "No same-court runs were found for this day. Use the Overview tab for any-court availability.";
   }
-  return "Provider or court continuity is not exposed by this booking page yet. Use the Overview tab for any-court availability, then open booking before planning a longer session.";
+  return "This venue does not expose exact court continuity for these slots. Use Overview for bookable windows, then confirm the exact court on the booking page.";
 }
 
 export function DayCard({ day, index }: DayCardProps) {
@@ -55,7 +55,7 @@ export function DayCard({ day, index }: DayCardProps) {
   const tabs: { id: DayTab; label: string }[] = [
     { id: "overview", label: "Overview" },
     ...(day.levelIntervals.length ? [{ id: "levels" as const, label: "Levels" }] : []),
-    { id: "courts", label: day.sameCourtIntervals.length ? "Courts" : "Continuity" },
+    { id: "courts", label: "Continuity" },
   ];
   const [activeTab, setActiveTab] = useState<DayTab>("overview");
   const selectedTab = tabs.some((tab) => tab.id === activeTab) ? activeTab : "overview";
@@ -108,7 +108,7 @@ export function DayCard({ day, index }: DayCardProps) {
             >
               <div className="stitch-interval-group__header">
                 <h3>Any-court windows</h3>
-                <p>Adjacent slots may use different courts or providers.</p>
+                <p>Adjacent slots may move between different courts unless continuity detail is shown.</p>
               </div>
               <ul className="stitch-intervals" aria-label={`${day.date} any-court open windows`}>
                 {day.openIntervals.map((interval) => (
@@ -159,10 +159,10 @@ export function DayCard({ day, index }: DayCardProps) {
                 id={`${titleId}-courts`}
               >
                 <div className="stitch-interval-group__header">
-                  <h3>Courts / providers</h3>
+                  <h3>Same-court detail</h3>
                   <p>
-                    These runs are grouped by the bookable resource exposed by the venue.
-                    {day.continuityStatus === "partial" ? " Some resources could not be read." : ""}
+                    These runs are grouped only when the venue exposes exact court labels.
+                    {day.continuityStatus === "partial" ? " Some exact court labels could not be read." : ""}
                   </p>
                 </div>
                 <ul>
