@@ -32,6 +32,24 @@
             Refresh Stale
           </button>
         </div>
+        <div id="loader" class="pickleball-loader" role="status" aria-live="polite" aria-busy="true" hidden>
+          <span class="pickleball-loader__paddle" aria-hidden="true">
+            <span class="pickleball-loader__paddle-head"></span>
+          </span>
+          <span class="pickleball-loader__arc" aria-hidden="true"></span>
+          <span class="pickleball-loader__ball" aria-hidden="true"></span>
+          <span class="pickleball-loader__text">
+            Loading<span class="pickleball-loader__dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
+          </span>
+        </div>
+        <p id="status" class="status" aria-live="polite">Loading availability...</p>
+        <details id="refreshHistory" class="refresh-history" hidden>
+          <summary>
+            <span id="refreshHistoryHeading">Recent refreshes</span>
+            <span id="refreshHistoryCount" class="refresh-history-count"></span>
+          </summary>
+          <ul id="refreshHistoryList"></ul>
+        </details>
       </section>
 
       <section class="panel">
@@ -67,24 +85,6 @@
           </div>
         </details>
 
-        <div id="loader" class="pickleball-loader" role="status" aria-live="polite" aria-busy="true" hidden>
-          <span class="pickleball-loader__paddle" aria-hidden="true">
-            <span class="pickleball-loader__paddle-head"></span>
-          </span>
-          <span class="pickleball-loader__arc" aria-hidden="true"></span>
-          <span class="pickleball-loader__ball" aria-hidden="true"></span>
-          <span class="pickleball-loader__text">
-            Loading<span class="pickleball-loader__dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
-          </span>
-        </div>
-        <p id="status" class="status" aria-live="polite">Loading availability...</p>
-        <details id="refreshHistory" class="refresh-history" hidden>
-          <summary>
-            <span id="refreshHistoryHeading">Recent refreshes</span>
-            <span id="refreshHistoryCount" class="refresh-history-count"></span>
-          </summary>
-          <ul id="refreshHistoryList"></ul>
-        </details>
       </section>
     </main>
 
