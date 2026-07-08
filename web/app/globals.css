@@ -267,7 +267,7 @@ dd {
 .stitch-nav {
   align-items: center;
   display: flex;
-  gap: 24px;
+  gap: 16px;
 }
 
 .stitch-nav a,
@@ -992,6 +992,11 @@ dd {
   color: var(--on-surface);
   min-width: 128px;
   text-transform: uppercase;
+}
+
+.stitch-nav .stitch-refresh-button {
+  min-width: 94px;
+  padding: 0 18px;
 }
 
 .stitch-refresh-button:disabled {

@@ -61,7 +61,7 @@ export function ShareRefreshButton({
     if (isBusy) return "Refreshing";
     if (phase === "done") return "Updated";
     if (phase === "error") return "Retry refresh";
-    return children || "Refresh availability";
+    return children || "Refresh";
   }, [children, isBusy, phase, variant]);
 
   useEffect(() => {
