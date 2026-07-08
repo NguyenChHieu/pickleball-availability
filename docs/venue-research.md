@@ -28,7 +28,7 @@ Read-only feasibility notes for candidate venues. Do not automate login, checkou
 - Plain unauthenticated API calls returned `401`; avoid manufacturing auth tokens in v1.
 - Provider: `podplay-dom`.
 - Safer implementation path used: content-script DOM provider that reads already-rendered session rows. Later consider a same-page API provider only if it can reuse the page's own anonymous session without creating extra identities.
-- v1 limitation: reads the visible booking rows only. The provider preserves visible court labels such as `C4` when PodPlay renders them, but it does not navigate checkout, cart, login, app download, or booking flows.
+- Current limitation: reads rendered booking rows by selecting public date buttons. The provider preserves visible court labels such as `C4` when PodPlay renders them and filters out windows shorter than the venue's one-hour booking minimum, but it does not navigate checkout, cart, login, app download, or booking flows.
 - Suggested config:
   - provider id: `podplay`
   - venue id: `houseofpickle-darlingharbour`

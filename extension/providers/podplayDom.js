@@ -4,6 +4,7 @@
   if (globalThis.AvailabilityProviders[providerId]) return;
 
   const DEFAULT_SLOT_MINUTES = 30;
+  const DEFAULT_READ_DAYS = 1;
 
   const weekdayLong = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const monthNames = [
@@ -23,12 +24,28 @@
 
   const normalizeWhitespace = (value) => (value || "").replace(/\s+/g, " ").trim();
   const bodyText = () => normalizeWhitespace(document.body?.innerText || document.body?.textContent || "");
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const waitUntil = async (predicate, timeoutMs = 5000, intervalMs = 150) => {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (predicate()) return true;
+      await wait(intervalMs);
+    }
+    return predicate();
+  };
 
   const localDateIso = (date = new Date()) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  const addDays = (date, days) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
   };
 
   const dateFromIso = (dateIso) => {
@@ -79,10 +96,32 @@
 
   const pageDateIso = () => urlDate() || localDateIso();
 
+  const dateIsoFromButtonText = (text, index) => {
+    const normalized = normalizeWhitespace(text);
+    if (/^today$/i.test(normalized)) return localDateIso();
+
+    const match = normalized.match(/\b\d{1,2}\/\d{1,2}\b/);
+    if (!match) return localDateIso(addDays(new Date(), index));
+
+    const [monthText, dayText] = match[0].split("/");
+    const today = new Date();
+    let year = today.getFullYear();
+    const month = Number(monthText);
+    const day = Number(dayText);
+    if (month < today.getMonth() + 1) year += 1;
+    return localDateIso(new Date(year, month - 1, day));
+  };
+
   const bookingUrlForDate = (dateIso, venue = {}) => {
     const base = venue.publicBookingUrl || venue.startUrl || window.location.href;
     return String(base || "").replace(/#.*$/, "");
   };
+
+  const dateButtons = () =>
+    Array.from(document.querySelectorAll("button")).filter((button) => {
+      const text = normalizeWhitespace(button.innerText || button.textContent || "");
+      return /^today$/i.test(text) || /^[A-Za-z]{3},\s*\d{1,2}\/\d{1,2}$/.test(text);
+    });
 
   const candidateElements = () => {
     const elements = Array.from(
@@ -145,7 +184,7 @@
     );
   };
 
-  const mergeOpenIntervals = (slots) => {
+  const mergeOpenIntervals = (slots, minDurationMinutes = 0) => {
     const intervals = slots
       .filter((slot) => slot.status === "open")
       .map((slot) => ({
@@ -162,13 +201,15 @@
       else previous.end = Math.max(previous.end, interval.end);
     }
 
-    return merged.map((interval) => ({
-      start_time: minutesToTime(interval.start),
-      end_time: minutesToTime(interval.end),
-    }));
+    return merged
+      .filter((interval) => interval.end - interval.start >= minDurationMinutes)
+      .map((interval) => ({
+        start_time: minutesToTime(interval.start),
+        end_time: minutesToTime(interval.end),
+      }));
   };
 
-  const sameCourtIntervals = (slots) => {
+  const sameCourtIntervals = (slots, minDurationMinutes = 0) => {
     const byCourt = new Map();
     for (const slot of slots) {
       const courtName = normalizeWhitespace(slot.court_name || "");
@@ -179,7 +220,7 @@
     return Array.from(byCourt.entries())
       .map(([courtName, courtSlots]) => ({
         court_name: courtName,
-        intervals: mergeOpenIntervals(courtSlots),
+        intervals: mergeOpenIntervals(courtSlots, minDurationMinutes),
       }))
       .filter((group) => group.intervals.length);
   };
@@ -191,22 +232,73 @@
     );
 
   const loadedEmptyState = () =>
-    /\b(no sessions|no availability|fully booked|nothing available|sold out)\b/i.test(bodyText());
+    /\b(no sessions|no availability|fully booked|nothing available|sold out|no courts available)\b/i.test(bodyText());
 
   const canRead = () => candidateElements().length > 0 || loadedEmptyState();
   const setupRequired = () => false;
-  const selectDate = async () => true;
+  const selectDate = async (targetDate) => {
+    const buttons = dateButtons();
+    const targetIso = String(targetDate || "");
+    const index = buttons.findIndex((button, buttonIndex) => dateIsoFromButtonText(button.innerText, buttonIndex) === targetIso);
+    if (index < 0) return false;
+
+    const before = normalizeWhitespace(document.body?.innerText || "");
+    buttons[index].click();
+    await waitUntil(() => normalizeWhitespace(document.body?.innerText || "") !== before, 6000);
+    await wait(900);
+    return true;
+  };
+
+  const minDurationMinutes = (venue = {}) => {
+    if (Number(venue.minDurationMinutes || 0) > 0) return Number(venue.minDurationMinutes);
+    if (Number(venue.minDurationHours || 0) > 0) return Number(venue.minDurationHours) * 60;
+    return 0;
+  };
+
+  const readSelectedDay = (dateIso, venue = {}) => {
+    const bookingUrl = bookingUrlForDate(dateIso, venue);
+    const slots = rawOpenSlots(venue);
+    const minimumMinutes = minDurationMinutes(venue);
+    const openIntervals = mergeOpenIntervals(slots, minimumMinutes);
+    const courtIntervals = sameCourtIntervals(slots, minimumMinutes);
+
+    return {
+      source_url: window.location.href,
+      title: "Any pickleball court",
+      date: dateLabel(dateIso),
+      booking_date: dateIso,
+      booking_url: bookingUrl,
+      booking_action_url: bookingUrl,
+      open_intervals: openIntervals,
+      same_court_intervals: courtIntervals,
+      continuity_status: courtIntervals.length ? "available" : "not_exposed",
+      remaining_hours: remainingHours(openIntervals),
+      raw_slots: slots,
+    };
+  };
 
   async function readAvailability(venue = {}) {
     if (!canRead()) {
       throw new Error("PodPlay availability rows are not visible yet. Wait for the booking page to finish loading.");
     }
 
-    const dateIso = pageDateIso();
-    const bookingUrl = bookingUrlForDate(dateIso, venue);
-    const slots = rawOpenSlots(venue);
-    const openIntervals = mergeOpenIntervals(slots);
-    const courtIntervals = sameCourtIntervals(slots);
+    const buttons = dateButtons();
+    const readDays = Math.max(1, Math.min(Number(venue.readDays || DEFAULT_READ_DAYS), buttons.length || 1));
+    const days = [];
+
+    if (buttons.length) {
+      for (let index = 0; index < readDays; index += 1) {
+        const currentButtons = dateButtons();
+        const button = currentButtons[index];
+        if (!button) break;
+
+        const dateIso = dateIsoFromButtonText(button.innerText, index);
+        if (index > 0) await selectDate(dateIso);
+        days.push(readSelectedDay(dateIso, venue));
+      }
+    } else {
+      days.push(readSelectedDay(pageDateIso(), venue));
+    }
 
     return {
       exported_at: new Date().toISOString(),
@@ -214,22 +306,8 @@
       venue_id: venue.id || "houseofpickle-darlingharbour",
       venue_name: venue.name || "House of Pickle DH",
       provider_id: providerId,
-      booking_url: bookingUrl,
-      days: [
-        {
-          source_url: window.location.href,
-          title: "Any pickleball court",
-          date: dateLabel(dateIso),
-          booking_date: dateIso,
-          booking_url: bookingUrl,
-          booking_action_url: bookingUrl,
-          open_intervals: openIntervals,
-          same_court_intervals: courtIntervals,
-          continuity_status: courtIntervals.length ? "available" : "not_exposed",
-          remaining_hours: remainingHours(openIntervals),
-          raw_slots: slots,
-        },
-      ],
+      booking_url: bookingUrlForDate(days[0]?.booking_date || pageDateIso(), venue),
+      days,
     };
   }
 
