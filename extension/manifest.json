@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pickleball Availability Reader",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Read pickleball booking availability by venue and show merged open intervals.",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": [
@@ -43,6 +43,15 @@
     {
       "matches": ["https://wotso.hamletapp.co/shop/experience/pyrmont*"],
       "js": ["providers/hamletExperience.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost:3007/s/*",
+        "https://pickleball-availability.vercel.app/s/*",
+        "https://pickleball-availability-git-main-henryngs-projects.vercel.app/s/*"
+      ],
+      "js": ["sharePageBridge.js"],
       "run_at": "document_idle"
     }
   ],

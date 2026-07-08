@@ -965,10 +965,6 @@ dd {
   gap: 8px;
 }
 
-.stitch-refresh-form {
-  margin: 0;
-}
-
 .stitch-sticky a,
 .stitch-refresh-button {
   align-items: center;
@@ -998,12 +994,65 @@ dd {
   text-transform: uppercase;
 }
 
+.stitch-refresh-button:disabled {
+  border-color: var(--outline);
+  color: var(--on-surface-variant);
+  cursor: progress;
+  transform: none;
+}
+
+.stitch-refresh-control {
+  align-items: center;
+  display: inline-grid;
+  gap: 4px;
+  position: relative;
+}
+
+.stitch-refresh-status {
+  color: var(--on-surface-variant);
+  display: none;
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  max-width: 220px;
+  text-transform: uppercase;
+}
+
+.stitch-refresh-status:not(:empty) {
+  display: block;
+}
+
+.stitch-nav .stitch-refresh-status {
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+  box-shadow: 0 14px 28px rgb(var(--on-surface-rgb) / 14%);
+  color: var(--on-surface);
+  left: 0;
+  min-width: 220px;
+  padding: 10px 12px;
+  position: absolute;
+  top: calc(100% + 12px);
+}
+
+.stitch-sticky .stitch-refresh-status {
+  display: none;
+}
+
 .stitch-refresh-button:hover,
 .stitch-sticky a:hover {
   background: var(--highlight-green);
   border-color: var(--highlight-green);
   color: var(--action-foreground);
   transform: translateY(-1px);
+}
+
+.stitch-refresh-button:disabled:hover {
+  background: transparent;
+  border-color: var(--outline);
+  color: var(--on-surface-variant);
+  transform: none;
 }
 
 .stitch-mobile-nav {
@@ -1274,8 +1323,8 @@ dd {
   .stitch-mobile-nav a,
   .stitch-mobile-nav > span,
   .stitch-mobile-venue-menu summary,
-  .stitch-refresh-form--mobile,
-  .stitch-refresh-form--mobile .stitch-refresh-button {
+  .stitch-refresh-control--mobile,
+  .stitch-refresh-control--mobile .stitch-refresh-button {
     align-items: center;
     color: var(--on-surface-variant);
     display: grid;
@@ -1285,11 +1334,11 @@ dd {
     text-decoration: none;
   }
 
-  .stitch-refresh-form--mobile {
+  .stitch-refresh-control--mobile {
     margin: 0;
   }
 
-  .stitch-refresh-form--mobile .stitch-refresh-button {
+  .stitch-refresh-control--mobile .stitch-refresh-button {
     background: transparent;
     border: 0;
     cursor: pointer;
@@ -1298,10 +1347,14 @@ dd {
     text-transform: none;
   }
 
-  .stitch-refresh-form--mobile .stitch-refresh-button:hover {
+  .stitch-refresh-control--mobile .stitch-refresh-button:hover {
     background: transparent;
     color: var(--on-surface);
     transform: none;
+  }
+
+  .stitch-refresh-control--mobile .stitch-refresh-status {
+    display: none;
   }
 
   .stitch-mobile-venue-menu {
