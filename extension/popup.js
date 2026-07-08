@@ -217,7 +217,7 @@ function savedPayloadStatus(payload, syncStatus) {
   const age = formatAge(payload);
   const shareHint = syncStatus?.ok
     ? "View Availability and Copy Share Link are ready."
-    : "Use Refresh Selected or Read Current Page to update the share page.";
+    : "Tick venues above and use Refresh Selected, or use Read Current Page to update the share page.";
   const timeText = age || exportedAt ? ` Last read ${age || exportedAt}.` : "";
   return `Showing saved ${sourceLabel(payload)} result.${timeText} ${shareHint}`;
 }
@@ -405,7 +405,7 @@ async function loadSavedPayload() {
 
   if (!response.payload) {
     renderEmpty(
-      `No saved ${venueDisplayName(selectedVenue()) || "venue"} result yet. Use Refresh Selected, or open a schedule tab and use Read Current Page.`
+      `No saved ${venueDisplayName(selectedVenue()) || "venue"} result yet. Tick venues above and use Refresh Selected, or open a schedule tab and use Read Current Page.`
     );
     await refreshVenueStatusList();
     return false;
