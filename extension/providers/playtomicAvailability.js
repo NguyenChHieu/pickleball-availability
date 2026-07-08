@@ -198,6 +198,7 @@
           .filter(Boolean)
       );
       const openIntervals = mergeOpenIntervals(rawSlots);
+      const hasCourtLabels = rawSlots.some((slot) => String(slot.court_name || slot.resource_id || "").trim());
 
       days.push({
         source_url: window.location.href,
@@ -208,6 +209,7 @@
         booking_action_url: bookingUrl,
         open_intervals: openIntervals,
         same_court_intervals: sameCourtIntervals(rawSlots),
+        continuity_status: hasCourtLabels ? "available" : "not_exposed",
         remaining_hours: remainingHours(openIntervals),
         raw_slots: rawSlots,
       });

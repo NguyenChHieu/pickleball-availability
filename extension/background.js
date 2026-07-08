@@ -27,6 +27,7 @@ const PENDING_REFRESH_KEY = "pendingVenueRefreshes";
 const REFRESH_JOB_KEY = "activeRefreshJob";
 const REFRESH_HISTORY_KEY = "refreshJobHistory";
 const MAX_REFRESH_HISTORY = 5;
+const MAX_PARALLEL_REFRESHES = 3;
 const PENDING_REFRESH_TTL_MS = 5 * 60 * 1000;
 const PENDING_REFRESH_RETRY_MS = 8000;
 
@@ -549,6 +550,7 @@ async function recordRefreshJob(job) {
     id: job.id,
     label: job.label || "",
     scanMode: job.scanMode || "fast",
+    parallelLimit: Number(job.parallelLimit || 1),
     status: job.status || "failed",
     total: Number(job.total || job.venueIds?.length || 0),
     completed: Number(job.completed || 0),
@@ -585,11 +587,13 @@ function normalizeRefreshJobVenues(venueIds) {
 function makeRefreshJob({ venueIds, scanMode = "fast", label = "" }) {
   const normalizedVenueIds = normalizeRefreshJobVenues(venueIds);
   const now = new Date().toISOString();
+  const parallelLimit = scanMode === "deep" ? 1 : Math.min(MAX_PARALLEL_REFRESHES, normalizedVenueIds.length);
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     status: "queued",
     label,
     scanMode,
+    parallelLimit,
     venueIds: normalizedVenueIds,
     total: normalizedVenueIds.length,
     completed: 0,
@@ -647,10 +651,42 @@ async function refreshVenueForJob(venueId, scanMode) {
   }
 }
 
+async function runRefreshJobInParallel(job, results) {
+  let nextIndex = 0;
+  let latestJob = job;
+  let progressUpdate = Promise.resolve();
+  const workerCount = Math.min(Number(job.parallelLimit || MAX_PARALLEL_REFRESHES), job.venueIds.length);
+
+  async function saveProgress() {
+    progressUpdate = progressUpdate.then(async () => {
+      latestJob = await updateRefreshJob(latestJob, {
+        completed: results.length,
+        results: [...results],
+      });
+    });
+    await progressUpdate;
+  }
+
+  async function worker() {
+    while (nextIndex < job.venueIds.length) {
+      const venueId = job.venueIds[nextIndex];
+      nextIndex += 1;
+
+      const result = await refreshVenueForJob(venueId, job.scanMode);
+      results.push(result);
+      results.sort((left, right) => job.venueIds.indexOf(left.venueId) - job.venueIds.indexOf(right.venueId));
+      await saveProgress();
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return latestJob;
+}
+
 async function runRefreshJob(initialJob) {
   let job = await updateRefreshJob(initialJob, { status: "running" });
   const results = [];
-  const isParallelRefresh = job.scanMode === "cache-first" && job.venueIds.length > 1;
+  const isParallelRefresh = Number(job.parallelLimit || 1) > 1 && job.venueIds.length > 1;
 
   if (isParallelRefresh) {
     job = await updateRefreshJob(job, {
@@ -660,17 +696,7 @@ async function runRefreshJob(initialJob) {
       results,
     });
 
-    await Promise.all(
-      job.venueIds.map(async (venueId) => {
-        const result = await refreshVenueForJob(venueId, job.scanMode);
-        results.push(result);
-        results.sort((left, right) => job.venueIds.indexOf(left.venueId) - job.venueIds.indexOf(right.venueId));
-        job = await updateRefreshJob(job, {
-          completed: results.length,
-          results: [...results],
-        });
-      })
-    );
+    job = await runRefreshJobInParallel(job, results);
   } else {
     for (const venueId of job.venueIds) {
       const venue = AvailabilityRegistry.getVenue(venueId);
