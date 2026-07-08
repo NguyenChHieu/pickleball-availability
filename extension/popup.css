@@ -185,6 +185,13 @@ button:disabled {
   margin: 0;
 }
 
+.section-hint {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  margin: -2px 0 8px;
+}
+
 .summary-pill {
   background: #edf7f0;
   border: 1px solid #cae9d3;
@@ -216,7 +223,7 @@ button:disabled {
   border-radius: 8px;
   display: grid;
   gap: 6px;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   min-height: 58px;
   padding: 8px;
 }
@@ -226,12 +233,52 @@ button:disabled {
   box-shadow: inset 3px 0 0 var(--brand);
 }
 
+.venue-status-check {
+  accent-color: var(--brand);
+  cursor: pointer;
+  height: 16px;
+  margin: 0;
+  width: 16px;
+}
+
+.venue-status-check:disabled {
+  cursor: wait;
+}
+
+.venue-status-body {
+  min-width: 0;
+}
+
 .venue-status-name {
   font-size: 13px;
   font-weight: 800;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.venue-status-view {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  color: inherit;
+  display: block;
+  font: inherit;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.venue-status-view:not(:disabled):hover {
+  box-shadow: none;
+  color: var(--brand-dark);
+  text-decoration: underline;
+  transform: none;
 }
 
 .venue-status-meta {
@@ -675,10 +722,12 @@ button:disabled {
   }
 
   .venue-status {
-    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .venue-status-badge {
+    grid-column: 2;
     justify-self: start;
   }
 }

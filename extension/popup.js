@@ -40,6 +40,8 @@ let refreshJobPollTimer = null;
 let refreshAllConfirmUntil = 0;
 let refreshAllConfirmTimer = null;
 let refreshHistory = [];
+let refreshSelection = new Set();
+let savedSummaryCounts = { saved: 0, total: 0 };
 
 function setStatus(message) {
   statusElement.textContent = message;
@@ -72,6 +74,7 @@ function setBusy(value) {
   venueSelect.disabled = nextBusy;
   syncLoader(nextBusy);
   syncActions();
+  syncRefreshSelectionUi();
 }
 
 function formatExportTime(payload) {
@@ -143,6 +146,43 @@ function isVenueStale(payload, venue) {
 
 function selectedVenue() {
   return venues.find((venue) => venue.id === selectedVenueId) || venues[0] || null;
+}
+
+function validVenueIds() {
+  return venues.map((venue) => venue.id);
+}
+
+function normalizeRefreshSelection({ ensureDefault = false } = {}) {
+  const validIds = validVenueIds();
+  refreshSelection = new Set([...refreshSelection].filter((venueId) => validIds.includes(venueId)));
+  if (ensureDefault && !refreshSelection.size && selectedVenueId) refreshSelection.add(selectedVenueId);
+}
+
+function selectedRefreshVenueIds() {
+  normalizeRefreshSelection();
+  return [...refreshSelection];
+}
+
+function syncRefreshSelectionUi() {
+  const selectedIds = selectedRefreshVenueIds();
+  const count = selectedIds.length;
+  refreshVenueButton.textContent = count > 1 ? `Refresh ${count} selected` : "Refresh selected";
+  refreshVenueButton.title = count
+    ? count > 1
+      ? `Refresh ${count} checked venues.`
+      : "Refresh the checked venue."
+    : "Tick at least one venue above.";
+  refreshVenueButton.disabled = isBusy || !count;
+
+  for (const checkbox of venueStatusListElement.querySelectorAll(".venue-status-check")) {
+    checkbox.checked = refreshSelection.has(checkbox.value);
+    checkbox.disabled = isBusy;
+  }
+}
+
+function setSavedSummary(savedCount = savedSummaryCounts.saved, totalCount = savedSummaryCounts.total) {
+  savedSummaryCounts = { saved: savedCount, total: totalCount };
+  savedSummaryElement.textContent = `${savedCount}/${totalCount} saved · ${refreshSelection.size} selected`;
 }
 
 function venueDisplayName(venue) {
@@ -307,7 +347,8 @@ async function refreshVenueStatusList() {
   const summaries = await Promise.all(venues.map((venue) => loadVenueSummary(venue)));
   const savedCount = summaries.filter((summary) => summary.payload).length;
   const staleCount = summaries.filter((summary) => isVenueStale(summary.payload, summary.venue)).length;
-  savedSummaryElement.textContent = `${savedCount}/${summaries.length} saved`;
+  normalizeRefreshSelection({ ensureDefault: true });
+  setSavedSummary(savedCount, summaries.length);
   refreshStaleButton.disabled = isBusy || staleCount === 0;
   refreshStaleButton.title =
     staleCount === 0
@@ -320,10 +361,25 @@ async function refreshVenueStatusList() {
       const item = document.createElement("li");
       item.className = `venue-status${venue.id === selectedVenueId ? " is-selected" : ""}`;
 
+      const checkbox = document.createElement("input");
+      checkbox.className = "venue-status-check";
+      checkbox.type = "checkbox";
+      checkbox.value = venue.id;
+      checkbox.checked = refreshSelection.has(venue.id);
+      checkbox.disabled = isBusy;
+      checkbox.title = `Include ${venueDisplayName(venue)} in Refresh selected.`;
+      checkbox.setAttribute("aria-label", `Include ${venueDisplayName(venue)} in Refresh selected`);
+
       const body = document.createElement("div");
+      body.className = "venue-status-body";
       const name = document.createElement("div");
       name.className = "venue-status-name";
-      name.textContent = venueDisplayName(venue);
+      const nameButton = document.createElement("button");
+      nameButton.className = "venue-status-view";
+      nameButton.type = "button";
+      nameButton.dataset.venueId = venue.id;
+      nameButton.textContent = venueDisplayName(venue);
+      name.append(nameButton);
       const meta = document.createElement("div");
       meta.className = "venue-status-meta";
       meta.textContent = savedVenueMeta(payload, venue, lastRefresh);
@@ -333,10 +389,11 @@ async function refreshVenueStatusList() {
       badgeElement.className = `venue-status-badge ${badge.className}`.trim();
       badgeElement.textContent = badge.text;
 
-      item.append(body, badgeElement);
+      item.append(checkbox, body, badgeElement);
       return item;
     })
   );
+  syncRefreshSelectionUi();
 }
 
 async function loadSavedPayload() {
@@ -612,10 +669,16 @@ async function refreshStaleVenues() {
 }
 
 async function refreshVenue() {
+  const venueIds = selectedRefreshVenueIds();
+  if (!venueIds.length) {
+    setStatus("Tick at least one venue in Saved results before refreshing.");
+    syncRefreshSelectionUi();
+    return;
+  }
   await startRefreshJob({
-    venueIds: [selectedVenueId],
+    venueIds,
     scanMode: "fast",
-    label: "Refresh selected",
+    label: venueIds.length > 1 ? `Refresh ${venueIds.length} selected` : "Refresh selected",
   });
 }
 
@@ -754,6 +817,7 @@ async function init() {
 
   venues = response.venues || [];
   selectedVenueId = response.selectedVenueId || AvailabilityRegistry.DEFAULT_VENUE_ID;
+  refreshSelection = new Set(selectedVenueId ? [selectedVenueId] : []);
   populateVenues();
   await loadRefreshHistory();
   await refreshVenueStatusList();
@@ -763,6 +827,22 @@ async function init() {
 
 venueSelect.addEventListener("change", () => {
   selectVenue(venueSelect.value).catch((error) => setStatus(error?.message || String(error)));
+});
+venueStatusListElement.addEventListener("change", (event) => {
+  const target = event.target;
+  if (!target?.classList?.contains("venue-status-check")) return;
+  if (target.checked) {
+    refreshSelection.add(target.value);
+  } else {
+    refreshSelection.delete(target.value);
+  }
+  syncRefreshSelectionUi();
+  setSavedSummary();
+});
+venueStatusListElement.addEventListener("click", (event) => {
+  const button = event.target?.closest?.(".venue-status-view");
+  if (!button?.dataset?.venueId || button.dataset.venueId === selectedVenueId) return;
+  selectVenue(button.dataset.venueId).catch((error) => setStatus(error?.message || String(error)));
 });
 refreshVenueButton.addEventListener("click", () => refreshVenue());
 refreshStaleButton.addEventListener("click", () => refreshStaleVenues());
