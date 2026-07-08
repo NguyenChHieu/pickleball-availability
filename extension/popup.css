@@ -171,6 +171,10 @@ button:disabled {
   grid-template-columns: 1fr 1fr;
 }
 
+.saved-panel .toolbar {
+  margin-top: 8px;
+}
+
 .section-title {
   align-items: center;
   display: flex;
