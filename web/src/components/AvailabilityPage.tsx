@@ -1,4 +1,5 @@
 import { DayCard } from "@/components/DayCard";
+import { VenueMenu } from "@/components/VenueMenu";
 import type { PublicAvailability, PublicAvailabilityReady } from "@/lib/publicAvailability";
 import { getVenueTheme, shareVenueLinks, type ShareVenueLink } from "@/lib/venues";
 import type { VenueTheme } from "@/lib/themes";
@@ -167,12 +168,13 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
           <div className="stitch-topbar__actions" aria-label="Share page status">
             <nav className="stitch-nav" aria-label="Primary">
               {venueLinks.length ? (
-                <details className="stitch-venue-menu">
-                  <summary>Venues ({venueLinks.length})</summary>
-                  <div className="stitch-venue-menu__panel">
-                    <VenueLinkList links={venueLinks} />
-                  </div>
-                </details>
+                <VenueMenu
+                  className="stitch-venue-menu"
+                  panelClassName="stitch-venue-menu__panel"
+                  summary={`Venues (${venueLinks.length})`}
+                >
+                  <VenueLinkList links={venueLinks} />
+                </VenueMenu>
               ) : (
                 <span>Venues</span>
               )}
@@ -271,15 +273,18 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
 
       <nav className="stitch-mobile-nav" aria-label="Mobile">
         {venueLinks.length ? (
-          <details className="stitch-mobile-venue-menu">
-            <summary>
+          <VenueMenu
+            className="stitch-mobile-venue-menu"
+            panelClassName="stitch-mobile-venue-menu__panel"
+            summary={
+              <>
               <span className="stitch-nav-icon stitch-nav-icon--courts" aria-hidden="true" />
               <span>Venues</span>
-            </summary>
-            <div className="stitch-mobile-venue-menu__panel">
-              <VenueLinkList links={venueLinks} />
-            </div>
-          </details>
+              </>
+            }
+          >
+            <VenueLinkList links={venueLinks} />
+          </VenueMenu>
         ) : null}
         <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
           <span className="stitch-nav-icon stitch-nav-icon--booking" aria-hidden="true" />

@@ -37,6 +37,8 @@ let latestPayload = null;
 let latestSyncStatus = null;
 let isBusy = false;
 let refreshJobPollTimer = null;
+let refreshAllConfirmUntil = 0;
+let refreshAllConfirmTimer = null;
 
 function setStatus(message) {
   statusElement.textContent = message;
@@ -60,6 +62,7 @@ function setBusy(value) {
   if (isBusy === nextBusy) return;
 
   isBusy = nextBusy;
+  if (nextBusy) resetRefreshAllConfirm();
   refreshVenueButton.disabled = nextBusy;
   refreshStaleButton.disabled = nextBusy;
   refreshAllButton.disabled = nextBusy;
@@ -591,6 +594,7 @@ async function refreshVenue() {
 
 async function refreshAllVenues() {
   if (!confirmRefreshAll()) return;
+  resetRefreshAllConfirm();
   await startRefreshJob({
     venueIds: venues.map((venue) => venue.id),
     scanMode: "cache-first",
@@ -694,9 +698,27 @@ function confirmDeepScan() {
 }
 
 function confirmRefreshAll() {
-  return window.confirm(
-    "Refresh all may open multiple booking tabs and slow venues can take a while. Recent cached results may be reused, and last saved results stay visible. Continue?"
+  const now = Date.now();
+  if (now < refreshAllConfirmUntil) return true;
+
+  refreshAllConfirmUntil = now + 5000;
+  refreshAllButton.classList.add("is-confirming");
+  refreshAllButton.textContent = "Confirm Refresh all";
+  setStatus(
+    "Refresh all may open multiple booking tabs and slow venues can take a while. Click Confirm Refresh all within 5 seconds to continue."
   );
+
+  if (refreshAllConfirmTimer) clearTimeout(refreshAllConfirmTimer);
+  refreshAllConfirmTimer = setTimeout(resetRefreshAllConfirm, 5000);
+  return false;
+}
+
+function resetRefreshAllConfirm() {
+  refreshAllConfirmUntil = 0;
+  if (refreshAllConfirmTimer) clearTimeout(refreshAllConfirmTimer);
+  refreshAllConfirmTimer = null;
+  refreshAllButton.classList.remove("is-confirming");
+  refreshAllButton.textContent = "Refresh all";
 }
 
 async function init() {

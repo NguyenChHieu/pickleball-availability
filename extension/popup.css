@@ -40,6 +40,27 @@ body {
   width: 430px;
 }
 
+body,
+body * {
+  scrollbar-color: var(--brand) #dbe9ef;
+  scrollbar-width: thin;
+}
+
+body *::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+body *::-webkit-scrollbar-track {
+  background: #dbe9ef;
+  border-radius: 999px;
+}
+
+body *::-webkit-scrollbar-thumb {
+  background: var(--brand);
+  border-radius: 999px;
+}
+
 .shell {
   display: grid;
   gap: 12px;
@@ -123,6 +144,11 @@ button.tertiary:not(:disabled):hover {
   box-shadow: none;
   text-decoration: underline;
   transform: none;
+}
+
+button.is-confirming {
+  color: #b42318;
+  font-weight: 900;
 }
 
 button:disabled {

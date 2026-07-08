@@ -138,6 +138,26 @@ dd {
   padding-bottom: 128px;
 }
 
+.stitch-page,
+.stitch-page * {
+  scrollbar-color: var(--accent-blue) var(--surface-container-high);
+  scrollbar-width: thin;
+}
+
+.stitch-page *::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.stitch-page *::-webkit-scrollbar-track {
+  background: var(--surface-container-high);
+}
+
+.stitch-page *::-webkit-scrollbar-thumb {
+  background: var(--accent-blue);
+  border: 2px solid var(--surface-container-high);
+}
+
 .stitch-page::before {
   background-image:
     linear-gradient(90deg, rgb(var(--accent-blue-rgb) / 8%) 1px, transparent 1px),
@@ -1463,6 +1483,26 @@ dd {
   font-family: var(--font-body);
   min-height: 100vh;
   overflow-x: clip;
+}
+
+.home-shell,
+.home-shell * {
+  scrollbar-color: var(--home-primary) var(--home-surface-alt);
+  scrollbar-width: thin;
+}
+
+.home-shell *::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.home-shell *::-webkit-scrollbar-track {
+  background: var(--home-surface-alt);
+}
+
+.home-shell *::-webkit-scrollbar-thumb {
+  background: var(--home-primary);
+  border: 2px solid var(--home-surface-alt);
 }
 
 .home-shell[data-theme="dark"] {
