@@ -120,6 +120,10 @@ function formatElapsed(startIso, finishIso) {
   return formatDuration(finishedAt - startedAt);
 }
 
+function formatLiveElapsed(startIso) {
+  return formatElapsed(startIso, new Date().toISOString());
+}
+
 function payloadAgeMs(payload) {
   const exportedAt = new Date(payload?.exported_at || "").getTime();
   return Number.isNaN(exportedAt) ? Infinity : Date.now() - exportedAt;
@@ -352,7 +356,13 @@ function jobStatusMessage(job) {
   const prefix = job.scanMode === "deep" ? "Deep scan" : job.label || "Refresh";
 
   if (isActiveJob(job)) {
-    return `${prefix} running: ${completed}/${total}${current ? ` - ${current}` : ""}. Last saved results stay available.`;
+    const elapsed = formatLiveElapsed(job.startedAt);
+    const results = Array.isArray(job.results) ? job.results : [];
+    const lastFinished = results[results.length - 1];
+    const lastTiming = lastFinished ? resultTimingLabel(lastFinished) : "";
+    return `${prefix} running: ${completed}/${total}${current ? ` - ${current}` : ""}${
+      elapsed ? ` (${elapsed})` : ""
+    }. Last saved results stay available.${lastTiming ? `\nLast finished: ${lastTiming}` : ""}`;
   }
 
   const results = Array.isArray(job.results) ? job.results : [];
@@ -396,6 +406,32 @@ function jobCounts(job) {
   };
 }
 
+function resultTimingLabel(result) {
+  const duration = formatDuration(result?.durationMs);
+  return duration ? `${result.venueName || result.venueId}: ${duration}` : "";
+}
+
+function resultTimingSummary(results, limit = 3) {
+  const timings = (Array.isArray(results) ? results : [])
+    .map((result) => resultTimingLabel(result))
+    .filter(Boolean);
+  if (!timings.length) return "";
+  const shown = timings.slice(0, limit).join(" / ");
+  const hidden = timings.length - limit;
+  return hidden > 0 ? `${shown} / +${hidden} more` : shown;
+}
+
+function slowestResultSummary(job) {
+  const results = Array.isArray(job?.results) ? job.results : [];
+  const slowest = results.reduce((current, result) => {
+    const currentMs = Number(current?.durationMs || 0);
+    const nextMs = Number(result?.durationMs || 0);
+    return nextMs > currentMs ? result : current;
+  }, null);
+  const label = resultTimingLabel(slowest);
+  return label ? `slowest ${label}` : "";
+}
+
 function historyBadge(job) {
   if (job.status === "completed") return { text: "ok", className: "is-ok" };
   if (job.status === "completed_with_issues") return { text: "issues", className: "is-warning" };
@@ -416,10 +452,19 @@ function historyMeta(job) {
   if (counts.setupRequired) pieces.push(`${counts.setupRequired} setup`);
   if (counts.cacheHits) pieces.push(`${counts.cacheHits} cached`);
   const elapsed = formatElapsed(job.startedAt, job.finishedAt);
+  const slowest = slowestResultSummary(job);
   const age = formatIsoAge(job.finishedAt);
   if (elapsed) pieces.push(elapsed);
+  if (slowest) pieces.push(slowest);
   if (age) pieces.push(age);
   return pieces.join(" / ") || "No details";
+}
+
+function historyDetails(job) {
+  const timings = resultTimingSummary(job?.results, 4);
+  if (timings) return `Timings: ${timings}`;
+  if (job?.error) return job.error;
+  return "";
 }
 
 function renderRefreshHistory(history) {
@@ -437,7 +482,11 @@ function renderRefreshHistory(history) {
       const meta = document.createElement("div");
       meta.className = "refresh-history-meta";
       meta.textContent = historyMeta(job);
-      body.append(title, meta);
+      const details = document.createElement("div");
+      details.className = "refresh-history-details";
+      details.textContent = historyDetails(job);
+      details.hidden = !details.textContent;
+      body.append(title, meta, details);
 
       const badgeElement = document.createElement("span");
       badgeElement.className = `refresh-history-badge ${badge.className}`;
@@ -541,6 +590,7 @@ async function refreshVenue() {
 }
 
 async function refreshAllVenues() {
+  if (!confirmRefreshAll()) return;
   await startRefreshJob({
     venueIds: venues.map((venue) => venue.id),
     scanMode: "cache-first",
@@ -640,6 +690,12 @@ async function selectVenue(venueId) {
 function confirmDeepScan() {
   return window.confirm(
     "Deep scan checks each court/provider and can take several minutes for North Ryde. It is read-only, but slower than normal refresh. Continue?"
+  );
+}
+
+function confirmRefreshAll() {
+  return window.confirm(
+    "Refresh all may open multiple booking tabs and slow venues can take a while. Recent cached results may be reused, and last saved results stay visible. Continue?"
   );
 }
 

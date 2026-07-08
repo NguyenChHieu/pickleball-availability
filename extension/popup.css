@@ -579,6 +579,13 @@ button:disabled {
   margin-top: 2px;
 }
 
+.refresh-history-details {
+  color: #40515b;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
 .refresh-history-badge {
   background: #eef5f7;
   border-radius: 999px;
