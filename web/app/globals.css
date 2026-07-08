@@ -1891,7 +1891,8 @@ dd {
 .home-preview__header span,
 .home-slot-row > span,
 .home-band span,
-.home-venue span {
+.home-venue span,
+.home-venue small {
   font-family: var(--font-data);
   font-size: 11px;
   font-weight: 800;
@@ -1912,11 +1913,26 @@ dd {
 }
 
 .home-preview__header > span,
-.home-venue span {
+.home-venue-status {
   background: var(--home-lime);
   border-radius: 999px;
   color: #172000;
   padding: 7px 10px;
+}
+
+.home-venue-status--fresh {
+  background: var(--home-lime);
+  color: #172000;
+}
+
+.home-venue-status--stale {
+  background: color-mix(in srgb, #f5b642 74%, var(--home-surface));
+  color: #2d1d00;
+}
+
+.home-venue-status--empty {
+  background: var(--home-surface-alt);
+  color: var(--home-muted);
 }
 
 .home-slot-list {
@@ -2077,7 +2093,7 @@ dd {
 
 .home-venue {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   padding: 24px;
   transition:
     border-color 180ms ease,
@@ -2089,6 +2105,10 @@ dd {
   display: flex;
   gap: 16px;
   justify-content: space-between;
+}
+
+.home-venue small {
+  color: var(--home-primary);
 }
 
 .home-note {

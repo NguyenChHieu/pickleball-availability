@@ -8,9 +8,16 @@ import { venues } from "@/lib/venues";
 
 type HomeLandingProps = Readonly<{
   featuredSharePath?: string;
+  venueFreshness?: VenueFreshness[];
 }>;
 
 type ThemeMode = "light" | "dark";
+type VenueFreshness = Readonly<{
+  id: string;
+  label: string;
+  detail: string;
+  status: "fresh" | "stale" | "empty";
+}>;
 
 const THEME_STORAGE_KEY = "pbb-home-theme-v2";
 
@@ -41,13 +48,6 @@ const steps = [
   },
 ];
 
-const homeVenues = venues.map((venue) => ({
-  id: venue.id,
-  name: venue.name,
-  status: "Active",
-  detail: venue.summary,
-}));
-
 const venueCount = venues.length;
 
 function getInitialTheme(): ThemeMode {
@@ -59,9 +59,21 @@ function getInitialTheme(): ThemeMode {
   return "dark";
 }
 
-export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
+export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLandingProps) {
   const [theme, setTheme] = useState<ThemeMode>("dark");
   const hasFeaturedShare = Boolean(featuredSharePath);
+  const freshnessById = new Map(venueFreshness.map((item) => [item.id, item]));
+  const homeVenues = venues.map((venue) => ({
+    id: venue.id,
+    name: venue.name,
+    detail: venue.summary,
+    freshness: freshnessById.get(venue.id) || {
+      id: venue.id,
+      label: "No cache",
+      detail: "Refresh from extension",
+      status: "empty" as const,
+    },
+  }));
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -191,8 +203,11 @@ export function HomeLanding({ featuredSharePath }: HomeLandingProps) {
               <article className="home-venue" key={venue.id}>
                 <div>
                   <h3>{venue.name}</h3>
-                  <span>{venue.status}</span>
+                  <span className={`home-venue-status home-venue-status--${venue.freshness.status}`}>
+                    {venue.freshness.label}
+                  </span>
                 </div>
+                <small>{venue.freshness.detail}</small>
                 <p>{venue.detail}</p>
               </article>
             ))}
