@@ -49,6 +49,7 @@
     if (result?.status === "failed") {
       return result.message || "Refresh failed.";
     }
+    if (job && !isActiveJob(job)) return "Refresh finished without updating this venue. Try again.";
     if (job?.currentVenueName) return `Refreshing ${job.currentVenueName}...`;
     return "Refreshing availability...";
   }
@@ -62,10 +63,12 @@
 
       const job = response.job;
       if (!isActiveJob(job)) {
+        const result = resultForVenue(job, venueId);
+        const phase = result?.status === "success" || result?.status === "setup_required" ? "done" : "error";
         postStatus(requestId, {
-          phase: "done",
+          phase,
           jobStatus: job?.status || "unknown",
-          result: resultForVenue(job, venueId),
+          result,
           message: statusMessage(job, venueId),
         });
         return;
@@ -102,6 +105,10 @@
       });
 
       if (!response?.ok) throw new Error(response?.error || "Could not start venue refresh.");
+      const jobVenueIds = Array.isArray(response.job?.venueIds) ? response.job.venueIds : [];
+      if (response.alreadyRunning && !jobVenueIds.includes(venueId)) {
+        throw new Error("Another venue refresh is already running. Try again when it finishes.");
+      }
 
       postStatus(requestId, {
         phase: "running",

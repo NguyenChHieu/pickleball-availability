@@ -94,10 +94,9 @@ export function ShareRefreshButton({
       setMessage(nextMessage);
 
       if (nextPhase === "done") {
-        const needsSetup = data.result?.status === "setup_required" || data.result?.pendingRefresh;
-        const syncFailed = data.result?.status === "success" && data.result?.syncOk === false;
+        const shouldReload = data.result?.status === "success" && data.result?.syncOk !== false;
         doneTimeoutRef.current = setTimeout(() => {
-          if (!needsSetup && !syncFailed) router.refresh();
+          if (shouldReload) router.refresh();
         }, 350);
       }
     }
