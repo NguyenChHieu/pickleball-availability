@@ -255,9 +255,24 @@ button:disabled {
   color: var(--ok);
 }
 
+.venue-status-badge.is-cached {
+  background: #edf4ff;
+  color: #2563eb;
+}
+
 .venue-status-badge.is-stale {
   background: #fff8e4;
   color: var(--warn);
+}
+
+.venue-status-badge.is-warning {
+  background: #fff8e4;
+  color: var(--warn);
+}
+
+.venue-status-badge.is-error {
+  background: #fdecec;
+  color: #b42318;
 }
 
 .target-field {

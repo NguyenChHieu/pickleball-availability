@@ -39,6 +39,7 @@ let isBusy = false;
 let refreshJobPollTimer = null;
 let refreshAllConfirmUntil = 0;
 let refreshAllConfirmTimer = null;
+let refreshHistory = [];
 
 function setStatus(message) {
   statusElement.textContent = message;
@@ -194,8 +195,9 @@ function scanLabel(payload, venue) {
   return "";
 }
 
-function savedVenueMeta(payload, venue) {
-  if (!payload) return "No saved result";
+function savedVenueMeta(payload, venue, lastRefresh = null) {
+  const refreshMeta = refreshResultMeta(lastRefresh);
+  if (!payload) return refreshMeta ? `No saved result / ${refreshMeta}` : "No saved result";
 
   const parts = [];
   const age = formatAge(payload);
@@ -204,14 +206,37 @@ function savedVenueMeta(payload, venue) {
   if (age) parts.push(age);
   if (dayCount) parts.push(`${dayCount} day${dayCount === 1 ? "" : "s"}`);
   if (scan) parts.push(scan);
+  if (refreshMeta) parts.push(refreshMeta);
   return parts.join(" / ") || "Saved";
 }
 
-function venueBadge(payload, syncStatus, venue) {
+function venueBadge(payload, syncStatus, venue, lastRefresh = null) {
+  if (lastRefresh?.status === "failed") return { text: "failed", className: "is-error" };
+  if (lastRefresh?.status === "setup_required") return { text: "setup", className: "is-warning" };
   if (!payload) return { text: "empty", className: "" };
   if (isVenueStale(payload, venue)) return { text: "stale", className: "is-stale" };
+  if (lastRefresh?.status === "success" && lastRefresh.cacheHit) return { text: "cached", className: "is-cached" };
   if (syncStatus?.ok) return { text: "synced", className: "is-synced" };
   return { text: "saved", className: "" };
+}
+
+function latestRefreshForVenue(venueId) {
+  for (const job of refreshHistory) {
+    const result = (Array.isArray(job?.results) ? job.results : []).find((item) => item.venueId === venueId);
+    if (result) return result;
+  }
+  return null;
+}
+
+function refreshResultMeta(result) {
+  if (!result) return "";
+  const duration = formatDuration(result.durationMs);
+  const suffix = duration ? ` ${duration}` : "";
+  if (result.status === "success" && result.cacheHit) return `cached${suffix}`;
+  if (result.status === "success") return `last refresh ok${suffix}`;
+  if (result.status === "setup_required") return `setup needed${suffix}`;
+  if (result.status === "failed") return `last refresh failed${suffix}`;
+  return "";
 }
 
 function savedFallbackStatus(action, error) {
@@ -290,7 +315,8 @@ async function refreshVenueStatusList() {
       : `Refresh ${staleCount} venue${staleCount === 1 ? "" : "s"} with missing or stale saved results.`;
   venueStatusListElement.replaceChildren(
     ...summaries.map(({ venue, payload, syncStatus }) => {
-      const badge = venueBadge(payload, syncStatus, venue);
+      const lastRefresh = latestRefreshForVenue(venue.id);
+      const badge = venueBadge(payload, syncStatus, venue, lastRefresh);
       const item = document.createElement("li");
       item.className = `venue-status${venue.id === selectedVenueId ? " is-selected" : ""}`;
 
@@ -300,7 +326,7 @@ async function refreshVenueStatusList() {
       name.textContent = venueDisplayName(venue);
       const meta = document.createElement("div");
       meta.className = "venue-status-meta";
-      meta.textContent = savedVenueMeta(payload, venue);
+      meta.textContent = savedVenueMeta(payload, venue, lastRefresh);
       body.append(name, meta);
 
       const badgeElement = document.createElement("span");
@@ -505,7 +531,8 @@ function renderRefreshHistory(history) {
 async function loadRefreshHistory() {
   const response = await sendMessage({ type: MESSAGE.GET_REFRESH_HISTORY });
   if (!response?.ok) throw new Error(response?.error || "Could not load refresh history.");
-  renderRefreshHistory(response.history || []);
+  refreshHistory = Array.isArray(response.history) ? response.history : [];
+  renderRefreshHistory(refreshHistory);
 }
 
 async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {
@@ -728,9 +755,9 @@ async function init() {
   venues = response.venues || [];
   selectedVenueId = response.selectedVenueId || AvailabilityRegistry.DEFAULT_VENUE_ID;
   populateVenues();
+  await loadRefreshHistory();
   await refreshVenueStatusList();
   await loadSavedPayload();
-  await loadRefreshHistory();
   await loadRefreshJobStatus({ silentWhenInactive: true });
 }
 
