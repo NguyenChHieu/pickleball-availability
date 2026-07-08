@@ -186,6 +186,7 @@ dd {
 .stitch-topbar__inner {
   align-items: center;
   display: flex;
+  gap: 24px;
   height: 64px;
   justify-content: space-between;
   margin: 0 auto;
@@ -197,6 +198,7 @@ dd {
 .stitch-brand {
   align-items: center;
   display: inline-flex;
+  flex: 1 1 auto;
   gap: 8px;
   min-width: 0;
   text-decoration: none;
@@ -261,13 +263,14 @@ dd {
 .stitch-topbar__actions {
   align-items: center;
   display: flex;
+  flex: 0 0 auto;
   gap: 16px;
 }
 
 .stitch-nav {
   align-items: center;
   display: flex;
-  gap: 16px;
+  gap: clamp(10px, 1.4vw, 16px);
 }
 
 .stitch-nav a,
@@ -1062,6 +1065,21 @@ dd {
 
 .stitch-mobile-nav {
   display: none;
+}
+
+@media (max-width: 1440px) {
+  .stitch-topbar__inner {
+    gap: 16px;
+  }
+
+  .stitch-brand__product {
+    display: none;
+  }
+
+  .stitch-nav .stitch-refresh-button {
+    min-width: auto;
+    padding: 0 14px;
+  }
 }
 
 .stitch-footer {

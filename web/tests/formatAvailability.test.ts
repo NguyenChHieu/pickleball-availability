@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatDay } from "../src/server/formatAvailability.ts";
+import { answerForMessage, formatDay } from "../src/server/formatAvailability.ts";
 
 test("formatDay keeps any-court intervals separate from same-court runs", () => {
   const summary = formatDay({
@@ -56,4 +56,41 @@ test("formatDay shows no open intervals without inventing court detail", () => {
   });
 
   assert.equal(summary, "Wednesday, July 08: no open intervals");
+});
+
+test("answerForMessage resolves current venue ids for text summaries", () => {
+  const payloads = {
+    "house-of-pickle-darling-harbour": {
+      venue_name: "House of Pickle DH",
+      days: [{ date: "Thursday, July 09", open_intervals: [{ start_time: "12:00", end_time: "13:00" }] }],
+    },
+    "sydney-racquet-club": {
+      venue_name: "Sydney Racquet Club",
+      days: [{ date: "Friday, July 10", open_intervals: [{ start_time: "14:00", end_time: "15:00" }] }],
+    },
+    "wotso-pyrmont": {
+      venue_name: "WOTSO Pickleball Pyrmont",
+      days: [{ date: "Saturday, July 11", open_intervals: [{ start_time: "16:00", end_time: "17:00" }] }],
+    },
+  };
+
+  assert.match(answerForMessage("house of pickle availability", payloads), /House of Pickle DH availability/);
+  assert.match(answerForMessage("sydney racquet availability", payloads), /Sydney Racquet Club availability/);
+  assert.match(answerForMessage("wotso pyrmont availability", payloads), /WOTSO Pickleball Pyrmont availability/);
+});
+
+test("answerForMessage keeps old venue id aliases for existing cached text payloads", () => {
+  const payloads = {
+    "houseofpickle-darlingharbour": {
+      venue_name: "Old House Cache",
+      days: [{ date: "Sunday, July 12", open_intervals: [{ start_time: "10:00", end_time: "11:00" }] }],
+    },
+    sydneyracquet: {
+      venue_name: "Old Sydney Cache",
+      days: [{ date: "Monday, July 13", open_intervals: [{ start_time: "08:00", end_time: "09:00" }] }],
+    },
+  };
+
+  assert.match(answerForMessage("darling harbour", payloads), /Old House Cache availability/);
+  assert.match(answerForMessage("playtomic", payloads), /Old Sydney Cache availability/);
 });

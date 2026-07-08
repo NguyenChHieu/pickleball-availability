@@ -27,6 +27,7 @@
 - `docs/`: project learning notes and Messenger bot research.
 - `.planning/`: GSD project, requirements, roadmap, and phase notes.
 - `.ai/`: local agent router, project context, worklog, playbooks, and workflow notes.
+- `.ai/playbooks/extension-qa.md`: manual and automated QA checklist for extension refresh, popup, and share-page refresh changes.
 
 ## Commands
 
@@ -42,6 +43,10 @@
 | check extension | `node --check extension\background.js` | Repeat for listed extension scripts after changes. |
 | validate manifest | `python -m json.tool extension\manifest.json` | MV3 manifest JSON validity. |
 | format | none | No formatter script is configured. |
+
+On this Windows checkout, `npm.cmd --prefix web run build` can fail with `EPERM` while writing
+`web/.next/trace*`. If the same source has passed lint/typecheck and the build fails only on that trace
+write, rerun the same build with approved filesystem access before treating it as a code failure.
 
 Useful extension checks:
 
@@ -91,6 +96,8 @@ python -m json.tool extension\manifest.json
 - Logged-out Playbypoint pages can show day buttons while hiding time slots; treat this as setup-required, not no availability.
 - Popup should show saved data on open and refresh only when the user clicks refresh/read.
 - Normal multi-venue refresh should prefer stale-only or cache-first paths; deep provider/court scans stay explicit because North Ryde can be slow.
+- Extension refresh changes need manual QA after reloading the unpacked extension: tick venues, run Refresh Selected, verify recent refresh history, then open the share page.
+- Share-page header/nav changes need long-name visual QA around laptop/tablet widths such as 1440, 1366, 1200, 967, 768, and mobile.
 - Share page reads cached availability only; it must not trigger scraping.
 - Future venues should be added through venue/provider/theme configuration before inventing a new scraper flow.
 - House of Pickle DH uses a conservative DOM-first PodPlay reader; it reads visible booking rows only and should not create Firebase anonymous identities or call booking/cart APIs.

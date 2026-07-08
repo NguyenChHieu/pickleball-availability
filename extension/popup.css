@@ -151,6 +151,14 @@ button.is-confirming {
   font-weight: 900;
 }
 
+button.tertiary.is-confirming {
+  background: #fdecec;
+  border: 1px solid #f4b4ae;
+  border-radius: 8px;
+  padding: 4px 8px;
+  text-decoration: none;
+}
+
 button:disabled {
   cursor: wait;
   opacity: 0.6;

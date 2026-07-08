@@ -2,6 +2,17 @@ import type { AvailabilityPayload, AvailabilityPayloadDay } from "./availability
 
 type PayloadsByVenue = Record<string, AvailabilityPayload | null | undefined>;
 
+const HELP_TEXT =
+  "Ask me: availability propickle, broadway, north ryde, sydney racquet, house of pickle, or wotso";
+
+function payloadForVenue(payloadsByVenue: PayloadsByVenue, ...venueIds: string[]) {
+  for (const venueId of venueIds) {
+    const payload = payloadsByVenue[venueId];
+    if (payload) return payload;
+  }
+  return null;
+}
+
 export function formatDateTime(value: unknown) {
   if (!value) return "";
   const date = new Date(String(value));
@@ -92,7 +103,7 @@ export function formatAvailability(payload: AvailabilityPayload | null | undefin
 
 export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue) {
   const normalized = String(text || "").toLowerCase();
-  if (!normalized.trim()) return "Ask me: availability propickle, broadway, north ryde, sydney racquet, or house of pickle";
+  if (!normalized.trim()) return HELP_TEXT;
 
   const wantsBroadway = normalized.includes("broadway");
   const wantsNorthRyde = normalized.includes("north ryde") || normalized.includes("northryde");
@@ -105,6 +116,10 @@ export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue
     normalized.includes("sydney racquet") ||
     normalized.includes("racquet club") ||
     normalized.includes("playtomic");
+  const wantsWotso =
+    normalized.includes("wotso") ||
+    normalized.includes("pyrmont") ||
+    normalized.includes("hamlet");
   const wantsProPickle =
     normalized.includes("propickle") ||
     normalized.includes("pro pickle") ||
@@ -113,11 +128,18 @@ export function answerForMessage(text: unknown, payloadsByVenue: PayloadsByVenue
 
   if (wantsBroadway) return formatAvailability(payloadsByVenue.broadway);
   if (wantsNorthRyde) return formatAvailability(payloadsByVenue.northryde);
-  if (wantsHouseOfPickle) return formatAvailability(payloadsByVenue["houseofpickle-darlingharbour"]);
-  if (wantsSydneyRacquet) return formatAvailability(payloadsByVenue.sydneyracquet);
+  if (wantsHouseOfPickle) {
+    return formatAvailability(
+      payloadForVenue(payloadsByVenue, "house-of-pickle-darling-harbour", "houseofpickle-darlingharbour")
+    );
+  }
+  if (wantsSydneyRacquet) {
+    return formatAvailability(payloadForVenue(payloadsByVenue, "sydney-racquet-club", "sydneyracquet"));
+  }
+  if (wantsWotso) return formatAvailability(payloadsByVenue["wotso-pyrmont"]);
   if (wantsProPickle || normalized.includes("availability") || normalized.includes("available")) {
     return formatAvailability(payloadsByVenue.propickle);
   }
 
-  return "Ask me: availability propickle, broadway, north ryde, sydney racquet, or house of pickle";
+  return HELP_TEXT;
 }
