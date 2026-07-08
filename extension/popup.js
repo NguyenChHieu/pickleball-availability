@@ -440,6 +440,8 @@ function jobStatusMessage(job) {
   const completed = Number(job.completed || 0);
   const current = job.currentVenueName ? ` ${job.currentVenueName}` : "";
   const prefix = job.scanMode === "deep" ? "Deep scan" : job.label || "Refresh";
+  const parallelLimit = Number(job.parallelLimit || 1);
+  const parallelNote = parallelLimit > 1 ? ` Up to ${parallelLimit} venues run at once.` : "";
 
   if (isActiveJob(job)) {
     const elapsed = formatLiveElapsed(job.startedAt);
@@ -448,7 +450,7 @@ function jobStatusMessage(job) {
     const lastTiming = lastFinished ? resultTimingLabel(lastFinished) : "";
     return `${prefix} running: ${completed}/${total}${current ? ` - ${current}` : ""}${
       elapsed ? ` (${elapsed})` : ""
-    }. Last saved results stay available.${lastTiming ? `\nLast finished: ${lastTiming}` : ""}`;
+    }.${parallelNote} Last saved results stay available.${lastTiming ? `\nLast finished: ${lastTiming}` : ""}`;
   }
 
   const results = Array.isArray(job.results) ? job.results : [];
@@ -532,11 +534,13 @@ function historyTitle(job) {
 function historyMeta(job) {
   const counts = jobCounts(job);
   const total = Number(job.total || 0);
+  const parallelLimit = Number(job.parallelLimit || 1);
   const pieces = [];
   if (counts.succeeded) pieces.push(`${counts.succeeded}/${total || counts.succeeded} ok`);
   if (counts.failed) pieces.push(`${counts.failed} failed`);
   if (counts.setupRequired) pieces.push(`${counts.setupRequired} setup`);
   if (counts.cacheHits) pieces.push(`${counts.cacheHits} cached`);
+  if (parallelLimit > 1) pieces.push(`${parallelLimit} at once`);
   const elapsed = formatElapsed(job.startedAt, job.finishedAt);
   const slowest = slowestResultSummary(job);
   const age = formatIsoAge(job.finishedAt);

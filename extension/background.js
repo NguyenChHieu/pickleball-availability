@@ -550,6 +550,7 @@ async function recordRefreshJob(job) {
     id: job.id,
     label: job.label || "",
     scanMode: job.scanMode || "fast",
+    parallelLimit: Number(job.parallelLimit || 1),
     status: job.status || "failed",
     total: Number(job.total || job.venueIds?.length || 0),
     completed: Number(job.completed || 0),
@@ -586,11 +587,13 @@ function normalizeRefreshJobVenues(venueIds) {
 function makeRefreshJob({ venueIds, scanMode = "fast", label = "" }) {
   const normalizedVenueIds = normalizeRefreshJobVenues(venueIds);
   const now = new Date().toISOString();
+  const parallelLimit = scanMode === "deep" ? 1 : Math.min(MAX_PARALLEL_REFRESHES, normalizedVenueIds.length);
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     status: "queued",
     label,
     scanMode,
+    parallelLimit,
     venueIds: normalizedVenueIds,
     total: normalizedVenueIds.length,
     completed: 0,
@@ -652,7 +655,7 @@ async function runRefreshJobInParallel(job, results) {
   let nextIndex = 0;
   let latestJob = job;
   let progressUpdate = Promise.resolve();
-  const workerCount = Math.min(MAX_PARALLEL_REFRESHES, job.venueIds.length);
+  const workerCount = Math.min(Number(job.parallelLimit || MAX_PARALLEL_REFRESHES), job.venueIds.length);
 
   async function saveProgress() {
     progressUpdate = progressUpdate.then(async () => {
@@ -683,7 +686,7 @@ async function runRefreshJobInParallel(job, results) {
 async function runRefreshJob(initialJob) {
   let job = await updateRefreshJob(initialJob, { status: "running" });
   const results = [];
-  const isParallelRefresh = job.scanMode !== "deep" && job.venueIds.length > 1;
+  const isParallelRefresh = Number(job.parallelLimit || 1) > 1 && job.venueIds.length > 1;
 
   if (isParallelRefresh) {
     job = await updateRefreshJob(job, {
