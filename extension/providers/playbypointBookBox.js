@@ -422,10 +422,13 @@
 
   const selectedDetailLabel = (root, title = "") => {
     const details = detailButtons(root, title);
-    const selected = details.find(({ button }) => selectedOption(button, { allowPrimary: false }));
-    if (selected?.label) return selected.label;
+    const selectedDetails = details.filter(({ button }) => selectedOption(button, { allowPrimary: false }));
+    if (selectedDetails.length === 1) return selectedDetails[0].label;
 
-    const primaryDetails = details.filter(({ button }) => optionStateElement(button).classList.contains("primary"));
+    const primaryDetails = details.filter(
+      ({ button }) =>
+        optionStateElement(button).classList.contains("primary") && !selectedOption(button, { allowPrimary: false })
+    );
     return primaryDetails.length === 1 ? primaryDetails[0].label : "";
   };
 

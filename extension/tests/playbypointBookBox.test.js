@@ -402,6 +402,14 @@ test("Playbypoint reader does not treat generic primary detail styling as select
   );
 });
 
+test("Playbypoint reader does not treat generic active detail styling as selected", async () => {
+  const payload = await installFakeBookBox(createBookBox({ detailClasses: ["active"] }), { scanMode: "deep" });
+  const day = payload.days[0];
+
+  assert.deepEqual(day.same_court_intervals, []);
+  assert.equal(day.continuity_status, "not_exposed");
+});
+
 test("Playbypoint reader accepts primary detail styling when it is unique to the selected court", async () => {
   const payload = await installFakeBookBox(createBookBox({ detailPrimaryWhenSelected: true }), { scanMode: "deep" });
   const day = payload.days[0];
