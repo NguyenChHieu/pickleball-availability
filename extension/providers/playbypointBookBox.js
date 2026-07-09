@@ -317,6 +317,35 @@
     return label;
   };
 
+  const detailOptionStateElement = (button) => button.closest?.(".ButtonOption, button, [role='button']") || button;
+
+  const hasUnavailableState = (button) => {
+    const stateElement = detailOptionStateElement(button);
+    const text = normalizeWhitespace(stateElement.innerText || stateElement.textContent || "").toLowerCase();
+    const className = String(stateElement.className || "").toLowerCase();
+    const style = window.getComputedStyle(stateElement);
+    return (
+      stateElement.disabled ||
+      stateElement.getAttribute("disabled") !== null ||
+      stateElement.getAttribute("aria-disabled") === "true" ||
+      stateElement.getAttribute("data-disabled") === "true" ||
+      stateElement.getAttribute("data-status") === "disabled" ||
+      style.pointerEvents === "none" ||
+      Number(style.opacity) > 0 && Number(style.opacity) <= 0.55 ||
+      /\b(red|disabled|inactive|unavailable|booked|full|soldout|sold-out)\b/.test(className) ||
+      /\b(full|booked|sold out|unavailable)\b/.test(text)
+    );
+  };
+
+  const detailAvailabilityFingerprint = (root) => {
+    const detailSection = sectionForHeader(root, "Select Detail");
+    if (!detailSection) return "";
+    return Array.from(detailSection.querySelectorAll(".ButtonOption, button, [role='button']"))
+      .filter(isVisible)
+      .map((button) => `${detailOptionLabel(button)}:${hasUnavailableState(button) ? "off" : "on"}`)
+      .join("|");
+  };
+
   const courtNamesForSelectedTime = (root, title) => {
     const detailSection = sectionForHeader(root, "Select Detail");
     if (!detailSection) return [];
@@ -325,7 +354,7 @@
     const names = new Set();
     for (const button of Array.from(detailSection.querySelectorAll(".ButtonOption, button, [role='button']"))) {
       if (!isVisible(button)) continue;
-      if (button.classList.contains("red") || button.disabled) continue;
+      if (hasUnavailableState(button)) continue;
       const label = detailOptionLabel(button);
       if (!label || label.toLowerCase() === typeLabel) continue;
       names.add(label);
@@ -374,13 +403,19 @@
         continue;
       }
 
-      const beforeDetail = detailFingerprint(bookBoxRoot() || root);
+      const beforeRoot = bookBoxRoot() || root;
+      const beforeDetail = detailFingerprint(beforeRoot);
+      const beforeAvailability = detailAvailabilityFingerprint(beforeRoot);
       button.click();
       await waitUntil(() => {
         const currentRoot = bookBoxRoot() || root;
-        return selectedOption(button) || detailFingerprint(currentRoot) !== beforeDetail;
-      }, 900);
-      await wait(150);
+        return (
+          selectedOption(button) ||
+          detailFingerprint(currentRoot) !== beforeDetail ||
+          detailAvailabilityFingerprint(currentRoot) !== beforeAvailability
+        );
+      }, 1400);
+      await wait(350);
       const courtNames = courtNamesForSelectedTime(bookBoxRoot() || root, title);
       if (!courtNames.length) {
         slots.push(baseSlot);
