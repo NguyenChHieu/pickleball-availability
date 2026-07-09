@@ -406,6 +406,31 @@ test("Playbypoint reader can confirm a preselected court by moving away and rese
   );
 });
 
+test("Playbypoint reader rejects a preselected court when no alternate can confirm selection movement", async () => {
+  const payload = await installFakeBookBox(
+    createBookBox({
+      clearCourtOnTime: false,
+      detailOrder: ["Court 4", "Court 1", "Court 2", "Court 3", "Court 5", "Court 6"],
+      availability: {
+        "9pm-10pm": new Set(["Court 4"]),
+        "10pm-11pm": new Set([]),
+      },
+    }),
+    { scanMode: "deep" }
+  );
+  const day = payload.days[0];
+
+  assert.equal(
+    day.probe_debug.find(
+      (probe) => probe.start_time === "10pm" && probe.end_time === "11pm" && probe.court_name === "Court 4"
+    )?.reason,
+    "stale_preselected"
+  );
+  assert.deepEqual(day.same_court_intervals, [
+    { court_name: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+  ]);
+});
+
 test("Playbypoint reader does not treat generic primary detail styling as selected", async () => {
   const payload = await installFakeBookBox(createBookBox({ detailClasses: ["primary"] }), { scanMode: "deep" });
   const day = payload.days[0];
