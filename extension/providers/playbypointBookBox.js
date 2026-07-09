@@ -199,12 +199,22 @@
     return loadedRoot;
   };
 
-  const selectedType = (root) => {
+  const sectionForHeader = (root, headerText) => {
     const headers = Array.from(root.querySelectorAll("h2"));
-    const selectTypeHeader = headers.find(
-      (header) => normalizeWhitespace(header.innerText).toLowerCase() === "select type"
+    const header = headers.find(
+      (candidate) => normalizeWhitespace(candidate.innerText).toLowerCase() === headerText.toLowerCase()
     );
-    const container = selectTypeHeader?.closest(".mb20");
+    return (
+      header?.closest(".mb20") ||
+      header?.closest(".StepperItem") ||
+      header?.closest("section") ||
+      header?.parentElement ||
+      null
+    );
+  };
+
+  const selectedType = (root) => {
+    const container = sectionForHeader(root, "Select Type");
     return normalizeWhitespace(container?.querySelector(".ButtonOption.primary")?.innerText || "Court booking");
   };
 
@@ -270,19 +280,119 @@
     }));
   };
 
-  const extractSlotsForLoadedDay = (root, date, title) => {
+  const sameCourtIntervals = (slots) => {
+    const byCourt = new Map();
+    for (const slot of slots) {
+      const courtName = normalizeWhitespace(slot.court_name || "");
+      if (!courtName) continue;
+      byCourt.set(courtName, [...(byCourt.get(courtName) || []), slot]);
+    }
+
+    return Array.from(byCourt.entries())
+      .map(([courtName, courtSlots]) => ({
+        court_name: courtName,
+        intervals: mergeOpenIntervals(courtSlots),
+      }))
+      .filter((group) => group.intervals.length);
+  };
+
+  const stripPrice = (value) =>
+    normalizeWhitespace(value)
+      .replace(/\bA?\$\s*\d+(?:\.\d{2})?\b/gi, "")
+      .replace(/\b\d+(?:\.\d{2})?\s*aud\b/gi, "")
+      .replace(/\s+-\s*$/g, "")
+      .trim();
+
+  const detailOptionLabel = (button) => {
+    const explicit =
+      button.getAttribute("data-resource-name") ||
+      button.getAttribute("data-court-name") ||
+      button.getAttribute("aria-label") ||
+      button.getAttribute("title") ||
+      "";
+    const label = stripPrice(explicit || button.innerText || button.textContent || "");
+    if (!label) return "";
+    if (normalizeTimeRange(label)) return "";
+    if (/^(next|continue|login|log in|sign in)$/i.test(label)) return "";
+    return label;
+  };
+
+  const courtNamesForSelectedTime = (root, title) => {
+    const detailSection = sectionForHeader(root, "Select Detail");
+    if (!detailSection) return [];
+
+    const typeLabel = normalizeWhitespace(title).toLowerCase();
+    const names = new Set();
+    for (const button of Array.from(detailSection.querySelectorAll(".ButtonOption, button, [role='button']"))) {
+      if (!isVisible(button)) continue;
+      if (button.classList.contains("red") || button.disabled) continue;
+      const label = detailOptionLabel(button);
+      if (!label || label.toLowerCase() === typeLabel) continue;
+      names.add(label);
+    }
+    return Array.from(names);
+  };
+
+  const detailFingerprint = (root) => {
+    const detailSection = sectionForHeader(root, "Select Detail");
+    return normalizeWhitespace(detailSection?.innerText || detailSection?.textContent || "");
+  };
+
+  const selectedOption = (button) =>
+    button.classList.contains("primary") ||
+    button.classList.contains("selected") ||
+    button.getAttribute("aria-pressed") === "true" ||
+    button.getAttribute("aria-selected") === "true";
+
+  const extractTimeButtons = (root) =>
+    Array.from(root.querySelectorAll(".ButtonOption"))
+      .map((button) => {
+        const text = normalizeWhitespace(button.innerText);
+        const timeRange = text.includes("-") && /\d/.test(text) ? normalizeTimeRange(text) : null;
+        if (!timeRange) return null;
+        return {
+          button,
+          text,
+          timeRange,
+          status: button.classList.contains("red") || button.disabled ? "full" : "open",
+        };
+      })
+      .filter(Boolean);
+
+  const extractSlotsForLoadedDay = async (root, date, title) => {
     const slots = [];
-    for (const button of Array.from(root.querySelectorAll(".ButtonOption"))) {
-      const text = normalizeWhitespace(button.innerText);
-      if (!text.includes("-") || !/\d/.test(text)) continue;
-      const timeRange = normalizeTimeRange(text);
-      if (!timeRange) continue;
-      slots.push({
+    for (const { button, timeRange, status } of extractTimeButtons(root)) {
+      const baseSlot = {
         title,
         date,
         ...timeRange,
-        status: button.classList.contains("red") || button.disabled ? "full" : "open",
-      });
+        status,
+      };
+
+      if (status !== "open") {
+        slots.push(baseSlot);
+        continue;
+      }
+
+      const beforeDetail = detailFingerprint(bookBoxRoot() || root);
+      button.click();
+      await waitUntil(() => {
+        const currentRoot = bookBoxRoot() || root;
+        return selectedOption(button) || detailFingerprint(currentRoot) !== beforeDetail;
+      }, 900);
+      await wait(150);
+      const courtNames = courtNamesForSelectedTime(bookBoxRoot() || root, title);
+      if (!courtNames.length) {
+        slots.push(baseSlot);
+        continue;
+      }
+
+      for (const courtName of courtNames) {
+        slots.push({
+          ...baseSlot,
+          court_name: courtName,
+        });
+      }
     }
     return slots;
   };
@@ -319,8 +429,10 @@
       const loadedRoot = await clickDayAndWait(targetDate);
       const currentDate = selectedDateText(loadedRoot) || targetDate;
       const title = selectedType(loadedRoot);
-      const slots = extractSlotsForLoadedDay(loadedRoot, currentDate, title);
+      const slots = await extractSlotsForLoadedDay(loadedRoot, currentDate, title);
       const openIntervals = mergeOpenIntervals(slots);
+      const courtIntervals = sameCourtIntervals(slots);
+      const hasCourtLabels = slots.some((slot) => normalizeWhitespace(slot.court_name || ""));
 
       results.push({
         source_url: window.location.href,
@@ -328,8 +440,8 @@
         date: currentDate,
         booking_date: currentDate,
         open_intervals: openIntervals,
-        same_court_intervals: [],
-        continuity_status: "not_exposed",
+        same_court_intervals: courtIntervals,
+        continuity_status: hasCourtLabels ? "available" : "not_exposed",
         remaining_hours: remainingHours(openIntervals),
         raw_slots: slots,
       });
