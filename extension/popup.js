@@ -848,7 +848,7 @@ async function selectVenue(venueId) {
 
 function confirmDeepScan() {
   return window.confirm(
-    "Deep scan checks each court/provider and can take a while on slow venues. Keep the booking tab visible if possible. It is read-only, but slower than normal refresh. Continue?"
+    "Deep scan checks each court/provider and can take a while on slow venues. The booking tab will be focused so Chrome does not throttle the read. It is read-only, but slower than normal refresh. Continue?"
   );
 }
 

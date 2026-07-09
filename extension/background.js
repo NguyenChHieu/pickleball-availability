@@ -419,6 +419,7 @@ async function continuePendingRefresh(tabId, _reason) {
       return null;
     }
 
+    if (session.scanMode === "deep") await activateTab(Number(tabId));
     await wait(300);
     const payload = await readTab(Number(tabId), readVenue);
     const syncStatus = await saveVenuePayload(venue.id, payload);
@@ -465,6 +466,7 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
   const { tab, closeWhenDone } = await tabForVenue(readVenue);
 
   try {
+    if (scanMode === "deep") await activateTab(tab.id);
     await waitForTabComplete(tab.id);
     await wait(1200);
     const payload = await readTab(tab.id, readVenue);
