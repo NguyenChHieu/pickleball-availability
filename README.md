@@ -123,7 +123,7 @@ node scripts/propickle-probes.js data/propickle.json "Thursday, July 16"
 node scripts/propickle-probes.js data/propickle.json "Thursday, July 16" --assert-target
 ```
 
-From the extension popup, open **More actions** and use **Copy probe summary** after refreshing ProPickle.
+From the extension popup, open **More actions** and use **Copy probe summary** after refreshing ProPickle. For July 16 payloads, the copied summary includes a target split PASS/FAIL line.
 
 Known starting point:
 
