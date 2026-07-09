@@ -306,18 +306,141 @@
           button,
           text,
           timeRange,
-          status: button.classList.contains("red") || button.disabled ? "full" : "open",
+          status: unavailableOption(button) ? "full" : "open",
         };
       })
       .filter(Boolean);
 
-  const extractSlotsForLoadedDay = (root, date, title) =>
-    extractTimeButtons(root).map(({ timeRange, status }) => ({
+  const stripPrice = (value) =>
+    normalizeWhitespace(value)
+      .replace(/\bA?\$\s*\d+(?:\.\d{2})?\b/gi, "")
+      .replace(/\b\d+(?:\.\d{2})?\s*aud\b/gi, "")
+      .replace(/\s+-\s*$/g, "")
+      .trim();
+
+  const optionText = (button) => normalizeWhitespace(button.innerText || button.textContent || "");
+
+  const optionLabel = (button) => {
+    const explicit =
+      button.getAttribute("data-resource-name") ||
+      button.getAttribute("data-court-name") ||
+      button.getAttribute("aria-label") ||
+      button.getAttribute("title") ||
+      "";
+    const label = stripPrice(explicit || optionText(button));
+    if (!label) return "";
+    if (normalizeTimeRange(label)) return "";
+    if (/^(next|continue|login|log in|sign in)$/i.test(label)) return "";
+    return label;
+  };
+
+  const optionStateElement = (button) => button.closest?.(".ButtonOption, button, [role='button']") || button;
+
+  const unavailableOption = (button) => {
+    const stateElement = optionStateElement(button);
+    const style = window.getComputedStyle(stateElement);
+    const className = String(stateElement.className || "").toLowerCase();
+    const text = optionText(stateElement).toLowerCase();
+    return (
+      stateElement.disabled ||
+      stateElement.getAttribute("disabled") !== null ||
+      stateElement.getAttribute("aria-disabled") === "true" ||
+      stateElement.getAttribute("data-disabled") === "true" ||
+      stateElement.getAttribute("data-status") === "disabled" ||
+      stateElement.classList.contains("red") ||
+      style.pointerEvents === "none" ||
+      (Number(style.opacity) > 0 && Number(style.opacity) <= 0.55) ||
+      /\b(disabled|inactive|unavailable|booked|full|soldout|sold-out)\b/.test(className) ||
+      /\b(full|booked|sold out|unavailable)\b/.test(text)
+    );
+  };
+
+  const selectedOption = (button) => {
+    const stateElement = optionStateElement(button);
+    return (
+      stateElement.classList.contains("primary") ||
+      stateElement.classList.contains("selected") ||
+      stateElement.classList.contains("active") ||
+      stateElement.getAttribute("aria-pressed") === "true" ||
+      stateElement.getAttribute("aria-selected") === "true"
+    );
+  };
+
+  const detailButtons = (root, title = "") => {
+    const detailSection = sectionForHeader(root, "Select Detail");
+    if (!detailSection) return [];
+    const typeLabel = normalizeWhitespace(title).toLowerCase();
+    return Array.from(detailSection.querySelectorAll(".ButtonOption, button, [role='button']"))
+      .filter(isVisible)
+      .map((button) => ({ button, label: optionLabel(button) }))
+      .filter((item) => item.label && item.label.toLowerCase() !== typeLabel);
+  };
+
+  const selectedDetailLabel = (root, title = "") => {
+    const selected = detailButtons(root, title).find(({ button }) => selectedOption(button));
+    return selected?.label || "";
+  };
+
+  const nextButtonReady = (root) => {
+    const nextButton = Array.from(root.querySelectorAll("button, [role='button']"))
+      .filter(isVisible)
+      .find((button) => /^(next|continue)\b/i.test(optionText(button)));
+    if (!nextButton) return true;
+    return !unavailableOption(nextButton);
+  };
+
+  const acceptedDetailOption = async (root, title, option) => {
+    if (unavailableOption(option.button)) return false;
+
+    option.button.click();
+    await waitUntil(() => selectedDetailLabel(bookBoxRoot() || root, title) === option.label, 300, 50);
+    await wait(60);
+
+    const currentRoot = bookBoxRoot() || root;
+    return selectedDetailLabel(currentRoot, title) === option.label && nextButtonReady(currentRoot);
+  };
+
+  const courtSlotsForTime = async (root, title, timeButton, baseSlot) => {
+    timeButton.click();
+    await waitUntil(() => detailButtons(bookBoxRoot() || root, title).length > 0 || selectedOption(timeButton), 900, 50);
+    await wait(120);
+
+    const currentRoot = bookBoxRoot() || root;
+    const optionLabels = Array.from(new Set(detailButtons(currentRoot, title).map((option) => option.label)));
+    if (!optionLabels.length) return [baseSlot];
+
+    const slots = [];
+    for (const label of optionLabels) {
+      timeButton.click();
+      await wait(60);
+      const option = detailButtons(bookBoxRoot() || currentRoot, title).find((item) => item.label === label);
+      if (option && (await acceptedDetailOption(bookBoxRoot() || currentRoot, title, option))) {
+        slots.push({ ...baseSlot, court_name: label });
+      }
+    }
+
+    return slots.length ? slots : [baseSlot];
+  };
+
+  const extractSlotsForLoadedDay = async (root, date, title) => {
+    const slots = [];
+    for (const { button, timeRange, status } of extractTimeButtons(root)) {
+      const baseSlot = {
         title,
         date,
         ...timeRange,
         status,
-      }));
+      };
+
+      if (status !== "open") {
+        slots.push(baseSlot);
+        continue;
+      }
+
+      slots.push(...(await courtSlotsForTime(bookBoxRoot() || root, title, button, baseSlot)));
+    }
+    return slots;
+  };
 
   const remainingHours = (intervals) =>
     intervals.reduce(
