@@ -595,6 +595,17 @@
       const openIntervals = mergeOpenIntervals(slots);
       const courtIntervals = sameCourtIntervals(slots);
       const hasCourtLabels = slots.some((slot) => normalizeWhitespace(slot.court_name || ""));
+      const acceptedProbeKeys = new Set(
+        probes
+          .filter((probe) => probe.accepted)
+          .map((probe) => `${probe.start_time || ""}-${probe.end_time || ""}`)
+      );
+      const rejectedProbeKeys = new Set(
+        probes
+          .filter((probe) => !probe.accepted)
+          .map((probe) => `${probe.start_time || ""}-${probe.end_time || ""}`)
+      );
+      const hasUnverifiedOpenTime = Array.from(rejectedProbeKeys).some((key) => !acceptedProbeKeys.has(key));
 
       results.push({
         source_url: window.location.href,
@@ -603,7 +614,13 @@
         booking_date: currentDate,
         open_intervals: openIntervals,
         same_court_intervals: courtIntervals,
-        continuity_status: probeCourts ? (hasCourtLabels ? "available" : "not_exposed") : "not_scanned",
+        continuity_status: probeCourts
+          ? hasUnverifiedOpenTime
+            ? "partial"
+            : hasCourtLabels
+              ? "available"
+              : "not_exposed"
+          : "not_scanned",
         remaining_hours: remainingHours(openIntervals),
         raw_slots: slots,
         probe_debug: probes,

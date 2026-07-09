@@ -397,6 +397,7 @@ test("Playbypoint reader can confirm a preselected court by moving away and rese
   const day = payload.days[0];
   const court4 = day.same_court_intervals.find((group) => group.court_name === "Court 4");
 
+  assert.equal(day.continuity_status, "available");
   assert.deepEqual(court4?.intervals, [{ start_time: "9pm", end_time: "11pm" }]);
   assert.equal(
     day.probe_debug.find(
@@ -429,6 +430,7 @@ test("Playbypoint reader rejects a preselected court when no alternate can confi
   assert.deepEqual(day.same_court_intervals, [
     { court_name: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
   ]);
+  assert.equal(day.continuity_status, "partial");
 });
 
 test("Playbypoint reader does not treat generic primary detail styling as selected", async () => {
@@ -456,7 +458,7 @@ test("Playbypoint reader does not treat generic active detail styling as selecte
   const day = payload.days[0];
 
   assert.deepEqual(day.same_court_intervals, []);
-  assert.equal(day.continuity_status, "not_exposed");
+  assert.equal(day.continuity_status, "partial");
 });
 
 test("Playbypoint reader accepts primary detail styling when it is unique to the selected court", async () => {
