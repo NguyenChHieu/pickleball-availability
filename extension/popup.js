@@ -788,7 +788,11 @@ async function copyShareLink() {
 
 function probeSummary(payload = latestPayload) {
   const days = Array.isArray(payload?.days) ? payload.days : [];
-  const lines = [`${payload?.venue_name || "ProPickle"} probe summary`];
+  const lines = [
+    `${payload?.venue_name || "ProPickle"} probe summary`,
+    `venue_id: ${payload?.venue_id || selectedVenueId || "unknown"}`,
+    `exported_at: ${payload?.exported_at || "unknown"}`,
+  ];
 
   for (const day of days) {
     const probes = Array.isArray(day.probe_debug) ? day.probe_debug : [];
