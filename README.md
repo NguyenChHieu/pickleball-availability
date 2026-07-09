@@ -116,6 +116,12 @@ This extension targets venue-specific public/readable booking widgets through sm
 
 Some logged-out Playbypoint pages still render date buttons but hide times behind a login prompt. The reader treats those pages as setup-required so it does not sync a false empty result.
 
+To inspect ProPickle court probes from a saved payload or local cache record:
+
+```bash
+node scripts/propickle-probes.js data/propickle.json "Thursday, July 16"
+```
+
 Known starting point:
 
 ```text
