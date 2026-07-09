@@ -134,7 +134,11 @@ class FakeElement {
   }
 }
 
-function createBookBox({ clearCourtOnTime = true, selectInvalidCourt = false } = {}) {
+function createBookBox({
+  clearCourtOnTime = true,
+  selectInvalidCourt = false,
+  detailOrder = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"],
+} = {}) {
   const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
   const availability = {
     "9pm-10pm": new Set(["Court 4"]),
@@ -214,7 +218,7 @@ function createBookBox({ clearCourtOnTime = true, selectInvalidCourt = false } =
       classes: ["mb20"],
       children: [
         new FakeElement({ tag: "h2", text: "Select Detail" }),
-        ...["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"].map(
+        ...detailOrder.map(
           (court) =>
             new FakeElement({
               classes: ["ButtonOption"],
@@ -322,6 +326,39 @@ test("Playbypoint reader probes accepted court details per time before assigning
 test("Playbypoint reader does not reuse a stale selected court when the next time is clicked", async () => {
   const payload = await installFakeBookBox(createBookBox({ clearCourtOnTime: false }), { scanMode: "deep" });
   const day = payload.days[0];
+  const byCourt = day.same_court_intervals
+    .map((group) => ({ court: group.court_name, intervals: group.intervals }))
+    .sort((left, right) => left.court.localeCompare(right.court));
+
+  assert.deepEqual(
+    byCourt,
+    [
+      { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+    ]
+  );
+});
+
+test("Playbypoint reader rejects a court that was already selected before probing a new time", async () => {
+  const payload = await installFakeBookBox(
+    createBookBox({
+      clearCourtOnTime: false,
+      detailOrder: ["Court 4", "Court 1", "Court 2", "Court 3", "Court 5", "Court 6"],
+    }),
+    { scanMode: "deep" }
+  );
+  const day = payload.days[0];
+
+  assert.equal(
+    day.probe_debug.find(
+      (probe) => probe.start_time === "10pm" && probe.end_time === "11pm" && probe.court_name === "Court 4"
+    )?.reason,
+    "stale_preselected"
+  );
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
     .sort((left, right) => left.court.localeCompare(right.court));

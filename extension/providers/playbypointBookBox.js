@@ -444,6 +444,7 @@
       };
     }
 
+    const beforeSelected = selectedDetailLabel(bookBoxRoot() || root, title);
     option.button.click();
     await waitUntil(() => selectedDetailLabel(bookBoxRoot() || root, title) === option.label, 300, 50);
     await wait(60);
@@ -451,11 +452,18 @@
     const currentRoot = bookBoxRoot() || root;
     const selected = selectedDetailLabel(currentRoot, title) === option.label;
     const nextReady = nextButtonReady(currentRoot);
+    const stalePreselected = beforeSelected === option.label;
     return {
-      accepted: selected && nextReady,
+      accepted: selected && nextReady && !stalePreselected,
       selected,
       nextReady,
-      reason: selected && nextReady ? "accepted" : selected ? "next_blocked" : "not_selected",
+      reason: stalePreselected
+        ? "stale_preselected"
+        : selected && nextReady
+          ? "accepted"
+          : selected
+            ? "next_blocked"
+            : "not_selected",
       optionState: optionDebugState(option.button),
     };
   };
