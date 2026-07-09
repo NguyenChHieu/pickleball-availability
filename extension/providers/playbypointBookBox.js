@@ -296,83 +296,6 @@
       .filter((group) => group.intervals.length);
   };
 
-  const stripPrice = (value) =>
-    normalizeWhitespace(value)
-      .replace(/\bA?\$\s*\d+(?:\.\d{2})?\b/gi, "")
-      .replace(/\b\d+(?:\.\d{2})?\s*aud\b/gi, "")
-      .replace(/\s+-\s*$/g, "")
-      .trim();
-
-  const detailOptionLabel = (button) => {
-    const explicit =
-      button.getAttribute("data-resource-name") ||
-      button.getAttribute("data-court-name") ||
-      button.getAttribute("aria-label") ||
-      button.getAttribute("title") ||
-      "";
-    const label = stripPrice(explicit || button.innerText || button.textContent || "");
-    if (!label) return "";
-    if (normalizeTimeRange(label)) return "";
-    if (/^(next|continue|login|log in|sign in)$/i.test(label)) return "";
-    return label;
-  };
-
-  const detailOptionStateElement = (button) => button.closest?.(".ButtonOption, button, [role='button']") || button;
-
-  const hasUnavailableState = (button) => {
-    const stateElement = detailOptionStateElement(button);
-    const text = normalizeWhitespace(stateElement.innerText || stateElement.textContent || "").toLowerCase();
-    const className = String(stateElement.className || "").toLowerCase();
-    const style = window.getComputedStyle(stateElement);
-    return (
-      stateElement.disabled ||
-      stateElement.getAttribute("disabled") !== null ||
-      stateElement.getAttribute("aria-disabled") === "true" ||
-      stateElement.getAttribute("data-disabled") === "true" ||
-      stateElement.getAttribute("data-status") === "disabled" ||
-      style.pointerEvents === "none" ||
-      Number(style.opacity) > 0 && Number(style.opacity) <= 0.55 ||
-      /\b(red|disabled|inactive|unavailable|booked|full|soldout|sold-out)\b/.test(className) ||
-      /\b(full|booked|sold out|unavailable)\b/.test(text)
-    );
-  };
-
-  const detailAvailabilityFingerprint = (root) => {
-    const detailSection = sectionForHeader(root, "Select Detail");
-    if (!detailSection) return "";
-    return Array.from(detailSection.querySelectorAll(".ButtonOption, button, [role='button']"))
-      .filter(isVisible)
-      .map((button) => `${detailOptionLabel(button)}:${hasUnavailableState(button) ? "off" : "on"}`)
-      .join("|");
-  };
-
-  const courtNamesForSelectedTime = (root, title) => {
-    const detailSection = sectionForHeader(root, "Select Detail");
-    if (!detailSection) return [];
-
-    const typeLabel = normalizeWhitespace(title).toLowerCase();
-    const names = new Set();
-    for (const button of Array.from(detailSection.querySelectorAll(".ButtonOption, button, [role='button']"))) {
-      if (!isVisible(button)) continue;
-      if (hasUnavailableState(button)) continue;
-      const label = detailOptionLabel(button);
-      if (!label || label.toLowerCase() === typeLabel) continue;
-      names.add(label);
-    }
-    return Array.from(names);
-  };
-
-  const detailFingerprint = (root) => {
-    const detailSection = sectionForHeader(root, "Select Detail");
-    return normalizeWhitespace(detailSection?.innerText || detailSection?.textContent || "");
-  };
-
-  const selectedOption = (button) =>
-    button.classList.contains("primary") ||
-    button.classList.contains("selected") ||
-    button.getAttribute("aria-pressed") === "true" ||
-    button.getAttribute("aria-selected") === "true";
-
   const extractTimeButtons = (root) =>
     Array.from(root.querySelectorAll(".ButtonOption"))
       .map((button) => {
@@ -388,49 +311,13 @@
       })
       .filter(Boolean);
 
-  const extractSlotsForLoadedDay = async (root, date, title) => {
-    const slots = [];
-    for (const { button, timeRange, status } of extractTimeButtons(root)) {
-      const baseSlot = {
+  const extractSlotsForLoadedDay = (root, date, title) =>
+    extractTimeButtons(root).map(({ timeRange, status }) => ({
         title,
         date,
         ...timeRange,
         status,
-      };
-
-      if (status !== "open") {
-        slots.push(baseSlot);
-        continue;
-      }
-
-      const beforeRoot = bookBoxRoot() || root;
-      const beforeDetail = detailFingerprint(beforeRoot);
-      const beforeAvailability = detailAvailabilityFingerprint(beforeRoot);
-      button.click();
-      await waitUntil(() => {
-        const currentRoot = bookBoxRoot() || root;
-        return (
-          selectedOption(button) ||
-          detailFingerprint(currentRoot) !== beforeDetail ||
-          detailAvailabilityFingerprint(currentRoot) !== beforeAvailability
-        );
-      }, 1400);
-      await wait(350);
-      const courtNames = courtNamesForSelectedTime(bookBoxRoot() || root, title);
-      if (!courtNames.length) {
-        slots.push(baseSlot);
-        continue;
-      }
-
-      for (const courtName of courtNames) {
-        slots.push({
-          ...baseSlot,
-          court_name: courtName,
-        });
-      }
-    }
-    return slots;
-  };
+      }));
 
   const remainingHours = (intervals) =>
     intervals.reduce(
