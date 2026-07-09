@@ -6,6 +6,7 @@ const deepScanVenueButton = document.querySelector("#deepScanVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
 const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton");
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
+const copyProbeSummaryButton = document.querySelector("#copyProbeSummaryButton");
 const venueStatusListElement = document.querySelector("#venueStatusList");
 const savedSummaryElement = document.querySelector("#savedSummary");
 const loaderElement = document.querySelector("#loader");
@@ -56,6 +57,14 @@ function syncDeepScanButton() {
   deepScanVenueButton.hidden = !isDeepScanVenue;
 }
 
+function hasProbeDebug(payload = latestPayload) {
+  return Boolean(payload?.days?.some((day) => Array.isArray(day.probe_debug) && day.probe_debug.length));
+}
+
+function syncProbeSummaryButton() {
+  copyProbeSummaryButton.hidden = !hasProbeDebug();
+}
+
 function syncLoader(value) {
   loaderElement.hidden = !value;
 }
@@ -70,10 +79,12 @@ function setBusy(value) {
   refreshStaleButton.disabled = nextBusy;
   refreshAllButton.disabled = nextBusy;
   deepScanVenueButton.disabled = nextBusy;
+  copyProbeSummaryButton.disabled = nextBusy;
   readCurrentPageButton.disabled = nextBusy;
   venueSelect.disabled = nextBusy;
   syncLoader(nextBusy);
   syncActions();
+  syncProbeSummaryButton();
   syncRefreshSelectionUi();
 }
 
@@ -289,6 +300,7 @@ function renderEmpty(message) {
   latestPayload = null;
   latestSyncStatus = null;
   syncActions();
+  syncProbeSummaryButton();
   setStatus(message);
 }
 
@@ -296,6 +308,7 @@ function rememberPayload(payload, syncStatus = null) {
   latestPayload = payload;
   latestSyncStatus = syncStatus;
   syncActions();
+  syncProbeSummaryButton();
 }
 
 function syncStatusKey(venueId) {
@@ -773,6 +786,50 @@ async function copyShareLink() {
   }
 }
 
+function probeSummary(payload = latestPayload) {
+  const days = Array.isArray(payload?.days) ? payload.days : [];
+  const lines = [`${payload?.venue_name || "ProPickle"} probe summary`];
+
+  for (const day of days) {
+    const probes = Array.isArray(day.probe_debug) ? day.probe_debug : [];
+    if (!probes.length) continue;
+
+    lines.push("", day.date || "Unknown date");
+    const groups = new Map();
+    for (const probe of probes) {
+      const key = `${probe.start_time || "?"}-${probe.end_time || "?"}`;
+      groups.set(key, [...(groups.get(key) || []), probe]);
+    }
+
+    for (const [time, timeProbes] of groups.entries()) {
+      const accepted = timeProbes
+        .filter((probe) => probe.accepted)
+        .map((probe) => probe.court_name || "?");
+      const rejected = timeProbes
+        .filter((probe) => !probe.accepted)
+        .map((probe) => `${probe.court_name || "?"} (${probe.reason || "rejected"})`);
+      lines.push(`  ${time}`);
+      lines.push(`    accepted: ${accepted.length ? accepted.join(", ") : "none"}`);
+      lines.push(`    rejected: ${rejected.length ? rejected.join(", ") : "none"}`);
+    }
+  }
+
+  return lines.join("\n").trim();
+}
+
+async function copyProbeSummary() {
+  try {
+    if (!hasProbeDebug()) {
+      setStatus("No ProPickle probe diagnostics saved yet. Refresh ProPickle first.");
+      return;
+    }
+    await navigator.clipboard.writeText(probeSummary());
+    setStatus("Copied probe summary.");
+  } catch (error) {
+    setStatus(error?.message || String(error));
+  }
+}
+
 async function selectVenue(venueId) {
   const response = await sendMessage({
     type: MESSAGE.SET_SELECTED_VENUE,
@@ -855,6 +912,7 @@ deepScanVenueButton.addEventListener("click", () => deepScanVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
 viewAvailabilityButton.addEventListener("click", viewAvailability);
 copyShareLinkButton.addEventListener("click", copyShareLink);
+copyProbeSummaryButton.addEventListener("click", copyProbeSummary);
 
 init().catch((error) => {
   setBusy(false);

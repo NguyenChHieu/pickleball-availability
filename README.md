@@ -122,6 +122,8 @@ To inspect ProPickle court probes from a saved payload or local cache record:
 node scripts/propickle-probes.js data/propickle.json "Thursday, July 16"
 ```
 
+From the extension popup, open **More actions** and use **Copy probe summary** after refreshing ProPickle.
+
 Known starting point:
 
 ```text
