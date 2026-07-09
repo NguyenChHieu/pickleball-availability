@@ -451,15 +451,33 @@
       };
     }
 
+    const targetLabel = option.label;
     const beforeSelected = selectedDetailLabel(bookBoxRoot() || root, title);
-    option.button.click();
+    let movedAwayFromPreselected = beforeSelected !== targetLabel;
+
+    if (!movedAwayFromPreselected) {
+      const alternatives = detailButtons(bookBoxRoot() || root, title).filter(
+        (item) => item.label !== targetLabel && !unavailableOption(item.button)
+      );
+      for (const alternate of alternatives) {
+        alternate.button.click();
+        await waitUntil(() => selectedDetailLabel(bookBoxRoot() || root, title) !== targetLabel, 350, 50);
+        await wait(60);
+        movedAwayFromPreselected = selectedDetailLabel(bookBoxRoot() || root, title) !== targetLabel;
+        if (movedAwayFromPreselected) break;
+      }
+    }
+
+    const targetOption =
+      detailButtons(bookBoxRoot() || root, title).find((item) => item.label === targetLabel) || option;
+    targetOption.button.click();
     await waitUntil(() => selectedDetailLabel(bookBoxRoot() || root, title) === option.label, 300, 50);
     await wait(60);
 
     const currentRoot = bookBoxRoot() || root;
-    const selected = selectedDetailLabel(currentRoot, title) === option.label;
+    const selected = selectedDetailLabel(currentRoot, title) === targetLabel;
     const nextReady = nextButtonReady(currentRoot);
-    const stalePreselected = beforeSelected === option.label;
+    const stalePreselected = beforeSelected === targetLabel && !movedAwayFromPreselected;
     return {
       accepted: selected && nextReady && !stalePreselected,
       selected,

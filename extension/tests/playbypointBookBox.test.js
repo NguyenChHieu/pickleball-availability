@@ -143,12 +143,12 @@ function createBookBox({
   detailOrder = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"],
   detailClasses = [],
   detailPrimaryWhenSelected = false,
-} = {}) {
-  const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
-  const availability = {
+  availability = {
     "9pm-10pm": new Set(["Court 4"]),
     "10pm-11pm": new Set(["Court 1", "Court 2", "Court 3", "Court 5", "Court 6"]),
-  };
+  },
+} = {}) {
+  const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
 
   const root = new FakeElement({ kind: "bookbox" });
   const summary = new FakeElement({ classes: ["summary"] });
@@ -363,7 +363,7 @@ test("Playbypoint reader rejects a court that was already selected before probin
     day.probe_debug.find(
       (probe) => probe.start_time === "10pm" && probe.end_time === "11pm" && probe.court_name === "Court 4"
     )?.reason,
-    "stale_preselected"
+    "not_selected"
   );
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
@@ -379,6 +379,30 @@ test("Playbypoint reader rejects a court that was already selected before probin
       { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
     ]
+  );
+});
+
+test("Playbypoint reader can confirm a preselected court by moving away and reselecting it", async () => {
+  const payload = await installFakeBookBox(
+    createBookBox({
+      clearCourtOnTime: false,
+      detailOrder: ["Court 4", "Court 1", "Court 2", "Court 3", "Court 5", "Court 6"],
+      availability: {
+        "9pm-10pm": new Set(["Court 4"]),
+        "10pm-11pm": new Set(["Court 1", "Court 4"]),
+      },
+    }),
+    { scanMode: "deep" }
+  );
+  const day = payload.days[0];
+  const court4 = day.same_court_intervals.find((group) => group.court_name === "Court 4");
+
+  assert.deepEqual(court4?.intervals, [{ start_time: "9pm", end_time: "11pm" }]);
+  assert.equal(
+    day.probe_debug.find(
+      (probe) => probe.start_time === "10pm" && probe.end_time === "11pm" && probe.court_name === "Court 4"
+    )?.reason,
+    "accepted"
   );
 });
 
