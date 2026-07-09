@@ -10,6 +10,7 @@ class FakeClassList {
 
   contains(value) {
     if (value === "primary" && this.element.kind === "type") return true;
+    if (value === "primary" && this.element.primaryWhenSelected && this.element.isSelected?.()) return true;
     if ((value === "selected" || value === "active") && this.element.isSelected?.()) return true;
     return this.values.has(value);
   }
@@ -24,6 +25,7 @@ class FakeElement {
     kind = "",
     onClick = null,
     isSelected = null,
+    primaryWhenSelected = false,
     disabled = false,
     children = [],
   } = {}) {
@@ -33,6 +35,7 @@ class FakeElement {
     this.kind = kind;
     this.onClick = onClick;
     this.isSelected = isSelected;
+    this.primaryWhenSelected = primaryWhenSelected;
     this.disabledState = disabled;
     this.children = [];
     this.parentElement = null;
@@ -139,6 +142,7 @@ function createBookBox({
   selectInvalidCourt = false,
   detailOrder = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"],
   detailClasses = [],
+  detailPrimaryWhenSelected = false,
 } = {}) {
   const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
   const availability = {
@@ -225,6 +229,7 @@ function createBookBox({
               classes: ["ButtonOption", ...detailClasses],
               text: court,
               isSelected: () => state.selectedCourt === court,
+              primaryWhenSelected: detailPrimaryWhenSelected,
               onClick: () => {
                 if (selectInvalidCourt || availability[state.selectedTime]?.has(court)) state.selectedCourt = court;
               },
@@ -379,6 +384,26 @@ test("Playbypoint reader rejects a court that was already selected before probin
 
 test("Playbypoint reader does not treat generic primary detail styling as selected", async () => {
   const payload = await installFakeBookBox(createBookBox({ detailClasses: ["primary"] }), { scanMode: "deep" });
+  const day = payload.days[0];
+  const byCourt = day.same_court_intervals
+    .map((group) => ({ court: group.court_name, intervals: group.intervals }))
+    .sort((left, right) => left.court.localeCompare(right.court));
+
+  assert.deepEqual(
+    byCourt,
+    [
+      { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+    ]
+  );
+});
+
+test("Playbypoint reader accepts primary detail styling when it is unique to the selected court", async () => {
+  const payload = await installFakeBookBox(createBookBox({ detailPrimaryWhenSelected: true }), { scanMode: "deep" });
   const day = payload.days[0];
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))

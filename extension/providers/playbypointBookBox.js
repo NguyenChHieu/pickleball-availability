@@ -421,8 +421,12 @@
   };
 
   const selectedDetailLabel = (root, title = "") => {
-    const selected = detailButtons(root, title).find(({ button }) => selectedOption(button, { allowPrimary: false }));
-    return selected?.label || "";
+    const details = detailButtons(root, title);
+    const selected = details.find(({ button }) => selectedOption(button, { allowPrimary: false }));
+    if (selected?.label) return selected.label;
+
+    const primaryDetails = details.filter(({ button }) => optionStateElement(button).classList.contains("primary"));
+    return primaryDetails.length === 1 ? primaryDetails[0].label : "";
   };
 
   const nextButtonReady = (root) => {
