@@ -134,7 +134,7 @@ class FakeElement {
   }
 }
 
-function createBookBox({ clearCourtOnTime = true } = {}) {
+function createBookBox({ clearCourtOnTime = true, selectInvalidCourt = false } = {}) {
   const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
   const availability = {
     "9pm-10pm": new Set(["Court 4"]),
@@ -221,7 +221,7 @@ function createBookBox({ clearCourtOnTime = true } = {}) {
               text: court,
               isSelected: () => state.selectedCourt === court,
               onClick: () => {
-                if (availability[state.selectedTime]?.has(court)) state.selectedCourt = court;
+                if (selectInvalidCourt || availability[state.selectedTime]?.has(court)) state.selectedCourt = court;
               },
             })
         ),
@@ -289,6 +289,26 @@ test("Playbypoint reader probes accepted court details per time before assigning
 
 test("Playbypoint reader does not reuse a stale selected court when the next time is clicked", async () => {
   const payload = await installFakeBookBox(createBookBox({ clearCourtOnTime: false }));
+  const day = payload.days[0];
+  const byCourt = day.same_court_intervals
+    .map((group) => ({ court: group.court_name, intervals: group.intervals }))
+    .sort((left, right) => left.court.localeCompare(right.court));
+
+  assert.deepEqual(
+    byCourt,
+    [
+      { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+    ]
+  );
+});
+
+test("Playbypoint reader ignores visually selected courts when the widget still blocks next step", async () => {
+  const payload = await installFakeBookBox(createBookBox({ selectInvalidCourt: true }));
   const day = payload.days[0];
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
