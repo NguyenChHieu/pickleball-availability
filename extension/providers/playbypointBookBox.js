@@ -409,10 +409,14 @@
     };
   };
 
-  const courtSlotsForTime = async (root, title, timeButton, baseSlot) => {
+  const selectTimeAndSettle = async (root, title, timeButton, waitMs = 120) => {
     timeButton.click();
     await waitUntil(() => detailButtons(bookBoxRoot() || root, title).length > 0 || selectedOption(timeButton), 900, 50);
-    await wait(120);
+    await wait(waitMs);
+  };
+
+  const courtSlotsForTime = async (root, title, timeButton, baseSlot) => {
+    await selectTimeAndSettle(root, title, timeButton, 160);
 
     const currentRoot = bookBoxRoot() || root;
     const optionLabels = Array.from(new Set(detailButtons(currentRoot, title).map((option) => option.label)));
@@ -423,8 +427,7 @@
     const slots = [];
     const probes = [];
     for (const label of optionLabels) {
-      timeButton.click();
-      await wait(60);
+      await selectTimeAndSettle(bookBoxRoot() || currentRoot, title, timeButton, 100);
       const option = detailButtons(bookBoxRoot() || currentRoot, title).find((item) => item.label === label);
       const result = option
         ? await acceptedDetailOption(bookBoxRoot() || currentRoot, title, option)
