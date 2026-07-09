@@ -138,6 +138,7 @@ function createBookBox({
   clearCourtOnTime = true,
   selectInvalidCourt = false,
   detailOrder = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"],
+  detailClasses = [],
 } = {}) {
   const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
   const availability = {
@@ -221,7 +222,7 @@ function createBookBox({
         ...detailOrder.map(
           (court) =>
             new FakeElement({
-              classes: ["ButtonOption"],
+              classes: ["ButtonOption", ...detailClasses],
               text: court,
               isSelected: () => state.selectedCourt === court,
               onClick: () => {
@@ -359,6 +360,26 @@ test("Playbypoint reader rejects a court that was already selected before probin
     )?.reason,
     "stale_preselected"
   );
+  const byCourt = day.same_court_intervals
+    .map((group) => ({ court: group.court_name, intervals: group.intervals }))
+    .sort((left, right) => left.court.localeCompare(right.court));
+
+  assert.deepEqual(
+    byCourt,
+    [
+      { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+    ]
+  );
+});
+
+test("Playbypoint reader does not treat generic primary detail styling as selected", async () => {
+  const payload = await installFakeBookBox(createBookBox({ detailClasses: ["primary"] }), { scanMode: "deep" });
+  const day = payload.days[0];
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
     .sort((left, right) => left.court.localeCompare(right.court));

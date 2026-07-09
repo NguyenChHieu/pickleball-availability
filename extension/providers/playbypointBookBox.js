@@ -399,10 +399,10 @@
     };
   };
 
-  const selectedOption = (button) => {
+  const selectedOption = (button, { allowPrimary = true } = {}) => {
     const stateElement = optionStateElement(button);
     return (
-      stateElement.classList.contains("primary") ||
+      (allowPrimary && stateElement.classList.contains("primary")) ||
       stateElement.classList.contains("selected") ||
       stateElement.classList.contains("active") ||
       stateElement.getAttribute("aria-pressed") === "true" ||
@@ -421,7 +421,7 @@
   };
 
   const selectedDetailLabel = (root, title = "") => {
-    const selected = detailButtons(root, title).find(({ button }) => selectedOption(button));
+    const selected = detailButtons(root, title).find(({ button }) => selectedOption(button, { allowPrimary: false }));
     return selected?.label || "";
   };
 
