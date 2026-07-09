@@ -336,23 +336,67 @@
 
   const optionStateElement = (button) => button.closest?.(".ButtonOption, button, [role='button']") || button;
 
+  const stateTokens = (element) => {
+    if (!element) return "";
+    const values = [
+      element.className,
+      element.getAttribute?.("class"),
+      element.getAttribute?.("data-status"),
+      element.getAttribute?.("data-state"),
+      element.getAttribute?.("data-testid"),
+      element.getAttribute?.("aria-label"),
+      element.getAttribute?.("title"),
+    ];
+    return values.map((value) => String(value || "")).join(" ").toLowerCase();
+  };
+
+  const disabledStateElement = (button) => {
+    const candidates = [
+      button,
+      optionStateElement(button),
+      button.closest?.("[aria-disabled], [disabled], .disabled, .inactive, .unavailable, .booked, .full"),
+    ].filter(Boolean);
+    return candidates.find((element) => {
+      const style = window.getComputedStyle(element);
+      const tokens = stateTokens(element);
+      const text = optionText(element).toLowerCase();
+      return (
+        element.disabled ||
+        element.getAttribute("disabled") !== null ||
+        element.getAttribute("aria-disabled") === "true" ||
+        element.getAttribute("data-disabled") === "true" ||
+        element.getAttribute("data-status") === "disabled" ||
+        element.getAttribute("data-status") === "unavailable" ||
+        element.getAttribute("data-state") === "disabled" ||
+        element.getAttribute("data-state") === "unavailable" ||
+        element.classList.contains("red") ||
+        style.pointerEvents === "none" ||
+        style.cursor === "not-allowed" ||
+        (Number(style.opacity) > 0 && Number(style.opacity) <= 0.65) ||
+        /\b(disabled|inactive|unavailable|booked|full|soldout|sold-out|is-disabled|is-inactive)\b/.test(tokens) ||
+        /\b(full|booked|sold out|unavailable)\b/.test(text)
+      );
+    });
+  };
+
   const unavailableOption = (button) => {
+    return Boolean(disabledStateElement(button));
+  };
+
+  const optionDebugState = (button) => {
     const stateElement = optionStateElement(button);
+    const disabledElement = disabledStateElement(button);
     const style = window.getComputedStyle(stateElement);
-    const className = String(stateElement.className || "").toLowerCase();
-    const text = optionText(stateElement).toLowerCase();
-    return (
-      stateElement.disabled ||
-      stateElement.getAttribute("disabled") !== null ||
-      stateElement.getAttribute("aria-disabled") === "true" ||
-      stateElement.getAttribute("data-disabled") === "true" ||
-      stateElement.getAttribute("data-status") === "disabled" ||
-      stateElement.classList.contains("red") ||
-      style.pointerEvents === "none" ||
-      (Number(style.opacity) > 0 && Number(style.opacity) <= 0.55) ||
-      /\b(disabled|inactive|unavailable|booked|full|soldout|sold-out)\b/.test(className) ||
-      /\b(full|booked|sold out|unavailable)\b/.test(text)
-    );
+    return {
+      class_name: normalizeWhitespace(stateTokens(stateElement)).slice(0, 160),
+      aria_disabled: stateElement.getAttribute("aria-disabled") || "",
+      data_status: stateElement.getAttribute("data-status") || "",
+      data_state: stateElement.getAttribute("data-state") || "",
+      opacity: style.opacity || "",
+      pointer_events: style.pointerEvents || "",
+      cursor: style.cursor || "",
+      disabled_by: disabledElement ? normalizeWhitespace(stateTokens(disabledElement)).slice(0, 160) : "",
+    };
   };
 
   const selectedOption = (button) => {
@@ -391,7 +435,13 @@
 
   const acceptedDetailOption = async (root, title, option) => {
     if (unavailableOption(option.button)) {
-      return { accepted: false, selected: false, nextReady: false, reason: "option_unavailable" };
+      return {
+        accepted: false,
+        selected: false,
+        nextReady: false,
+        reason: "option_unavailable",
+        optionState: optionDebugState(option.button),
+      };
     }
 
     option.button.click();
@@ -406,6 +456,7 @@
       selected,
       nextReady,
       reason: selected && nextReady ? "accepted" : selected ? "next_blocked" : "not_selected",
+      optionState: optionDebugState(option.button),
     };
   };
 
@@ -440,6 +491,7 @@
         selected: result.selected,
         next_ready: result.nextReady,
         reason: result.reason,
+        option_state: result.optionState,
       });
       if (result.accepted) {
         slots.push({ ...baseSlot, court_name: label });

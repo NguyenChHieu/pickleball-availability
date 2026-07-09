@@ -811,7 +811,10 @@ function probeSummary(payload = latestPayload) {
         .map((probe) => probe.court_name || "?");
       const rejected = timeProbes
         .filter((probe) => !probe.accepted)
-        .map((probe) => `${probe.court_name || "?"} (${probe.reason || "rejected"})`);
+        .map((probe) => {
+          const state = probe.option_state?.disabled_by || probe.option_state?.class_name || "";
+          return `${probe.court_name || "?"} (${probe.reason || "rejected"}${state ? `; ${state}` : ""})`;
+        });
       lines.push(`  ${time}`);
       lines.push(`    accepted: ${accepted.length ? accepted.join(", ") : "none"}`);
       lines.push(`    rejected: ${rejected.length ? rejected.join(", ") : "none"}`);
