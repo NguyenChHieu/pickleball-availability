@@ -33,6 +33,7 @@
       startUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
       setupUrl: "https://book.propickle.com.au/f/ProPickle/booking_waiver",
       readinessTimeoutMs: 10000,
+      deepReadProviders: true,
       matchUrls: ["https://book.propickle.com.au/*"],
     },
     {

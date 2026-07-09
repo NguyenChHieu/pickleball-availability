@@ -239,7 +239,7 @@ function createBookBox({ clearCourtOnTime = true, selectInvalidCourt = false } =
   return root;
 }
 
-function installFakeBookBox(root) {
+function installFakeBookBox(root, venue = {}) {
   global.window = {
     location: { href: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true" },
     getComputedStyle: () => ({ display: "block", visibility: "visible", opacity: "1", pointerEvents: "auto" }),
@@ -259,14 +259,32 @@ function installFakeBookBox(root) {
     id: "propickle",
     name: "ProPickle",
     startUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
+    ...venue,
   });
 }
+
+test("Playbypoint fast reader keeps any-court intervals without probing courts", async () => {
+  const payload = await installFakeBookBox(createBookBox());
+  const day = payload.days[0];
+
+  assert.deepEqual(day.open_intervals, [{ start_time: "9pm", end_time: "11pm" }]);
+  assert.equal(day.continuity_status, "not_scanned");
+  assert.deepEqual(day.same_court_intervals, []);
+  assert.deepEqual(day.probe_debug, []);
+  assert.deepEqual(
+    day.raw_slots.map((slot) => [slot.start_time, slot.end_time, slot.court_name || ""]),
+    [
+      ["9pm", "10pm", ""],
+      ["10pm", "11pm", ""],
+    ]
+  );
+});
 
 test("Playbypoint reader probes accepted court details per time before assigning continuity", async () => {
   const root = createBookBox();
   assert.equal(root.querySelectorAll("h2").length, 3);
   assert.equal(root.querySelectorAll(".ButtonOption, button, [role='button']").length, 11);
-  const payload = await installFakeBookBox(root);
+  const payload = await installFakeBookBox(root, { scanMode: "deep" });
   const day = payload.days[0];
 
   assert.deepEqual(day.open_intervals, [{ start_time: "9pm", end_time: "11pm" }]);
@@ -302,7 +320,7 @@ test("Playbypoint reader probes accepted court details per time before assigning
 });
 
 test("Playbypoint reader does not reuse a stale selected court when the next time is clicked", async () => {
-  const payload = await installFakeBookBox(createBookBox({ clearCourtOnTime: false }));
+  const payload = await installFakeBookBox(createBookBox({ clearCourtOnTime: false }), { scanMode: "deep" });
   const day = payload.days[0];
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
@@ -322,7 +340,7 @@ test("Playbypoint reader does not reuse a stale selected court when the next tim
 });
 
 test("Playbypoint reader ignores visually selected courts when the widget still blocks next step", async () => {
-  const payload = await installFakeBookBox(createBookBox({ selectInvalidCourt: true }));
+  const payload = await installFakeBookBox(createBookBox({ selectInvalidCourt: true }), { scanMode: "deep" });
   const day = payload.days[0];
   assert.equal(
     day.probe_debug.find(

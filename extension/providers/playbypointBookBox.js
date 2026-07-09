@@ -449,7 +449,7 @@
     return { slots: slots.length ? slots : [baseSlot], probes };
   };
 
-  const extractSlotsForLoadedDay = async (root, date, title) => {
+  const extractSlotsForLoadedDay = async (root, date, title, probeCourts = false) => {
     const slots = [];
     const probes = [];
     for (const { button, timeRange, status } of extractTimeButtons(root)) {
@@ -460,7 +460,7 @@
         status,
       };
 
-      if (status !== "open") {
+      if (status !== "open" || !probeCourts) {
         slots.push(baseSlot);
         continue;
       }
@@ -500,11 +500,13 @@
     if (!dayTargets.length) throw new Error("Could not find visible booking day buttons.");
 
     const results = [];
+    const probeCourts =
+      venue.readCourtContinuity === true || venue.readProviders === true || venue.scanMode === "deep";
     for (const targetDate of dayTargets) {
       const loadedRoot = await clickDayAndWait(targetDate);
       const currentDate = selectedDateText(loadedRoot) || targetDate;
       const title = selectedType(loadedRoot);
-      const { slots, probes } = await extractSlotsForLoadedDay(loadedRoot, currentDate, title);
+      const { slots, probes } = await extractSlotsForLoadedDay(loadedRoot, currentDate, title, probeCourts);
       const openIntervals = mergeOpenIntervals(slots);
       const courtIntervals = sameCourtIntervals(slots);
       const hasCourtLabels = slots.some((slot) => normalizeWhitespace(slot.court_name || ""));
@@ -516,7 +518,7 @@
         booking_date: currentDate,
         open_intervals: openIntervals,
         same_court_intervals: courtIntervals,
-        continuity_status: hasCourtLabels ? "available" : "not_exposed",
+        continuity_status: probeCourts ? (hasCourtLabels ? "available" : "not_exposed") : "not_scanned",
         remaining_hours: remainingHours(openIntervals),
         raw_slots: slots,
         probe_debug: probes,
