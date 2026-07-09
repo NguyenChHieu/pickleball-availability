@@ -41,6 +41,29 @@ function courtList(probes, accepted) {
     });
 }
 
+function formatIntervals(intervals) {
+  return Array.isArray(intervals) && intervals.length
+    ? intervals.map((interval) => `${interval.start_time || "?"}-${interval.end_time || "?"}`).join(", ")
+    : "none";
+}
+
+function printDaySummary(day) {
+  console.log(`  continuity_status: ${day.continuity_status || "unknown"}`);
+  console.log(`  any-court: ${formatIntervals(day.open_intervals)}`);
+
+  const sameCourt = Array.isArray(day.same_court_intervals) ? day.same_court_intervals : [];
+  if (!sameCourt.length) {
+    console.log("  same-court: none");
+    return;
+  }
+
+  console.log("  same-court:");
+  for (const group of sameCourt) {
+    const court = group.court_name || group.courtName || group.resource_name || group.provider_name || "?";
+    console.log(`    ${court}: ${formatIntervals(group.intervals)}`);
+  }
+}
+
 function main() {
   const [, , filePath, ...dateParts] = process.argv;
   if (!filePath) {
@@ -62,6 +85,7 @@ function main() {
   for (const day of matchingDays) {
     const probes = Array.isArray(day.probe_debug) ? day.probe_debug : [];
     console.log(`\n${day.date || "Unknown date"}`);
+    printDaySummary(day);
     if (!probes.length) {
       console.log("  No probe_debug rows found. Refresh ProPickle with the latest extension first.");
       continue;
