@@ -390,14 +390,23 @@
   };
 
   const acceptedDetailOption = async (root, title, option) => {
-    if (unavailableOption(option.button)) return false;
+    if (unavailableOption(option.button)) {
+      return { accepted: false, selected: false, nextReady: false, reason: "option_unavailable" };
+    }
 
     option.button.click();
     await waitUntil(() => selectedDetailLabel(bookBoxRoot() || root, title) === option.label, 300, 50);
     await wait(60);
 
     const currentRoot = bookBoxRoot() || root;
-    return selectedDetailLabel(currentRoot, title) === option.label && nextButtonReady(currentRoot);
+    const selected = selectedDetailLabel(currentRoot, title) === option.label;
+    const nextReady = nextButtonReady(currentRoot);
+    return {
+      accepted: selected && nextReady,
+      selected,
+      nextReady,
+      reason: selected && nextReady ? "accepted" : selected ? "next_blocked" : "not_selected",
+    };
   };
 
   const courtSlotsForTime = async (root, title, timeButton, baseSlot) => {
@@ -407,23 +416,39 @@
 
     const currentRoot = bookBoxRoot() || root;
     const optionLabels = Array.from(new Set(detailButtons(currentRoot, title).map((option) => option.label)));
-    if (!optionLabels.length) return [baseSlot];
+    if (!optionLabels.length) {
+      return { slots: [baseSlot], probes: [] };
+    }
 
     const slots = [];
+    const probes = [];
     for (const label of optionLabels) {
       timeButton.click();
       await wait(60);
       const option = detailButtons(bookBoxRoot() || currentRoot, title).find((item) => item.label === label);
-      if (option && (await acceptedDetailOption(bookBoxRoot() || currentRoot, title, option))) {
+      const result = option
+        ? await acceptedDetailOption(bookBoxRoot() || currentRoot, title, option)
+        : { accepted: false, selected: false, nextReady: false, reason: "option_missing" };
+      probes.push({
+        start_time: baseSlot.start_time,
+        end_time: baseSlot.end_time,
+        court_name: label,
+        accepted: result.accepted,
+        selected: result.selected,
+        next_ready: result.nextReady,
+        reason: result.reason,
+      });
+      if (result.accepted) {
         slots.push({ ...baseSlot, court_name: label });
       }
     }
 
-    return slots.length ? slots : [baseSlot];
+    return { slots: slots.length ? slots : [baseSlot], probes };
   };
 
   const extractSlotsForLoadedDay = async (root, date, title) => {
     const slots = [];
+    const probes = [];
     for (const { button, timeRange, status } of extractTimeButtons(root)) {
       const baseSlot = {
         title,
@@ -437,9 +462,11 @@
         continue;
       }
 
-      slots.push(...(await courtSlotsForTime(bookBoxRoot() || root, title, button, baseSlot)));
+      const result = await courtSlotsForTime(bookBoxRoot() || root, title, button, baseSlot);
+      slots.push(...result.slots);
+      probes.push(...result.probes);
     }
-    return slots;
+    return { slots, probes };
   };
 
   const remainingHours = (intervals) =>
@@ -474,7 +501,7 @@
       const loadedRoot = await clickDayAndWait(targetDate);
       const currentDate = selectedDateText(loadedRoot) || targetDate;
       const title = selectedType(loadedRoot);
-      const slots = await extractSlotsForLoadedDay(loadedRoot, currentDate, title);
+      const { slots, probes } = await extractSlotsForLoadedDay(loadedRoot, currentDate, title);
       const openIntervals = mergeOpenIntervals(slots);
       const courtIntervals = sameCourtIntervals(slots);
       const hasCourtLabels = slots.some((slot) => normalizeWhitespace(slot.court_name || ""));
@@ -489,6 +516,7 @@
         continuity_status: hasCourtLabels ? "available" : "not_exposed",
         remaining_hours: remainingHours(openIntervals),
         raw_slots: slots,
+        probe_debug: probes,
       });
     }
 

@@ -108,7 +108,7 @@ For deployed cache persistence, use Supabase by setting `SUPABASE_URL` and `SUPA
 
 This extension targets venue-specific public/readable booking widgets through small providers:
 
-- Playbypoint `BookBox` pages for ProPickle. For same-court continuity, the reader probes each visible court/detail option after selecting a time and only records courts that the widget accepts for that time.
+- Playbypoint `BookBox` pages for ProPickle. For same-court continuity, the reader probes each visible court/detail option after selecting a time and only records courts that the widget accepts for that time. Saved ProPickle payloads include internal `probe_debug` rows so real-page mismatches can be diagnosed without changing the public share UI.
 - ClubSpark `BookByDate` pages for Broadway Pickleball.
 - Mindbody appointment pages for North Ryde.
 - Playtomic public availability for Sydney Racquet Club.

@@ -271,6 +271,20 @@ test("Playbypoint reader probes accepted court details per time before assigning
 
   assert.deepEqual(day.open_intervals, [{ start_time: "9pm", end_time: "11pm" }]);
   assert.equal(day.continuity_status, "available");
+  assert.equal(day.probe_debug.filter((probe) => probe.accepted).length, 6);
+  assert.deepEqual(
+    day.probe_debug
+      .filter((probe) => probe.start_time === "9pm" && probe.end_time === "10pm" && !probe.accepted)
+      .map((probe) => `${probe.court_name}:${probe.reason}`)
+      .sort(),
+    [
+      "Court 1:not_selected",
+      "Court 2:not_selected",
+      "Court 3:not_selected",
+      "Court 5:not_selected",
+      "Court 6:not_selected",
+    ]
+  );
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
     .sort((left, right) => left.court.localeCompare(right.court));
@@ -310,6 +324,12 @@ test("Playbypoint reader does not reuse a stale selected court when the next tim
 test("Playbypoint reader ignores visually selected courts when the widget still blocks next step", async () => {
   const payload = await installFakeBookBox(createBookBox({ selectInvalidCourt: true }));
   const day = payload.days[0];
+  assert.equal(
+    day.probe_debug.find(
+      (probe) => probe.start_time === "10pm" && probe.end_time === "11pm" && probe.court_name === "Court 4"
+    )?.reason,
+    "next_blocked"
+  );
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
     .sort((left, right) => left.court.localeCompare(right.court));
