@@ -24,6 +24,7 @@ class FakeElement {
     kind = "",
     onClick = null,
     isSelected = null,
+    disabled = false,
     children = [],
   } = {}) {
     this.tag = tag;
@@ -32,11 +33,15 @@ class FakeElement {
     this.kind = kind;
     this.onClick = onClick;
     this.isSelected = isSelected;
+    this.disabledState = disabled;
     this.children = [];
     this.parentElement = null;
-    this.disabled = false;
     this.classList = new FakeClassList(this, classes);
     for (const child of children) this.append(child);
+  }
+
+  get disabled() {
+    return typeof this.disabledState === "function" ? this.disabledState() : this.disabledState;
   }
 
   append(child) {
@@ -129,7 +134,7 @@ class FakeElement {
   }
 }
 
-function createBookBox() {
+function createBookBox({ clearCourtOnTime = true } = {}) {
   const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
   const availability = {
     "9pm-10pm": new Set(["Court 4"]),
@@ -196,7 +201,7 @@ function createBookBox() {
               isSelected: () => state.selectedTime === time,
               onClick: () => {
                 state.selectedTime = time;
-                state.selectedCourt = "";
+                if (clearCourtOnTime) state.selectedCourt = "";
               },
             })
         ),
@@ -224,14 +229,17 @@ function createBookBox() {
     })
   );
 
-  root.append(new FakeElement({ tag: "button", text: "Next" }));
+  root.append(
+    new FakeElement({
+      tag: "button",
+      text: "Next",
+      disabled: () => !state.selectedTime || !availability[state.selectedTime]?.has(state.selectedCourt),
+    })
+  );
   return root;
 }
 
-test("Playbypoint reader probes accepted court details per time before assigning continuity", async () => {
-  const root = createBookBox();
-  assert.equal(root.querySelectorAll("h2").length, 3);
-  assert.equal(root.querySelectorAll(".ButtonOption, button, [role='button']").length, 11);
+function installFakeBookBox(root) {
   global.window = {
     location: { href: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true" },
     getComputedStyle: () => ({ display: "block", visibility: "visible", opacity: "1", pointerEvents: "auto" }),
@@ -247,11 +255,18 @@ test("Playbypoint reader probes accepted court details per time before assigning
   delete require.cache[providerPath];
   require(providerPath);
 
-  const payload = await global.AvailabilityProviders["playbypoint-bookbox"].readAvailability({
+  return global.AvailabilityProviders["playbypoint-bookbox"].readAvailability({
     id: "propickle",
     name: "ProPickle",
     startUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
   });
+}
+
+test("Playbypoint reader probes accepted court details per time before assigning continuity", async () => {
+  const root = createBookBox();
+  assert.equal(root.querySelectorAll("h2").length, 3);
+  assert.equal(root.querySelectorAll(".ButtonOption, button, [role='button']").length, 11);
+  const payload = await installFakeBookBox(root);
   const day = payload.days[0];
 
   assert.deepEqual(day.open_intervals, [{ start_time: "9pm", end_time: "11pm" }]);
@@ -259,6 +274,26 @@ test("Playbypoint reader probes accepted court details per time before assigning
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
     .sort((left, right) => left.court.localeCompare(right.court));
+  assert.deepEqual(
+    byCourt,
+    [
+      { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+    ]
+  );
+});
+
+test("Playbypoint reader does not reuse a stale selected court when the next time is clicked", async () => {
+  const payload = await installFakeBookBox(createBookBox({ clearCourtOnTime: false }));
+  const day = payload.days[0];
+  const byCourt = day.same_court_intervals
+    .map((group) => ({ court: group.court_name, intervals: group.intervals }))
+    .sort((left, right) => left.court.localeCompare(right.court));
+
   assert.deepEqual(
     byCourt,
     [
