@@ -121,6 +121,7 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
       : theme.copy.freshnessFallback;
   const syncedAt = displayFreshness(freshnessLabel);
   const fallbackUrl = availability.fallbackUrl || "#";
+  const plannerUrl = `/planner/new?venues=${encodeURIComponent(currentVenueId)}`;
   const availableDays = isReady ? openDayCount(availability) : 0;
   const openHours = isReady ? formatHours(availability.summary.totalOpenHours) : "0";
   const nextSlot = isReady ? firstOpenSlot(availability) : "--";
@@ -238,6 +239,11 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
               <span>Cached availability tracking active.</span>
             </div>
           </div>
+          <div>
+            <p>Group Planner</p>
+            <span>Create a When2Meet-style link using this venue.</span>
+            <a href={plannerUrl}>Plan with this venue</a>
+          </div>
         </section>
       </main>
 
@@ -254,6 +260,7 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
             <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
               Open Booking
             </a>
+            <a href={plannerUrl}>Plan</a>
           </div>
         </div>
       </div>
@@ -282,6 +289,10 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
         <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
           <span className="stitch-nav-icon stitch-nav-icon--booking" aria-hidden="true" />
           <span>Booking</span>
+        </a>
+        <a href={plannerUrl}>
+          <span className="stitch-nav-icon stitch-nav-icon--planner" aria-hidden="true" />
+          <span>Plan</span>
         </a>
       </nav>
 

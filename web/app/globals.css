@@ -862,7 +862,7 @@ dd {
 .stitch-promo {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .stitch-promo > div {
@@ -885,11 +885,17 @@ dd {
   text-align: center;
 }
 
-.stitch-promo > div:nth-child(2) {
+.stitch-promo > div:nth-child(2),
+.stitch-promo > div:nth-child(3) {
   align-items: center;
   border-left: 4px solid var(--highlight-green);
   display: flex;
   gap: 16px;
+}
+
+.stitch-promo > div:nth-child(3) {
+  align-items: start;
+  display: grid;
 }
 
 .stitch-bolt {
@@ -916,8 +922,18 @@ dd {
   margin-bottom: 4px;
 }
 
-.stitch-promo > div:nth-child(2) p {
+.stitch-promo > div:nth-child(2) p,
+.stitch-promo > div:nth-child(3) p {
   color: var(--on-surface);
+}
+
+.stitch-promo a {
+  color: var(--highlight-green);
+  font-family: var(--font-data);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .stitch-promo span {
@@ -1485,6 +1501,31 @@ dd {
     top: 1px;
     transform: rotate(28deg);
     width: 8px;
+  }
+
+  .stitch-nav-icon--planner {
+    border: 2px solid currentColor;
+    border-radius: 999px;
+  }
+
+  .stitch-nav-icon--planner::before,
+  .stitch-nav-icon--planner::after {
+    background: currentColor;
+    border-radius: 999px;
+    content: "";
+    height: 5px;
+    position: absolute;
+    width: 5px;
+  }
+
+  .stitch-nav-icon--planner::before {
+    left: 4px;
+    top: 5px;
+  }
+
+  .stitch-nav-icon--planner::after {
+    bottom: 5px;
+    right: 4px;
   }
 
   .stitch-footer {
@@ -2127,6 +2168,17 @@ dd {
 
 .home-venue small {
   color: var(--home-primary);
+}
+
+.home-venue__link {
+  color: var(--home-primary);
+  font-size: 14px;
+  font-weight: 800;
+  width: fit-content;
+}
+
+.home-venue__link:hover {
+  color: var(--home-primary-strong);
 }
 
 .home-note {
