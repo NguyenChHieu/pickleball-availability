@@ -7,6 +7,7 @@
     daySettleMs: 1400,
     dayLoadTimeoutMs: 6000,
     clickLimit: 14,
+    visibleScanTimeoutMs: 10000,
   };
 
   const dayNames = {
@@ -60,6 +61,17 @@
     if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
     const box = element.getBoundingClientRect();
     return box.width > 0 && box.height > 0;
+  };
+
+  const deepScanVisibilityError = () =>
+    new Error(
+      "Deep court scan needs the ProPickle reader tab visible. Chrome throttles hidden booking tabs, so keep the reader window visible or use a fast refresh."
+    );
+
+  const ensureVisibleForDeepScan = async () => {
+    if (!document.visibilityState || document.visibilityState === "visible") return;
+    const visible = await waitUntil(() => document.visibilityState === "visible", config.visibleScanTimeoutMs, 250);
+    if (!visible) throw deepScanVisibilityError();
   };
 
   const hasLoginContinueText = (element) => {
@@ -500,6 +512,7 @@
   };
 
   const courtSlotsForTime = async (root, title, timeButton, baseSlot) => {
+    await ensureVisibleForDeepScan();
     await selectTimeAndSettle(root, title, timeButton, 160);
 
     const currentRoot = bookBoxRoot() || root;
@@ -511,6 +524,7 @@
     const slots = [];
     const probes = [];
     for (const label of optionLabels) {
+      await ensureVisibleForDeepScan();
       await selectTimeAndSettle(bookBoxRoot() || currentRoot, title, timeButton, 100);
       const option = detailButtons(bookBoxRoot() || currentRoot, title).find((item) => item.label === label);
       const result = option
@@ -538,6 +552,8 @@
     const slots = [];
     const probes = [];
     for (const { button, timeRange, status } of extractTimeButtons(root)) {
+      if (probeCourts) await ensureVisibleForDeepScan();
+
       const baseSlot = {
         title,
         date,
@@ -588,6 +604,7 @@
     const probeCourts =
       venue.readCourtContinuity === true || venue.readProviders === true || venue.scanMode === "deep";
     for (const targetDate of dayTargets) {
+      if (probeCourts) await ensureVisibleForDeepScan();
       const loadedRoot = await clickDayAndWait(targetDate);
       const currentDate = selectedDateText(loadedRoot) || targetDate;
       const title = selectedType(loadedRoot);

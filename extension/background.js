@@ -30,6 +30,8 @@ const MAX_REFRESH_HISTORY = 5;
 const MAX_PARALLEL_REFRESHES = 3;
 const PENDING_REFRESH_TTL_MS = 5 * 60 * 1000;
 const PENDING_REFRESH_RETRY_MS = 8000;
+const READER_WINDOW_WIDTH = 760;
+const READER_WINDOW_HEIGHT = 900;
 
 const pendingRefreshAttempts = new Set();
 const pendingRefreshTimers = new Map();
@@ -230,7 +232,22 @@ async function firstOpenVenueTab(venue) {
   return tabs.find((tab) => tab.id) || null;
 }
 
+async function createReaderWindow(venue) {
+  const readerWindow = await chrome.windows.create({
+    url: venue.startUrl,
+    type: "popup",
+    focused: true,
+    width: READER_WINDOW_WIDTH,
+    height: READER_WINDOW_HEIGHT,
+  });
+  const tab = readerWindow.tabs?.find((candidate) => candidate.id) || null;
+  if (!tab?.id) throw new Error("Could not open the dedicated reader window.");
+  return { tab, closeWhenDone: true };
+}
+
 async function tabForVenue(venue) {
+  if (venue.scanMode === "deep") return createReaderWindow(venue);
+
   const existingTab = await firstOpenVenueTab(venue);
   if (existingTab?.id) return { tab: existingTab, closeWhenDone: false };
 
@@ -238,7 +255,14 @@ async function tabForVenue(venue) {
   return { tab, closeWhenDone: true };
 }
 
-async function activateTab(tabId) {
+async function focusTab(tabId) {
+  try {
+    const tab = await chrome.tabs.get(Number(tabId));
+    if (tab?.windowId !== undefined) await chrome.windows.update(tab.windowId, { focused: true });
+  } catch {
+    // The user may have closed the window before the fallback could focus it.
+  }
+
   try {
     await chrome.tabs.update(tabId, { active: true });
   } catch {
@@ -419,7 +443,7 @@ async function continuePendingRefresh(tabId, _reason) {
       return null;
     }
 
-    if (session.scanMode === "deep") await activateTab(Number(tabId));
+    if (session.scanMode === "deep") await focusTab(Number(tabId));
     await wait(300);
     const payload = await readTab(Number(tabId), readVenue);
     const syncStatus = await saveVenuePayload(venue.id, payload);
@@ -466,7 +490,7 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
   const { tab, closeWhenDone } = await tabForVenue(readVenue);
 
   try {
-    if (scanMode === "deep") await activateTab(tab.id);
+    if (scanMode === "deep") await focusTab(tab.id);
     await waitForTabComplete(tab.id);
     await wait(1200);
     const payload = await readTab(tab.id, readVenue);
@@ -477,7 +501,7 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
     let readError = error;
     if (!readError.manualSetupRequired && readVenue.retryActiveOnFailure && tab.id) {
       try {
-        await activateTab(tab.id);
+        await focusTab(tab.id);
         await wait(1800);
         const payload = await readTab(tab.id, readVenue);
         const syncStatus = await saveVenuePayload(venue.id, payload);
@@ -505,7 +529,7 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
       };
     }
 
-    await activateTab(tab.id);
+    await focusTab(tab.id);
     await savePendingRefresh(pendingRefreshSession(tab.id, readVenue, closeWhenDone, readError));
     return {
       venue,

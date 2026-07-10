@@ -33,6 +33,8 @@ After code changes, return to `chrome://extensions` and click the reload icon on
 6. The extension keeps watching that tab and continues automatically when the schedule appears.
 7. Use **More actions** for lower-frequency tools such as **Refresh all**, **Read current tab**, or **Deep scan courts**.
 
+Deep court scans open a small reader window because Chrome can throttle hidden tabs. Keep that reader window visible until the scan finishes; use a normal fast refresh when exact same-court continuity is not needed.
+
 The extension uses your normal Chrome session. It does not store or ask for credentials.
 
 If login redirects to a profile/account page, an active venue refresh can return that same tab to the booking URL once and continue from there. Auth/setup checks should happen quickly; the longer readiness wait is reserved for pages that look like they may still be loading the authenticated booking widget.
