@@ -18,7 +18,7 @@ discovered_links.json
 endpoints_log.json
 *.test.json
 *.test.csv
-web/data/*.json
+web/data/
 
 .vercel
 .env*

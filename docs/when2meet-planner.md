@@ -86,3 +86,8 @@ Possible Supabase tables later:
 - Whether participant edits need email/passcode protection.
 - Whether time input should be grid-based like when2meet or a compact mobile time-block picker.
 - Whether planner results should use only cached venue data or offer a "refresh selected venues" prompt through the extension.
+
+## UX Follow-Ups
+
+- Show group overlap even when venue cache is empty, e.g. "2 people overlap Mon 7:30-8:30" plus "no venue cache yet."
+- Add a When2Meet-style overlap heat/gradient layer so users can inspect which time blocks have the strongest people overlap before venue matching.
