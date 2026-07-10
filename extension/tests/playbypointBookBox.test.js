@@ -27,6 +27,7 @@ class FakeElement {
     isSelected = null,
     primaryWhenSelected = false,
     disabled = false,
+    visible = true,
     children = [],
   } = {}) {
     this.tag = tag;
@@ -37,6 +38,7 @@ class FakeElement {
     this.isSelected = isSelected;
     this.primaryWhenSelected = primaryWhenSelected;
     this.disabledState = disabled;
+    this.visibleState = visible;
     this.children = [];
     this.parentElement = null;
     this.classList = new FakeClassList(this, classes);
@@ -78,6 +80,8 @@ class FakeElement {
   }
 
   getBoundingClientRect() {
+    const visible = typeof this.visibleState === "function" ? this.visibleState() : this.visibleState;
+    if (!visible) return { width: 0, height: 0 };
     return { width: 100, height: 32 };
   }
 
@@ -143,12 +147,33 @@ function createBookBox({
   detailOrder = ["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"],
   detailClasses = [],
   detailPrimaryWhenSelected = false,
+  multiSelectTimes = false,
+  detailOptionsFromAvailability = false,
   availability = {
     "9pm-10pm": new Set(["Court 4"]),
     "10pm-11pm": new Set(["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"]),
   },
 } = {}) {
-  const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
+  const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedTimes: new Set(), selectedCourt: "" };
+  const selectedTimes = () => (multiSelectTimes ? Array.from(state.selectedTimes) : state.selectedTime ? [state.selectedTime] : []);
+  const availableCourts = () => {
+    const times = selectedTimes();
+    if (!times.length) return new Set();
+    return times
+      .map((time) => availability[time] || new Set())
+      .reduce((intersection, courts) => new Set([...intersection].filter((court) => courts.has(court))));
+  };
+  const selectTime = (time) => {
+    if (multiSelectTimes) {
+      if (state.selectedTimes.has(time)) state.selectedTimes.delete(time);
+      else state.selectedTimes.add(time);
+      state.selectedTime = Array.from(state.selectedTimes).at(-1) || "";
+    } else {
+      state.selectedTime = time;
+      state.selectedTimes = new Set([time]);
+    }
+    if (clearCourtOnTime) state.selectedCourt = "";
+  };
 
   const root = new FakeElement({ kind: "bookbox" });
   const summary = new FakeElement({ classes: ["summary"] });
@@ -172,6 +197,7 @@ function createBookBox({
                   onClick: () => {
                     state.selectedDate = "Thursday, July 16";
                     state.selectedTime = "";
+                    state.selectedTimes = new Set();
                     state.selectedCourt = "";
                   },
                   children: [
@@ -207,11 +233,8 @@ function createBookBox({
             new FakeElement({
               classes: ["ButtonOption"],
               text: time,
-              isSelected: () => state.selectedTime === time,
-              onClick: () => {
-                state.selectedTime = time;
-                if (clearCourtOnTime) state.selectedCourt = "";
-              },
+              isSelected: () => (multiSelectTimes ? state.selectedTimes.has(time) : state.selectedTime === time),
+              onClick: () => selectTime(time),
             })
         ),
       ],
@@ -230,8 +253,9 @@ function createBookBox({
               text: court,
               isSelected: () => state.selectedCourt === court,
               primaryWhenSelected: detailPrimaryWhenSelected,
+              visible: () => !detailOptionsFromAvailability || availableCourts().has(court),
               onClick: () => {
-                if (selectInvalidCourt || availability[state.selectedTime]?.has(court)) state.selectedCourt = court;
+                if (selectInvalidCourt || availableCourts().has(court)) state.selectedCourt = court;
               },
             })
         ),
@@ -243,7 +267,7 @@ function createBookBox({
     new FakeElement({
       tag: "button",
       text: "Next",
-      disabled: () => !state.selectedTime || !availability[state.selectedTime]?.has(state.selectedCourt),
+      disabled: () => !selectedTimes().length || !availableCourts().has(state.selectedCourt),
     })
   );
   return root;
@@ -316,6 +340,34 @@ test("Playbypoint reader probes accepted court details per time before assigning
   const byCourt = day.same_court_intervals
     .map((group) => ({ court: group.court_name, intervals: group.intervals }))
     .sort((left, right) => left.court.localeCompare(right.court));
+  assert.deepEqual(
+    byCourt,
+    [
+      { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "11pm" }] },
+      { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+      { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
+    ]
+  );
+});
+
+test("Playbypoint reader isolates each time before probing multi-slot detail options", async () => {
+  const payload = await installFakeBookBox(
+    createBookBox({
+      multiSelectTimes: true,
+      detailOptionsFromAvailability: true,
+    }),
+    { scanMode: "deep" }
+  );
+  const day = payload.days[0];
+  const byCourt = day.same_court_intervals
+    .map((group) => ({ court: group.court_name, intervals: group.intervals }))
+    .sort((left, right) => left.court.localeCompare(right.court));
+
+  assert.equal(day.continuity_status, "available");
+  assert.equal(day.probe_debug.filter((probe) => probe.accepted).length, 7);
   assert.deepEqual(
     byCourt,
     [

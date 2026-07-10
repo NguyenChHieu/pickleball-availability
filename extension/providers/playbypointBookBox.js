@@ -422,6 +422,15 @@
     );
   };
 
+  const sameTimeRange = (left, right) =>
+    left?.start_time === right?.start_time && left?.end_time === right?.end_time;
+
+  const timeButtonForRange = (root, targetRange) =>
+    extractTimeButtons(root).find(({ timeRange }) => sameTimeRange(timeRange, targetRange)) || null;
+
+  const selectedTimeButtons = (root) =>
+    extractTimeButtons(root).filter(({ button }) => selectedOption(button));
+
   const detailButtons = (root, title = "") => {
     const detailSection = sectionForHeader(root, "Select Detail");
     if (!detailSection) return [];
@@ -505,15 +514,36 @@
     };
   };
 
-  const selectTimeAndSettle = async (root, title, timeButton, waitMs = 120) => {
-    timeButton.click();
-    await waitUntil(() => detailButtons(bookBoxRoot() || root, title).length > 0 || selectedOption(timeButton), 900, 50);
+  const selectOnlyTimeAndSettle = async (root, title, targetRange, waitMs = 120) => {
+    let currentRoot = bookBoxRoot() || root;
+    for (const { button, timeRange } of selectedTimeButtons(currentRoot)) {
+      if (sameTimeRange(timeRange, targetRange)) continue;
+      button.click();
+      await waitUntil(() => {
+        const current = timeButtonForRange(bookBoxRoot() || currentRoot, timeRange);
+        return !current || !selectedOption(current.button);
+      }, 500, 50);
+      await wait(60);
+      currentRoot = bookBoxRoot() || currentRoot;
+    }
+
+    const target = timeButtonForRange(currentRoot, targetRange);
+    if (!target) throw new Error(`Could not find time ${targetRange.start_time}-${targetRange.end_time}.`);
+    if (!selectedOption(target.button)) {
+      target.button.click();
+      await waitUntil(() => {
+        const current = timeButtonForRange(bookBoxRoot() || currentRoot, targetRange);
+        return Boolean(current && selectedOption(current.button));
+      }, 900, 50);
+    }
+
+    await waitUntil(() => detailButtons(bookBoxRoot() || root, title).length > 0, 900, 50);
     await wait(waitMs);
   };
 
-  const courtSlotsForTime = async (root, title, timeButton, baseSlot) => {
+  const courtSlotsForTime = async (root, title, baseSlot) => {
     await ensureVisibleForDeepScan();
-    await selectTimeAndSettle(root, title, timeButton, 160);
+    await selectOnlyTimeAndSettle(root, title, baseSlot, 160);
 
     const currentRoot = bookBoxRoot() || root;
     const optionLabels = Array.from(new Set(detailButtons(currentRoot, title).map((option) => option.label)));
@@ -525,7 +555,7 @@
     const probes = [];
     for (const label of optionLabels) {
       await ensureVisibleForDeepScan();
-      await selectTimeAndSettle(bookBoxRoot() || currentRoot, title, timeButton, 100);
+      await selectOnlyTimeAndSettle(bookBoxRoot() || currentRoot, title, baseSlot, 100);
       const option = detailButtons(bookBoxRoot() || currentRoot, title).find((item) => item.label === label);
       const result = option
         ? await acceptedDetailOption(bookBoxRoot() || currentRoot, title, option)
@@ -566,7 +596,7 @@
         continue;
       }
 
-      const result = await courtSlotsForTime(bookBoxRoot() || root, title, button, baseSlot);
+      const result = await courtSlotsForTime(bookBoxRoot() || root, title, baseSlot);
       slots.push(...result.slots);
       probes.push(...result.probes);
     }
