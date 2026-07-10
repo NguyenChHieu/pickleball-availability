@@ -24,13 +24,13 @@ test("formatDay keeps any-court intervals separate from same-court runs", () => 
   assert.match(summary, /Court 4: 18:30-19:00/);
 });
 
-test("formatDay preserves ProPickle split continuity by court", () => {
+test("formatDay preserves ProPickle continuity by court", () => {
   const summary = formatDay({
     date: "Thursday, July 16",
     remaining_hours: 2,
     open_intervals: [{ start_time: "9pm", end_time: "11pm" }],
     same_court_intervals: [
-      { court_name: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court_name: "Court 4", intervals: [{ start_time: "9pm", end_time: "11pm" }] },
       { court_name: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court_name: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court_name: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
@@ -40,13 +40,12 @@ test("formatDay preserves ProPickle split continuity by court", () => {
   });
 
   assert.match(summary, /any court 9pm-11pm/);
-  assert.match(summary, /Court 4: 9pm-10pm/);
+  assert.match(summary, /Court 4: 9pm-11pm/);
   assert.match(summary, /Court 1: 10pm-11pm/);
   assert.match(summary, /Court 2: 10pm-11pm/);
   assert.match(summary, /Court 3: 10pm-11pm/);
   assert.match(summary, /Court 5: 10pm-11pm/);
   assert.match(summary, /Court 6: 10pm-11pm/);
-  assert.doesNotMatch(summary, /Court 4: 9pm-11pm/);
 });
 
 test("formatDay includes booking levels and partial continuity warning", () => {

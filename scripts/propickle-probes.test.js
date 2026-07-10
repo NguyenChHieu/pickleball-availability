@@ -44,16 +44,16 @@ function runWithPayload(payload) {
 }
 
 test("propickle probe assert-target passes the expected July 16 split", () => {
-  const result = runWithPayload(targetPayload([{ start_time: "9pm", end_time: "10pm" }]));
+  const result = runWithPayload(targetPayload([{ start_time: "9pm", end_time: "11pm" }]));
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, /target split: PASS/);
 });
 
-test("propickle probe assert-target fails when Court 4 covers 10-11pm", () => {
-  const result = runWithPayload(targetPayload([{ start_time: "9pm", end_time: "11pm" }]));
+test("propickle probe assert-target fails when Court 4 does not cover 10-11pm", () => {
+  const result = runWithPayload(targetPayload([{ start_time: "9pm", end_time: "10pm" }]));
 
   assert.equal(result.status, 1);
   assert.match(result.stdout, /target split: FAIL/);
-  assert.match(result.stdout, /court 4 should not cover 10pm-11pm/);
+  assert.match(result.stdout, /court 4 missing 10pm-11pm/);
 });

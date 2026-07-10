@@ -792,71 +792,6 @@ function formatProbeIntervals(intervals) {
     : "none";
 }
 
-function probeTimeToMinutes(value) {
-  const match = String(value || "")
-    .trim()
-    .toLowerCase()
-    .match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/);
-  if (!match) return null;
-
-  let hour = Number(match[1]);
-  const minute = Number(match[2] || 0);
-  const period = match[3];
-  if (period === "am" && hour === 12) hour = 0;
-  if (period === "pm" && hour !== 12) hour += 12;
-  return hour * 60 + minute;
-}
-
-function probeIntervalCovers(interval, start, end) {
-  const intervalStart = probeTimeToMinutes(interval?.start_time);
-  const intervalEnd = probeTimeToMinutes(interval?.end_time);
-  const targetStart = probeTimeToMinutes(start);
-  const targetEnd = probeTimeToMinutes(end);
-  if ([intervalStart, intervalEnd, targetStart, targetEnd].some((value) => value === null)) return false;
-  return intervalStart <= targetStart && intervalEnd >= targetEnd;
-}
-
-function sameCourtProbeMap(day) {
-  const byCourt = new Map();
-  const groups = Array.isArray(day?.same_court_intervals) ? day.same_court_intervals : [];
-  for (const group of groups) {
-    const court = String(group.court_name || group.courtName || group.resource_name || group.provider_name || "").trim();
-    if (!court) continue;
-    byCourt.set(court.toLowerCase(), Array.isArray(group.intervals) ? group.intervals : []);
-  }
-  return byCourt;
-}
-
-function targetSplitFailures(day) {
-  const byCourt = sameCourtProbeMap(day);
-  const expected = new Map([
-    ["court 1", "10pm-11pm"],
-    ["court 2", "10pm-11pm"],
-    ["court 3", "10pm-11pm"],
-    ["court 4", "9pm-10pm"],
-    ["court 5", "10pm-11pm"],
-    ["court 6", "10pm-11pm"],
-  ]);
-  const failures = [];
-
-  for (const [court, interval] of expected.entries()) {
-    const [start, end] = interval.split("-");
-    const intervals = byCourt.get(court) || [];
-    if (!intervals.some((current) => probeIntervalCovers(current, start, end))) failures.push(`${court} missing ${interval}`);
-  }
-
-  const court4 = byCourt.get("court 4") || [];
-  if (court4.some((interval) => probeIntervalCovers(interval, "10pm", "11pm"))) {
-    failures.push("court 4 should not cover 10pm-11pm");
-  }
-
-  if (day?.continuity_status !== "available") {
-    failures.push(`continuity_status should be available, got ${day?.continuity_status || "missing"}`);
-  }
-
-  return failures;
-}
-
 function probeSummary(payload = latestPayload) {
   const days = Array.isArray(payload?.days) ? payload.days : [];
   const lines = [
@@ -883,7 +818,7 @@ function probeSummary(payload = latestPayload) {
       lines.push("    none");
     }
     if (/\bjuly\s+16\b/i.test(day.date || "")) {
-      const failures = targetSplitFailures(day);
+      const failures = ProPickleProbeTarget.targetSplitFailures(day);
       lines.push(`  target split: ${failures.length ? "FAIL" : "PASS"}`);
       for (const failure of failures) lines.push(`    - ${failure}`);
     }

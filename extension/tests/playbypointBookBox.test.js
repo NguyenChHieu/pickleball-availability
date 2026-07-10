@@ -145,7 +145,7 @@ function createBookBox({
   detailPrimaryWhenSelected = false,
   availability = {
     "9pm-10pm": new Set(["Court 4"]),
-    "10pm-11pm": new Set(["Court 1", "Court 2", "Court 3", "Court 5", "Court 6"]),
+    "10pm-11pm": new Set(["Court 1", "Court 2", "Court 3", "Court 4", "Court 5", "Court 6"]),
   },
 } = {}) {
   const state = { selectedDate: "Thursday, July 16", selectedTime: "", selectedCourt: "" };
@@ -299,7 +299,7 @@ test("Playbypoint reader probes accepted court details per time before assigning
 
   assert.deepEqual(day.open_intervals, [{ start_time: "9pm", end_time: "11pm" }]);
   assert.equal(day.continuity_status, "available");
-  assert.equal(day.probe_debug.filter((probe) => probe.accepted).length, 6);
+  assert.equal(day.probe_debug.filter((probe) => probe.accepted).length, 7);
   assert.deepEqual(
     day.probe_debug
       .filter((probe) => probe.start_time === "9pm" && probe.end_time === "10pm" && !probe.accepted)
@@ -322,7 +322,7 @@ test("Playbypoint reader probes accepted court details per time before assigning
       { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
-      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "11pm" }] },
       { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
     ]
@@ -342,7 +342,7 @@ test("Playbypoint reader does not reuse a stale selected court when the next tim
       { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
-      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "11pm" }] },
       { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
     ]
@@ -354,6 +354,10 @@ test("Playbypoint reader rejects a court that was already selected before probin
     createBookBox({
       clearCourtOnTime: false,
       detailOrder: ["Court 4", "Court 1", "Court 2", "Court 3", "Court 5", "Court 6"],
+      availability: {
+        "9pm-10pm": new Set(["Court 4"]),
+        "10pm-11pm": new Set(["Court 1", "Court 2", "Court 3", "Court 5", "Court 6"]),
+      },
     }),
     { scanMode: "deep" }
   );
@@ -446,7 +450,7 @@ test("Playbypoint reader does not treat generic primary detail styling as select
       { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
-      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "11pm" }] },
       { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
     ]
@@ -474,7 +478,7 @@ test("Playbypoint reader accepts primary detail styling when it is unique to the
       { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
-      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "11pm" }] },
       { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
     ]
@@ -486,7 +490,7 @@ test("Playbypoint reader ignores visually selected courts when the widget still 
   const day = payload.days[0];
   assert.equal(
     day.probe_debug.find(
-      (probe) => probe.start_time === "10pm" && probe.end_time === "11pm" && probe.court_name === "Court 4"
+      (probe) => probe.start_time === "9pm" && probe.end_time === "10pm" && probe.court_name === "Court 1"
     )?.reason,
     "next_blocked"
   );
@@ -500,7 +504,7 @@ test("Playbypoint reader ignores visually selected courts when the widget still 
       { court: "Court 1", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 2", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 3", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
-      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "10pm" }] },
+      { court: "Court 4", intervals: [{ start_time: "9pm", end_time: "11pm" }] },
       { court: "Court 5", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
       { court: "Court 6", intervals: [{ start_time: "10pm", end_time: "11pm" }] },
     ]
