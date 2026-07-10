@@ -452,9 +452,11 @@ function jobStatusMessage(job) {
   const total = Number(job.total || job.venueIds?.length || 0);
   const completed = Number(job.completed || 0);
   const current = job.currentVenueName ? ` ${job.currentVenueName}` : "";
-  const prefix = job.scanMode === "deep" ? "Deep scan" : job.label || "Refresh";
+  const isDeepScan = job.scanMode === "deep";
+  const prefix = isDeepScan ? "Deep scan" : job.label || "Refresh";
   const parallelLimit = Number(job.parallelLimit || 1);
   const parallelNote = parallelLimit > 1 ? ` Up to ${parallelLimit} venues run at once.` : "";
+  const deepScanNote = isDeepScan ? " Keep the reader window visible." : "";
 
   if (isActiveJob(job)) {
     const elapsed = formatLiveElapsed(job.startedAt);
@@ -463,7 +465,9 @@ function jobStatusMessage(job) {
     const lastTiming = lastFinished ? resultTimingLabel(lastFinished) : "";
     return `${prefix} running: ${completed}/${total}${current ? ` - ${current}` : ""}${
       elapsed ? ` (${elapsed})` : ""
-    }.${parallelNote} Last saved results stay available.${lastTiming ? `\nLast finished: ${lastTiming}` : ""}`;
+    }.${parallelNote}${deepScanNote} Last saved results stay available.${
+      lastTiming ? `\nLast finished: ${lastTiming}` : ""
+    }`;
   }
 
   const results = Array.isArray(job.results) ? job.results : [];
@@ -645,7 +649,11 @@ async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh" 
   if (isDeepScan && !confirmDeepScan()) return;
 
   setBusy(true);
-  setStatus(`${isDeepScan ? "Starting deep scan" : `Starting ${label.toLowerCase()}`}...`);
+  setStatus(
+    isDeepScan
+      ? "Starting deep scan... Keep the reader window visible until it finishes."
+      : `Starting ${label.toLowerCase()}...`
+  );
 
   try {
     const response = await sendMessage({
@@ -875,7 +883,7 @@ async function selectVenue(venueId) {
 
 function confirmDeepScan() {
   return window.confirm(
-    "Deep scan checks each court/provider and can take a while on slow venues. The booking tab will be focused so Chrome does not throttle the read. It is read-only, but slower than normal refresh. Continue?"
+    "Deep scan checks each court/provider and can take a while on slow venues. It opens a small reader window; keep that window visible so Chrome does not throttle the read. It is read-only, but slower than normal refresh. Continue?"
   );
 }
 
