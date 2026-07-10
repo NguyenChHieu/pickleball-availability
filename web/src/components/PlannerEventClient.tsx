@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
   PlannerAvailabilityBlock,
+  PlannerGroupTime,
   PlannerRecommendation,
   PublicPlannerEventView,
   PublicPlannerParticipant,
@@ -30,6 +31,9 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
     () => timeRange(view.event.preferredStartTime, view.event.preferredEndTime),
     [view.event.preferredStartTime, view.event.preferredEndTime]
   );
+  const cellSummaries = useMemo(() => buildCellSummaries(view.participants), [view.participants]);
+  const participantCount = view.participants.length;
+  const groupTimes = view.groupTimes || [];
 
   useEffect(() => {
     if (savedIdentity) return;
@@ -91,7 +95,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
       setSavedIdentity(identity);
       setDisplayName(identity.displayName);
       setView(body.view);
-      setStatus("Saved. The recommendations below are updated.");
+      setStatus("Saved. Group times and court matches are updated.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save availability.");
     } finally {
@@ -116,8 +120,8 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
         <div className="planner-panel planner-panel--grid" aria-labelledby="planner-grid-title">
           <div className="planner-panel__header">
             <div>
-              <h2 id="planner-grid-title">Your availability</h2>
-              <p>Mark the times you could play. This only updates your own response.</p>
+              <h2 id="planner-grid-title">Availability heatmap</h2>
+              <p>Darker cells have more people available. Your current selection gets the bright outline.</p>
             </div>
             <label className="planner-name">
               <span>Name</span>
@@ -133,6 +137,8 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
           <AvailabilityGrid
             dates={dates}
             selectedCells={selectedCells}
+            cellSummaries={cellSummaries}
+            participantCount={participantCount}
             timeSlots={timeSlots}
             onPointerDown={handlePointerDown}
             onPointerEnter={handlePointerEnter}
@@ -155,23 +161,39 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
       <section className="planner-panel planner-recommendations" aria-labelledby="planner-results-title">
         <div className="planner-panel__header">
           <div>
-            <h2 id="planner-results-title">Best matches</h2>
-            <p>Ranked from cached venue availability. Use the extension to refresh venues when the cache is stale.</p>
+            <h2 id="planner-results-title">Group Times</h2>
+            <p>People overlap only. These times are useful even before a venue cache exists.</p>
           </div>
         </div>
-        {view.recommendations.length ? (
+        {groupTimes.length ? (
+          <div className="planner-recommendation-list">
+            {groupTimes.map((groupTime) => (
+              <GroupTimeCard groupTime={groupTime} key={groupTime.id} />
+            ))}
+          </div>
+        ) : (
+          <div className="planner-empty">
+            <h3>No group overlap yet.</h3>
+            <p>Add participant availability or widen the event hours to find shared times.</p>
+          </div>
+        )}
+      </section>
+
+      {view.recommendations.length ? (
+        <section className="planner-panel planner-recommendations" aria-labelledby="planner-court-results-title">
+          <div className="planner-panel__header">
+            <div>
+              <h2 id="planner-court-results-title">Court Matches</h2>
+              <p>Venue-aware results from cached court availability. Refresh venues from the extension when stale.</p>
+            </div>
+          </div>
           <div className="planner-recommendation-list">
             {view.recommendations.map((recommendation) => (
               <RecommendationCard recommendation={recommendation} key={recommendation.id} />
             ))}
           </div>
-        ) : (
-          <div className="planner-empty">
-            <h3>No matching slots yet.</h3>
-            <p>Add participant availability, refresh venue caches from the extension, or loosen the minimum session length.</p>
-          </div>
-        )}
-      </section>
+        </section>
+      ) : null}
     </main>
   );
 }
@@ -179,6 +201,8 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
 function AvailabilityGrid({
   dates,
   selectedCells,
+  cellSummaries,
+  participantCount,
   timeSlots,
   onPointerDown,
   onPointerEnter,
@@ -186,6 +210,8 @@ function AvailabilityGrid({
   dates: string[];
   timeSlots: number[];
   selectedCells: Set<string>;
+  cellSummaries: Map<string, CellSummary>;
+  participantCount: number;
   onPointerDown: (cellKey: string) => void;
   onPointerEnter: (cellKey: string) => void;
 }>) {
@@ -210,6 +236,8 @@ function AvailabilityGrid({
             onPointerDown={onPointerDown}
             onPointerEnter={onPointerEnter}
             selectedCells={selectedCells}
+            cellSummaries={cellSummaries}
+            participantCount={participantCount}
           />
         ))}
       </div>
@@ -223,10 +251,14 @@ function Row({
   onPointerDown,
   onPointerEnter,
   selectedCells,
+  cellSummaries,
+  participantCount,
 }: Readonly<{
   dates: string[];
   minute: number;
   selectedCells: Set<string>;
+  cellSummaries: Map<string, CellSummary>;
+  participantCount: number;
   onPointerDown: (cellKey: string) => void;
   onPointerEnter: (cellKey: string) => void;
 }>) {
@@ -236,17 +268,24 @@ function Row({
       {dates.map((date) => {
         const cellKey = keyForCell(date, minute);
         const selected = selectedCells.has(cellKey);
+        const summary = cellSummaries.get(cellKey) || { count: 0, names: [] };
+        const availabilityText = summary.count
+          ? `Available: ${summary.names.join(", ")}`
+          : "No saved availability";
         return (
           <button
-            aria-label={`${selected ? "Remove" : "Add"} ${formatShortDate(date)} ${formatMinutes(minute)}`}
+            aria-label={`${selected ? "Remove" : "Add"} ${formatShortDate(date)} ${formatMinutes(
+              minute
+            )}. ${availabilityText}.`}
             aria-pressed={selected}
-            className="planner-grid__cell"
+            className={`planner-grid__cell ${heatClassForCell(summary.count, participantCount)}`}
             key={cellKey}
             onPointerDown={(event) => {
               event.preventDefault();
               onPointerDown(cellKey);
             }}
             onPointerEnter={() => onPointerEnter(cellKey)}
+            title={availabilityText}
             type="button"
           />
         );
@@ -296,6 +335,24 @@ function VenueFreshness({ view }: Readonly<{ view: PublicPlannerEventView }>) {
   );
 }
 
+function GroupTimeCard({ groupTime }: Readonly<{ groupTime: PlannerGroupTime }>) {
+  return (
+    <article className="planner-recommendation planner-recommendation--group">
+      <div>
+        <p>{formatDate(groupTime.date)}</p>
+        <h3>
+          {formatMinutes(groupTime.startMinute)}-{formatMinutes(groupTime.endMinute)}
+        </h3>
+      </div>
+      <div>
+        <strong>{groupTime.availableParticipantCount} people available</strong>
+        <span>{groupTime.availableParticipantNames.join(", ")}</span>
+        <small>Court matches appear when venue cache overlaps. Otherwise, check/book manually.</small>
+      </div>
+    </article>
+  );
+}
+
 function RecommendationCard({ recommendation }: Readonly<{ recommendation: PlannerRecommendation }>) {
   return (
     <article className="planner-recommendation">
@@ -310,8 +367,8 @@ function RecommendationCard({ recommendation }: Readonly<{ recommendation: Plann
         <span>
           {recommendation.availableParticipantCount} available -{" "}
           {recommendation.confidence === "same-court"
-            ? `same court${recommendation.courtName ? ` (${recommendation.courtName})` : ""}`
-            : "any court"}
+            ? `same-court confirmed${recommendation.courtName ? ` (${recommendation.courtName})` : ""}`
+            : "any-court available"}
         </span>
         <small>
           {recommendation.availableParticipantNames.join(", ")}
@@ -337,6 +394,33 @@ function readSavedIdentity(storageKey: string) {
 function initialSelectedCells(saved: SavedPlannerIdentity, participants: PublicPlannerParticipant[]) {
   const participant = saved ? participants.find((item) => item.participantId === saved.participantId) : null;
   return participant ? cellsFromBlocks(participant.availabilityBlocks) : new Set<string>();
+}
+
+type CellSummary = {
+  count: number;
+  names: string[];
+};
+
+function buildCellSummaries(participants: PublicPlannerParticipant[]) {
+  const summaries = new Map<string, CellSummary>();
+  for (const participant of participants) {
+    for (const block of participant.availabilityBlocks) {
+      for (let minute = block.startMinute; minute < block.endMinute; minute += SLOT_MINUTES) {
+        const cellKey = keyForCell(block.date, minute);
+        const summary = summaries.get(cellKey) || { count: 0, names: [] };
+        summary.count += 1;
+        summary.names.push(participant.displayName);
+        summaries.set(cellKey, summary);
+      }
+    }
+  }
+  return summaries;
+}
+
+function heatClassForCell(count: number, participantCount: number) {
+  if (!count || !participantCount) return "planner-grid__cell--heat-0";
+  const level = Math.max(1, Math.min(5, Math.ceil((count / participantCount) * 5)));
+  return `planner-grid__cell--heat-${level}`;
 }
 
 function parseTime(value: string) {

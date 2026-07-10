@@ -66,9 +66,19 @@ export type PlannerRecommendation = {
   isStale: boolean;
 };
 
+export type PlannerGroupTime = {
+  id: string;
+  date: string;
+  startMinute: number;
+  endMinute: number;
+  availableParticipantCount: number;
+  availableParticipantNames: string[];
+};
+
 export type PublicPlannerEventView = {
   event: PlannerEvent;
   participants: PublicPlannerParticipant[];
   venues: PlannerVenueAvailability[];
+  groupTimes: PlannerGroupTime[];
   recommendations: PlannerRecommendation[];
 };

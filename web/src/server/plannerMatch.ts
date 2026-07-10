@@ -1,6 +1,7 @@
 import type {
   PlannerAvailabilityBlock,
   PlannerEvent,
+  PlannerGroupTime,
   PlannerParticipant,
   PlannerRecommendation,
   PlannerVenueAvailability,
@@ -158,6 +159,29 @@ function intersectIntervals(
   const endMinute = Math.min(band.endMinute, interval.endMinute);
   if (endMinute - startMinute < minimumDurationMinutes) return null;
   return { startMinute, endMinute };
+}
+
+export function buildPlannerGroupTimes(
+  event: PlannerEvent,
+  participants: Pick<PlannerParticipant, "participantId" | "displayName" | "availabilityBlocks">[]
+) {
+  return buildParticipantBands(event, participants)
+    .filter((band) => band.endMinute - band.startMinute >= event.minimumDurationMinutes)
+    .map<PlannerGroupTime>((band) => ({
+      id: [band.date, band.startMinute, band.endMinute, band.participantIds.join(",")].join(":"),
+      date: band.date,
+      startMinute: band.startMinute,
+      endMinute: band.endMinute,
+      availableParticipantCount: band.participantIds.length,
+      availableParticipantNames: band.participantNames,
+    }))
+    .sort((left, right) => {
+      const people = right.availableParticipantCount - left.availableParticipantCount;
+      if (people) return people;
+      const date = left.date.localeCompare(right.date);
+      if (date) return date;
+      return left.startMinute - right.startMinute;
+    });
 }
 
 export function buildPlannerRecommendations(

@@ -10,7 +10,7 @@ import {
 } from "./availabilityStore";
 import { bookingUrlForDay } from "./bookingLinks";
 import { formatDateTime } from "./formatAvailability";
-import { buildPlannerRecommendations, mergeBlocks, parseTimeToMinutes } from "./plannerMatch";
+import { buildPlannerGroupTimes, buildPlannerRecommendations, mergeBlocks, parseTimeToMinutes } from "./plannerMatch";
 import type {
   PlannerAvailabilityBlock,
   PlannerEvent,
@@ -259,6 +259,7 @@ export async function getPlannerEventView(eventToken: string): Promise<PublicPla
     event: record.event,
     participants: publicParticipants(record.participants),
     venues: plannerVenues,
+    groupTimes: buildPlannerGroupTimes(record.event, record.participants).slice(0, 24),
     recommendations: buildPlannerRecommendations(record.event, record.participants, plannerVenues).slice(0, 24),
   };
 }
