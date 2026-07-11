@@ -139,6 +139,15 @@ async function readSupabaseJson(response: Response) {
   return text ? JSON.parse(text) : null;
 }
 
+function isMissingPlannerPasswordColumns(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return message.includes("display_name_key") || message.includes("edit_password_hash");
+}
+
+function plannerPasswordMigrationError() {
+  return new Error("Planner edit passwords need the latest Supabase migration. Run web/supabase.sql in Supabase, then retry.");
+}
+
 function isIsoDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   return !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
@@ -338,15 +347,7 @@ async function readPlannerEventSupabase(eventToken: string): Promise<PlannerFile
       headers: supabaseHeaders(),
     })
   );
-  const participantRows = await readSupabaseJson(
-    await fetch(
-      supabaseEndpoint(
-        "planner_participants",
-        `?event_token=eq.${token}&select=participant_id,display_name,display_name_key,edit_token,edit_password_hash,created_at`
-      ),
-      { headers: supabaseHeaders() }
-    )
-  );
+  const participantRows = await readSupabaseParticipants(token);
   const blockRows = await readSupabaseJson(
     await fetch(
       supabaseEndpoint(
@@ -395,6 +396,31 @@ async function readPlannerEventSupabase(eventToken: string): Promise<PlannerFile
   };
 }
 
+async function readSupabaseParticipants(token: string) {
+  try {
+    return await readSupabaseJson(
+      await fetch(
+        supabaseEndpoint(
+          "planner_participants",
+          `?event_token=eq.${token}&select=participant_id,display_name,display_name_key,edit_token,edit_password_hash,created_at`
+        ),
+        { headers: supabaseHeaders() }
+      )
+    );
+  } catch (error) {
+    if (!isMissingPlannerPasswordColumns(error)) throw error;
+    return readSupabaseJson(
+      await fetch(
+        supabaseEndpoint(
+          "planner_participants",
+          `?event_token=eq.${token}&select=participant_id,display_name,edit_token,created_at`
+        ),
+        { headers: supabaseHeaders() }
+      )
+    );
+  }
+}
+
 export async function upsertPlannerParticipant(eventToken: string, input: Partial<ParticipantInput>) {
   const displayName = String(input.displayName || "").trim().slice(0, 60);
   if (!displayName) throw new Error("Enter a display name.");
@@ -405,7 +431,18 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
   const editPassword = normalizeEditPassword(input.editPassword);
 
   if (USE_SUPABASE) {
-    return upsertPlannerParticipantSupabase(eventToken, { displayName, displayNameKey, editToken, editPassword, availabilityBlocks });
+    try {
+      return await upsertPlannerParticipantSupabase(eventToken, {
+        displayName,
+        displayNameKey,
+        editToken,
+        editPassword,
+        availabilityBlocks,
+      });
+    } catch (error) {
+      if (isMissingPlannerPasswordColumns(error)) throw plannerPasswordMigrationError();
+      throw error;
+    }
   }
 
   const record = await readLocalPlannerFile(eventToken);
