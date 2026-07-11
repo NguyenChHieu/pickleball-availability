@@ -454,12 +454,14 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
 
   if (!participant) {
     if (participantByName) {
+      if (!participantByName.editPasswordHash) {
+        throw new Error("That name is already used and has no recovery password. Use the original device or choose another name.");
+      }
       if (!(await verifyEditPassword(editPassword, participantByName.editPasswordHash))) {
         throw new Error("That name is already used for this event. Enter its edit password or choose another name.");
       }
       participant = participantByName;
     } else {
-      if (!editPassword) throw new Error("Enter an edit password so you can update this availability later.");
       participant = {
         participantId: randomToken(12),
         eventToken: record.event.eventToken,
@@ -511,13 +513,15 @@ async function upsertPlannerParticipantSupabase(
 
   if (!participant) {
     if (participantByName) {
+      if (!participantByName.editPasswordHash) {
+        throw new Error("That name is already used and has no recovery password. Use the original device or choose another name.");
+      }
       if (!(await verifyEditPassword(input.editPassword || "", participantByName.editPasswordHash))) {
         throw new Error("That name is already used for this event. Enter its edit password or choose another name.");
       }
       participant = participantByName;
     } else {
-      if (!input.editPassword) throw new Error("Enter an edit password so you can update this availability later.");
-      const editPasswordHash = await hashEditPassword(input.editPassword);
+      const editPasswordHash = input.editPassword ? await hashEditPassword(input.editPassword) : undefined;
       participant = {
         participantId: randomToken(12),
         eventToken: token,
@@ -539,7 +543,7 @@ async function upsertPlannerParticipantSupabase(
             display_name: participant.displayName,
             display_name_key: participant.displayNameKey,
             edit_token: participant.editToken,
-            edit_password_hash: editPasswordHash,
+            edit_password_hash: editPasswordHash || null,
             created_at: participant.createdAt,
           }),
         })

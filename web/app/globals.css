@@ -2461,6 +2461,13 @@ dd {
   min-width: min(520px, 100%);
 }
 
+.planner-password-note {
+  color: #a8bbb4;
+  font-size: 12px;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .planner-form label > span,
 .planner-name span,
 .planner-venues legend,

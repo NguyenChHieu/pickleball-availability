@@ -146,16 +146,19 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
                 />
               </label>
               <label className="planner-name">
-                <span>Edit password</span>
+                <span>Edit password (optional)</span>
                 <input
                   value={editPassword}
                   onChange={(event) => setEditPassword(event.target.value)}
-                  placeholder={savedIdentity ? "Optional for this device" : "Required to save"}
+                  placeholder={savedIdentity ? "Add or change recovery" : "For editing on another device"}
                   maxLength={80}
                   minLength={4}
                   type="password"
                 />
               </label>
+              <p className="planner-password-note">
+                Set one only if you want to edit from another browser. This device can edit without one.
+              </p>
             </div>
           </div>
 
@@ -172,7 +175,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
           <div className="planner-actions">
             <button
               className="planner-primary"
-              disabled={isSaving || !displayName.trim() || (!savedIdentity && editPassword.trim().length < 4)}
+              disabled={isSaving || !displayName.trim() || (editPassword.trim().length > 0 && editPassword.trim().length < 4)}
               onClick={handleSave}
             >
               {isSaving ? "Saving..." : savedIdentity ? "Update my times" : "Save my times"}

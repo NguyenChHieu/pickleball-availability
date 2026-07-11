@@ -41,23 +41,21 @@ test("normalizes display names for duplicate detection", () => {
   assert.equal(normalizeDisplayNameKey("  Hieu   Nguyen "), "hieu nguyen");
 });
 
-test("new planner participants need an edit password", async () => {
+test("new planner participants can save without an edit password", async () => {
   const event = await createPlannerEvent(eventInput());
+  const created = await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    availabilityBlocks: block(18 * 60, 20 * 60),
+  });
 
-  await assert.rejects(
-    upsertPlannerParticipant(event.eventToken, {
-      displayName: "Hieu",
-      availabilityBlocks: block(18 * 60, 20 * 60),
-    }),
-    /edit password/
-  );
+  assert.ok(created);
+  assert.equal(created.editPasswordHash, undefined);
 });
 
 test("same browser edit token updates without re-entering password", async () => {
   const event = await createPlannerEvent(eventInput());
   const created = await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
-    editPassword: "court123",
     availabilityBlocks: block(18 * 60, 19 * 60),
   });
   assert.ok(created);
@@ -70,6 +68,23 @@ test("same browser edit token updates without re-entering password", async () =>
 
   assert.equal(updated?.participantId, created.participantId);
   assert.deepEqual(updated?.availabilityBlocks, block(19 * 60, 21 * 60));
+});
+
+test("passwordless participant cannot be reclaimed from another browser", async () => {
+  const event = await createPlannerEvent(eventInput());
+  await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    availabilityBlocks: block(18 * 60, 19 * 60),
+  });
+
+  await assert.rejects(
+    upsertPlannerParticipant(event.eventToken, {
+      displayName: "hieu",
+      editPassword: "newpass1",
+      availabilityBlocks: block(20 * 60, 21 * 60),
+    }),
+    /no recovery password/
+  );
 });
 
 test("same name and password can reclaim a participant from another browser", async () => {
