@@ -40,6 +40,7 @@ type ParticipantInput = {
   displayName: string;
   editToken?: string;
   editPassword?: string;
+  recoverOnly?: boolean;
   availabilityBlocks: PlannerAvailabilityBlock[];
 };
 
@@ -54,8 +55,11 @@ const USE_SUPABASE = Boolean(SUPABASE_URL || SUPABASE_SECRET_KEY);
 const STALE_THRESHOLD_MINUTES = 5;
 const STALE_THRESHOLD_MS = STALE_THRESHOLD_MINUTES * 60 * 1000;
 const MAX_PLANNER_DAYS = 14;
+const MAX_PARTICIPANTS_PER_EVENT = 100;
+const MAX_PARTICIPANT_BLOCKS = MAX_PLANNER_DAYS * 48;
 const EDIT_PASSWORD_PREFIX = "scrypt-v1";
-const MIN_EDIT_PASSWORD_LENGTH = 4;
+const MIN_EDIT_PASSWORD_LENGTH = 8;
+const MAX_EDIT_PASSWORD_LENGTH = 80;
 const PARTICIPANT_ACCESS_ERROR =
   "Could not verify edit access. Check your details or use a different display name.";
 
@@ -78,8 +82,8 @@ function plannerPath(eventToken: string) {
 }
 
 function safeToken(token: unknown) {
-  const normalized = String(token || "").replace(/[^a-zA-Z0-9_-]/g, "");
-  if (!normalized) throw new Error("Missing planner token.");
+  const normalized = String(token || "");
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(normalized)) throw new Error("Missing or invalid planner token.");
   return normalized;
 }
 
@@ -98,6 +102,9 @@ function normalizeEditPassword(value: unknown) {
   const password = String(value || "").trim();
   if (password && password.length < MIN_EDIT_PASSWORD_LENGTH) {
     throw new Error(`Edit password must be at least ${MIN_EDIT_PASSWORD_LENGTH} characters.`);
+  }
+  if (password.length > MAX_EDIT_PASSWORD_LENGTH) {
+    throw new Error(`Edit password can be up to ${MAX_EDIT_PASSWORD_LENGTH} characters.`);
   }
   return password;
 }
@@ -150,14 +157,29 @@ function plannerPasswordMigrationError() {
   return new Error("Planner edit passwords need the latest Supabase migration. Run web/supabase.sql in Supabase, then retry.");
 }
 
+function isSupabasePlannerError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return message.startsWith("Supabase planner request failed:");
+}
+
+function isSupabaseUniqueViolation(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return message.includes('"code":"23505"') || message.includes("duplicate key value violates unique constraint");
+}
+
 function isIsoDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  return !Number.isNaN(new Date(`${value}T00:00:00`).getTime());
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 function daysBetweenInclusive(dateStart: string, dateEnd: string) {
-  const start = new Date(`${dateStart}T00:00:00`).getTime();
-  const end = new Date(`${dateEnd}T00:00:00`).getTime();
+  const start = Date.parse(`${dateStart}T00:00:00Z`);
+  const end = Date.parse(`${dateEnd}T00:00:00Z`);
   return Math.floor((end - start) / 86_400_000) + 1;
 }
 
@@ -167,9 +189,11 @@ function normalizeEventInput(input: Partial<PlannerEventInput>): PlannerEventInp
   const dateEnd = String(input.dateEnd || "");
   const preferredStartTime = String(input.preferredStartTime || "18:00");
   const preferredEndTime = String(input.preferredEndTime || "23:00");
+  const preferredStartMinutes = parseTimeToMinutes(preferredStartTime);
+  const preferredEndMinutes = parseTimeToMinutes(preferredEndTime);
   const minimumDurationMinutes = Number(input.minimumDurationMinutes || 60);
   const venueIds = Array.isArray(input.venueIds)
-    ? input.venueIds.filter((venueId) => venues.some((venue) => venue.id === venueId))
+    ? [...new Set(input.venueIds.filter((venueId) => venues.some((venue) => venue.id === venueId)))]
     : [];
 
   if (!isIsoDate(dateStart) || !isIsoDate(dateEnd) || dateStart > dateEnd) {
@@ -178,7 +202,11 @@ function normalizeEventInput(input: Partial<PlannerEventInput>): PlannerEventInp
   if (daysBetweenInclusive(dateStart, dateEnd) > MAX_PLANNER_DAYS) {
     throw new Error(`Planner events can cover up to ${MAX_PLANNER_DAYS} days.`);
   }
-  if ((parseTimeToMinutes(preferredStartTime) ?? -1) >= (parseTimeToMinutes(preferredEndTime) ?? -1)) {
+  if (
+    preferredStartMinutes === null ||
+    preferredEndMinutes === null ||
+    preferredStartMinutes >= preferredEndMinutes
+  ) {
     throw new Error("Preferred end time must be after preferred start time.");
   }
   if (!Number.isInteger(minimumDurationMinutes) || minimumDurationMinutes < 30 || minimumDurationMinutes > 240) {
@@ -190,15 +218,22 @@ function normalizeEventInput(input: Partial<PlannerEventInput>): PlannerEventInp
     name,
     dateStart,
     dateEnd,
-    preferredStartTime,
-    preferredEndTime,
+    preferredStartTime: formatTimeValue(preferredStartMinutes),
+    preferredEndTime: formatTimeValue(preferredEndMinutes),
     minimumDurationMinutes,
     venueIds,
   };
 }
 
+function formatTimeValue(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+}
+
 function normalizeBlocks(blocks: unknown): PlannerAvailabilityBlock[] {
   if (!Array.isArray(blocks)) return [];
+  if (blocks.length > MAX_PARTICIPANT_BLOCKS) {
+    throw new Error("Too many availability blocks.");
+  }
   return mergeBlocks(
     blocks
       .map((block) => {
@@ -219,6 +254,26 @@ function normalizeBlocks(blocks: unknown): PlannerAvailabilityBlock[] {
           block.endMinute > block.startMinute
       )
   );
+}
+
+function validateBlocksForEvent(blocks: PlannerAvailabilityBlock[], event: PlannerEvent) {
+  const preferredStart = parseTimeToMinutes(event.preferredStartTime);
+  const preferredEnd = parseTimeToMinutes(event.preferredEndTime);
+  const isOutsideEvent = blocks.some(
+    (block) =>
+      block.date < event.dateStart ||
+      block.date > event.dateEnd ||
+      block.startMinute % 30 !== 0 ||
+      block.endMinute % 30 !== 0 ||
+      preferredStart === null ||
+      preferredEnd === null ||
+      block.startMinute < preferredStart ||
+      block.endMinute > preferredEnd
+  );
+  if (isOutsideEvent) {
+    throw new Error("Availability must use 30-minute slots inside the planner dates and hours.");
+  }
+  return blocks;
 }
 
 function publicParticipants(participants: PlannerParticipant[]) {
@@ -277,7 +332,15 @@ export async function createPlannerEvent(input: Partial<PlannerEventInput>) {
     createdAt: new Date().toISOString(),
   };
 
-  if (USE_SUPABASE) return createPlannerEventSupabase(event);
+  if (USE_SUPABASE) {
+    try {
+      return await createPlannerEventSupabase(event);
+    } catch (error) {
+      if (!isSupabasePlannerError(error)) throw error;
+      console.error("Could not create planner event in Supabase.", error);
+      throw new Error("Could not create planner event.");
+    }
+  }
 
   await writeLocalPlannerFile({ event, participants: [] });
   return event;
@@ -428,9 +491,10 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
   if (!displayName) throw new Error("Enter a display name.");
   const displayNameKey = normalizeDisplayNameKey(displayName);
   if (!displayNameKey) throw new Error("Enter a display name.");
-  const availabilityBlocks = normalizeBlocks(input.availabilityBlocks);
+  const requestedBlocks = normalizeBlocks(input.availabilityBlocks);
   const editToken = input.editToken ? safeToken(input.editToken) : "";
   const editPassword = normalizeEditPassword(input.editPassword);
+  const recoverOnly = input.recoverOnly === true;
 
   if (USE_SUPABASE) {
     try {
@@ -439,16 +503,23 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
         displayNameKey,
         editToken,
         editPassword,
-        availabilityBlocks,
+        recoverOnly,
+        availabilityBlocks: requestedBlocks,
       });
     } catch (error) {
       if (isMissingPlannerPasswordColumns(error)) throw plannerPasswordMigrationError();
+      if (isSupabaseUniqueViolation(error)) throw new Error(PARTICIPANT_ACCESS_ERROR);
+      if (isSupabasePlannerError(error)) {
+        console.error("Could not save planner participant in Supabase.", error);
+        throw new Error("Could not save availability.");
+      }
       throw error;
     }
   }
 
   const record = await readLocalPlannerFile(eventToken);
   if (!record) return null;
+  const availabilityBlocks = validateBlocksForEvent(requestedBlocks, record.event);
   let participant = editToken
     ? record.participants.find((item) => item.editToken === editToken && item.eventToken === record.event.eventToken)
     : null;
@@ -464,6 +535,10 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
       }
       participant = participantByName;
     } else {
+      if (recoverOnly) throw new Error(PARTICIPANT_ACCESS_ERROR);
+      if (record.participants.length >= MAX_PARTICIPANTS_PER_EVENT) {
+        throw new Error("This planner has reached its participant limit.");
+      }
       participant = {
         participantId: randomToken(12),
         eventToken: record.event.eventToken,
@@ -478,6 +553,8 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
   } else if (participantByName && participantByName.participantId !== participant.participantId) {
     throw new Error(PARTICIPANT_ACCESS_ERROR);
   }
+
+  if (recoverOnly) return participant;
 
   if (editPassword) {
     participant.editPasswordHash = await hashEditPassword(editPassword);
@@ -500,12 +577,14 @@ async function upsertPlannerParticipantSupabase(
     displayNameKey: string;
     editToken?: string;
     editPassword?: string;
+    recoverOnly?: boolean;
     availabilityBlocks: PlannerAvailabilityBlock[];
   }
 ) {
   const token = safeToken(eventToken);
   const event = await readPlannerEventSupabase(token);
   if (!event) return null;
+  const availabilityBlocks = validateBlocksForEvent(input.availabilityBlocks, event.event);
 
   let participant: PlannerParticipant | undefined = input.editToken
     ? event.participants.find((item) => item.editToken === input.editToken)
@@ -523,6 +602,10 @@ async function upsertPlannerParticipantSupabase(
       }
       participant = participantByName;
     } else {
+      if (input.recoverOnly) throw new Error(PARTICIPANT_ACCESS_ERROR);
+      if (event.participants.length >= MAX_PARTICIPANTS_PER_EVENT) {
+        throw new Error("This planner has reached its participant limit.");
+      }
       const editPasswordHash = input.editPassword ? await hashEditPassword(input.editPassword) : undefined;
       participant = {
         participantId: randomToken(12),
@@ -558,6 +641,8 @@ async function upsertPlannerParticipantSupabase(
     participant.displayNameKey = input.displayNameKey;
   }
 
+  if (input.recoverOnly) return participant;
+
   const patch: Record<string, string> = {
     display_name: input.displayName,
     display_name_key: input.displayNameKey,
@@ -586,13 +671,13 @@ async function upsertPlannerParticipantSupabase(
     })
   );
 
-  if (input.availabilityBlocks.length) {
+  if (availabilityBlocks.length) {
     await readSupabaseJson(
       await fetch(supabaseEndpoint("planner_availability_blocks"), {
         method: "POST",
         headers: supabaseHeaders({ "content-type": "application/json" }),
         body: JSON.stringify(
-          input.availabilityBlocks.map((block) => ({
+          availabilityBlocks.map((block) => ({
             event_token: token,
             participant_id: participant.participantId,
             date: block.date,
@@ -604,7 +689,7 @@ async function upsertPlannerParticipantSupabase(
     );
   }
 
-  participant.availabilityBlocks = input.availabilityBlocks;
+  participant.availabilityBlocks = availabilityBlocks;
   return participant;
 }
 
@@ -669,7 +754,7 @@ function normalizeVenueDay(day: AvailabilityPayloadDay, payload: AvailabilityPay
 
   return {
     date,
-    intervals: sameCourt.length ? sameCourt : anyCourt,
+    intervals: [...anyCourt, ...sameCourt],
     bookingUrl: bookingUrlForDay(day as Record<string, unknown>, payload as Record<string, unknown>),
   };
 }

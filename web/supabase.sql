@@ -53,9 +53,23 @@ alter table public.planner_participants
 alter table public.planner_participants
   add column if not exists edit_password_hash text;
 
-update public.planner_participants
-set display_name_key = lower(regexp_replace(btrim(display_name), '[[:space:]]+', ' ', 'g'))
-where display_name_key is null;
+with ranked_names as (
+  select
+    participant_id,
+    lower(regexp_replace(btrim(display_name), '[[:space:]]+', ' ', 'g')) as normalized_name,
+    row_number() over (
+      partition by event_token, lower(regexp_replace(btrim(display_name), '[[:space:]]+', ' ', 'g'))
+      order by created_at, participant_id
+    ) as name_rank
+  from public.planner_participants
+)
+update public.planner_participants as participant
+set display_name_key = case
+  when ranked_names.name_rank = 1 then ranked_names.normalized_name
+  else null
+end
+from ranked_names
+where participant.participant_id = ranked_names.participant_id;
 
 create unique index if not exists planner_participants_event_display_name_key_idx
   on public.planner_participants(event_token, display_name_key)

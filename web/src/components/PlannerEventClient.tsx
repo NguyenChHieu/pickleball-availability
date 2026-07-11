@@ -15,7 +15,13 @@ type SavedPlannerIdentity = {
   editToken: string;
 };
 
+type ParticipantResponse = {
+  participant: SavedPlannerIdentity;
+  view: PublicPlannerEventView;
+};
+
 const SLOT_MINUTES = 30;
+const MIN_EDIT_PASSWORD_LENGTH = 8;
 
 export function PlannerEventClient({ initialView }: Readonly<{ initialView: PublicPlannerEventView }>) {
   const [view, setView] = useState(initialView);
@@ -26,7 +32,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   const [editPassword, setEditPassword] = useState("");
   const [dragMode, setDragMode] = useState<boolean | null>(null);
   const [status, setStatus] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "recover" | null>(null);
   const dates = useMemo(() => dateRange(view.event.dateStart, view.event.dateEnd), [view.event]);
   const timeSlots = useMemo(
     () => timeRange(view.event.preferredStartTime, view.event.preferredEndTime),
@@ -35,6 +41,8 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   const cellSummaries = useMemo(() => buildCellSummaries(view.participants), [view.participants]);
   const participantCount = view.participants.length;
   const groupTimes = view.groupTimes || [];
+  const isBusy = pendingAction !== null;
+  const statusIsSuccess = /^(Saved|Cleared|Recovered)/.test(status);
 
   useEffect(() => {
     if (savedIdentity) return;
@@ -71,38 +79,69 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
     setCell(cellKey, shouldSelect);
   }
 
+  function handleToggle(cellKey: string) {
+    setCell(cellKey, !selectedCells.has(cellKey));
+  }
+
   function handlePointerEnter(cellKey: string) {
     if (dragMode === null) return;
     setCell(cellKey, dragMode);
   }
 
+  async function submitParticipant(payload: Record<string, unknown>) {
+    const response = await fetch(`/api/planner/events/${encodeURIComponent(view.event.eventToken)}/participants`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = (await response.json()) as ParticipantResponse & { error?: string };
+    if (!response.ok) throw new Error(body.error || "Could not save availability.");
+    return body;
+  }
+
+  function rememberParticipant(body: ParticipantResponse) {
+    window.localStorage.setItem(storageKey, JSON.stringify(body.participant));
+    setSavedIdentity(body.participant);
+    setDisplayName(body.participant.displayName);
+    setSelectedCells(initialSelectedCells(body.participant, body.view.participants));
+    setEditPassword("");
+    setView(body.view);
+  }
+
   async function handleSave() {
-    setIsSaving(true);
+    setPendingAction("save");
     setStatus("");
     try {
-      const response = await fetch(`/api/planner/events/${encodeURIComponent(view.event.eventToken)}/participants`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          displayName,
-          editToken: savedIdentity?.editToken,
-          editPassword: editPassword.trim() || undefined,
-          availabilityBlocks: blocksFromCells(selectedCells),
-        }),
+      const body = await submitParticipant({
+        displayName,
+        editToken: savedIdentity?.editToken,
+        editPassword: editPassword.trim() || undefined,
+        availabilityBlocks: blocksFromCells(selectedCells),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Could not save availability.");
-      const identity = body.participant as SavedPlannerIdentity;
-      window.localStorage.setItem(storageKey, JSON.stringify(identity));
-      setSavedIdentity(identity);
-      setDisplayName(identity.displayName);
-      setEditPassword("");
-      setView(body.view);
+      rememberParticipant(body);
       setStatus("Saved. Group times and venue matches are updated.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save availability.");
     } finally {
-      setIsSaving(false);
+      setPendingAction(null);
+    }
+  }
+
+  async function handleRecover() {
+    setPendingAction("recover");
+    setStatus("");
+    try {
+      const body = await submitParticipant({
+        displayName,
+        editPassword: editPassword.trim(),
+        recoverOnly: true,
+      });
+      rememberParticipant(body);
+      setStatus("Recovered your saved times on this device.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not recover saved times.");
+    } finally {
+      setPendingAction(null);
     }
   }
 
@@ -133,16 +172,17 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
           <div className="planner-panel__header">
             <div>
               <h2 id="planner-grid-title">Availability heatmap</h2>
-              <p>Darker cells have more people available. Your current selection gets the bright outline.</p>
+              <p>Brighter cells have more people available. Your current selection gets the bright outline.</p>
             </div>
             <div className="planner-identity-fields">
               <label className="planner-name">
-                <span>Name</span>
+                <span>{savedIdentity ? "Editing as" : "Name"}</span>
                 <input
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
                   placeholder="Your name"
                   maxLength={60}
+                  readOnly={Boolean(savedIdentity)}
                 />
               </label>
               <label className="planner-name">
@@ -152,12 +192,12 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
                   onChange={(event) => setEditPassword(event.target.value)}
                   placeholder={savedIdentity ? "Add or change recovery" : "For editing on another device"}
                   maxLength={80}
-                  minLength={4}
+                  minLength={MIN_EDIT_PASSWORD_LENGTH}
                   type="password"
                 />
               </label>
               <p className="planner-password-note">
-                Set one only if you want to edit from another browser. This device can edit without one.
+                Use 8+ characters only if you want to edit from another browser. This device can edit without one.
               </p>
             </div>
           </div>
@@ -170,23 +210,43 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
             timeSlots={timeSlots}
             onPointerDown={handlePointerDown}
             onPointerEnter={handlePointerEnter}
+            onToggle={handleToggle}
           />
 
           <div className="planner-actions">
             <button
               className="planner-primary"
-              disabled={isSaving || !displayName.trim() || (editPassword.trim().length > 0 && editPassword.trim().length < 4)}
+              disabled={
+                isBusy ||
+                !displayName.trim() ||
+                (editPassword.trim().length > 0 && editPassword.trim().length < MIN_EDIT_PASSWORD_LENGTH)
+              }
               onClick={handleSave}
             >
-              {isSaving ? "Saving..." : savedIdentity ? "Update my times" : "Save my times"}
+              {pendingAction === "save" ? "Saving..." : savedIdentity ? "Update my times" : "Save my times"}
             </button>
+            {!savedIdentity ? (
+              <button
+                className="planner-secondary"
+                disabled={
+                  isBusy || !displayName.trim() || editPassword.trim().length < MIN_EDIT_PASSWORD_LENGTH
+                }
+                onClick={handleRecover}
+                type="button"
+              >
+                {pendingAction === "recover" ? "Loading..." : "Load saved times"}
+              </button>
+            ) : null}
             {savedIdentity ? (
-              <button className="planner-secondary" disabled={isSaving} onClick={handleForgetDevice} type="button">
+              <button className="planner-secondary" disabled={isBusy} onClick={handleForgetDevice} type="button">
                 Forget this device
               </button>
             ) : null}
             {status ? (
-              <p className={status.startsWith("Saved") || status.startsWith("Cleared") ? "planner-success" : "planner-error"}>
+              <p
+                className={statusIsSuccess ? "planner-success" : "planner-error"}
+                role={statusIsSuccess ? "status" : "alert"}
+              >
                 {status}
               </p>
             ) : null}
@@ -247,6 +307,7 @@ function AvailabilityGrid({
   timeSlots,
   onPointerDown,
   onPointerEnter,
+  onToggle,
 }: Readonly<{
   dates: string[];
   timeSlots: number[];
@@ -255,6 +316,7 @@ function AvailabilityGrid({
   participantCount: number;
   onPointerDown: (cellKey: string) => void;
   onPointerEnter: (cellKey: string) => void;
+  onToggle: (cellKey: string) => void;
 }>) {
   return (
     <div className="planner-grid-wrap">
@@ -276,6 +338,7 @@ function AvailabilityGrid({
             minute={minute}
             onPointerDown={onPointerDown}
             onPointerEnter={onPointerEnter}
+            onToggle={onToggle}
             selectedCells={selectedCells}
             cellSummaries={cellSummaries}
             participantCount={participantCount}
@@ -291,6 +354,7 @@ function Row({
   minute,
   onPointerDown,
   onPointerEnter,
+  onToggle,
   selectedCells,
   cellSummaries,
   participantCount,
@@ -302,6 +366,7 @@ function Row({
   participantCount: number;
   onPointerDown: (cellKey: string) => void;
   onPointerEnter: (cellKey: string) => void;
+  onToggle: (cellKey: string) => void;
 }>) {
   return (
     <>
@@ -327,6 +392,11 @@ function Row({
               onPointerDown(cellKey);
             }}
             onPointerEnter={() => onPointerEnter(cellKey)}
+            onKeyDown={(event) => {
+              if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
+              event.preventDefault();
+              onToggle(cellKey);
+            }}
             style={{ backgroundColor: heat ? heatColor(heat) : undefined }}
             title={availabilityText}
             type="button"
@@ -388,7 +458,7 @@ function GroupTimeCard({ groupTime }: Readonly<{ groupTime: PlannerGroupTime }>)
         </h3>
       </div>
       <div>
-        <strong>{groupTime.availableParticipantCount} people available</strong>
+        <strong>{peopleAvailableLabel(groupTime.availableParticipantCount)}</strong>
         <span>{groupTime.availableParticipantNames.join(", ")}</span>
         <small>Venue matches appear when cached availability overlaps. Otherwise, check/book manually.</small>
       </div>
@@ -408,7 +478,7 @@ function RecommendationCard({ recommendation }: Readonly<{ recommendation: Plann
       <div>
         <strong>{recommendation.venueName}</strong>
         <span>
-          {recommendation.availableParticipantCount} available -{" "}
+          {peopleAvailableLabel(recommendation.availableParticipantCount)} -{" "}
           {recommendation.confidence === "same-court"
             ? `same-court confirmed${recommendation.courtName ? ` (${recommendation.courtName})` : ""}`
             : "venue available; a court switch may be needed"}
@@ -572,4 +642,8 @@ function formatWeekday(date: string) {
 
 function formatShortDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-AU", { day: "2-digit", month: "short" });
+}
+
+function peopleAvailableLabel(count: number) {
+  return `${count} ${count === 1 ? "person" : "people"} available`;
 }
