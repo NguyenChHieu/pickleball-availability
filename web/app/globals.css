@@ -2454,6 +2454,13 @@ dd {
   gap: 8px;
 }
 
+.planner-identity-fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  min-width: min(520px, 100%);
+}
+
 .planner-form label > span,
 .planner-name span,
 .planner-venues legend,
@@ -2537,6 +2544,29 @@ dd {
   transition:
     filter 160ms ease,
     transform 160ms ease;
+}
+
+.planner-secondary {
+  background: transparent;
+  border: 1px solid #3b514a;
+  color: #f7fff4;
+  cursor: pointer;
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  min-height: 48px;
+  padding: 0 18px;
+  text-transform: uppercase;
+}
+
+.planner-secondary:hover:not(:disabled) {
+  border-color: #aeea2f;
+}
+
+.planner-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .planner-primary:hover:not(:disabled) {
@@ -2664,33 +2694,12 @@ dd {
   padding: 0;
 }
 
-.planner-grid__cell--heat-1 {
-  background: rgb(54 88 39);
-}
-
-.planner-grid__cell--heat-2 {
-  background: rgb(73 114 44);
-}
-
-.planner-grid__cell--heat-3 {
-  background: rgb(93 143 48);
-}
-
-.planner-grid__cell--heat-4 {
-  background: rgb(122 180 49);
-}
-
-.planner-grid__cell--heat-5 {
-  background: rgb(174 234 47);
-}
-
 .planner-grid__cell:hover {
   background-image: linear-gradient(rgb(120 183 255 / 20%), rgb(120 183 255 / 20%));
 }
 
 .planner-grid__cell[aria-pressed="true"] {
-  background-image:
-    repeating-linear-gradient(135deg, rgb(247 255 244 / 34%) 0 6px, transparent 6px 12px);
+  background-image: none;
   box-shadow:
     inset 0 0 0 2px #f7fff4,
     inset 0 0 0 4px #aeea2f;
@@ -2806,6 +2815,11 @@ dd {
   .planner-panel__header {
     align-items: stretch;
     display: grid;
+  }
+
+  .planner-identity-fields {
+    grid-template-columns: 1fr;
+    min-width: 0;
   }
 
   .planner-name {

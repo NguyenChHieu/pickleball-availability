@@ -27,7 +27,9 @@ create table if not exists public.planner_participants (
   participant_id text primary key,
   event_token text not null references public.planner_events(event_token) on delete cascade,
   display_name text not null,
+  display_name_key text,
   edit_token text not null,
+  edit_password_hash text,
   created_at timestamptz not null default now(),
   unique (event_token, edit_token)
 );
@@ -44,6 +46,20 @@ create table if not exists public.planner_availability_blocks (
 
 create index if not exists planner_participants_event_token_idx
   on public.planner_participants(event_token);
+
+alter table public.planner_participants
+  add column if not exists display_name_key text;
+
+alter table public.planner_participants
+  add column if not exists edit_password_hash text;
+
+update public.planner_participants
+set display_name_key = lower(regexp_replace(btrim(display_name), '[[:space:]]+', ' ', 'g'))
+where display_name_key is null;
+
+create unique index if not exists planner_participants_event_display_name_key_idx
+  on public.planner_participants(event_token, display_name_key)
+  where display_name_key is not null;
 
 create index if not exists planner_availability_blocks_event_token_idx
   on public.planner_availability_blocks(event_token);

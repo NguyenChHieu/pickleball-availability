@@ -23,6 +23,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   const [displayName, setDisplayName] = useState("");
   const [selectedCells, setSelectedCells] = useState<Set<string>>(() => new Set());
   const [savedIdentity, setSavedIdentity] = useState<SavedPlannerIdentity | null>(null);
+  const [editPassword, setEditPassword] = useState("");
   const [dragMode, setDragMode] = useState<boolean | null>(null);
   const [status, setStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -85,6 +86,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
         body: JSON.stringify({
           displayName,
           editToken: savedIdentity?.editToken,
+          editPassword: editPassword.trim() || undefined,
           availabilityBlocks: blocksFromCells(selectedCells),
         }),
       });
@@ -94,6 +96,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
       window.localStorage.setItem(storageKey, JSON.stringify(identity));
       setSavedIdentity(identity);
       setDisplayName(identity.displayName);
+      setEditPassword("");
       setView(body.view);
       setStatus("Saved. Group times and court matches are updated.");
     } catch (error) {
@@ -101,6 +104,15 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleForgetDevice() {
+    window.localStorage.removeItem(storageKey);
+    setSavedIdentity(null);
+    setDisplayName("");
+    setEditPassword("");
+    setSelectedCells(new Set());
+    setStatus("Cleared local edit access on this device.");
   }
 
   return (
@@ -123,15 +135,28 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
               <h2 id="planner-grid-title">Availability heatmap</h2>
               <p>Darker cells have more people available. Your current selection gets the bright outline.</p>
             </div>
-            <label className="planner-name">
-              <span>Name</span>
-              <input
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Your name"
-                maxLength={60}
-              />
-            </label>
+            <div className="planner-identity-fields">
+              <label className="planner-name">
+                <span>Name</span>
+                <input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder="Your name"
+                  maxLength={60}
+                />
+              </label>
+              <label className="planner-name">
+                <span>Edit password</span>
+                <input
+                  value={editPassword}
+                  onChange={(event) => setEditPassword(event.target.value)}
+                  placeholder={savedIdentity ? "Optional for this device" : "Required to save"}
+                  maxLength={80}
+                  minLength={4}
+                  type="password"
+                />
+              </label>
+            </div>
           </div>
 
           <AvailabilityGrid
@@ -145,10 +170,23 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
           />
 
           <div className="planner-actions">
-            <button className="planner-primary" disabled={isSaving || !displayName.trim()} onClick={handleSave}>
+            <button
+              className="planner-primary"
+              disabled={isSaving || !displayName.trim() || (!savedIdentity && editPassword.trim().length < 4)}
+              onClick={handleSave}
+            >
               {isSaving ? "Saving..." : savedIdentity ? "Update my times" : "Save my times"}
             </button>
-            {status ? <p className={status.startsWith("Saved") ? "planner-success" : "planner-error"}>{status}</p> : null}
+            {savedIdentity ? (
+              <button className="planner-secondary" disabled={isSaving} onClick={handleForgetDevice} type="button">
+                Forget this device
+              </button>
+            ) : null}
+            {status ? (
+              <p className={status.startsWith("Saved") || status.startsWith("Cleared") ? "planner-success" : "planner-error"}>
+                {status}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -272,19 +310,21 @@ function Row({
         const availabilityText = summary.count
           ? `Available: ${summary.names.join(", ")}`
           : "No saved availability";
+        const heat = heatForCell(summary.count, participantCount);
         return (
           <button
             aria-label={`${selected ? "Remove" : "Add"} ${formatShortDate(date)} ${formatMinutes(
               minute
             )}. ${availabilityText}.`}
             aria-pressed={selected}
-            className={`planner-grid__cell ${heatClassForCell(summary.count, participantCount)}`}
+            className="planner-grid__cell"
             key={cellKey}
             onPointerDown={(event) => {
               event.preventDefault();
               onPointerDown(cellKey);
             }}
             onPointerEnter={() => onPointerEnter(cellKey)}
+            style={{ backgroundColor: heat ? heatColor(heat) : undefined }}
             title={availabilityText}
             type="button"
           />
@@ -417,10 +457,15 @@ function buildCellSummaries(participants: PublicPlannerParticipant[]) {
   return summaries;
 }
 
-function heatClassForCell(count: number, participantCount: number) {
-  if (!count || !participantCount) return "planner-grid__cell--heat-0";
-  const level = Math.max(1, Math.min(5, Math.ceil((count / participantCount) * 5)));
-  return `planner-grid__cell--heat-${level}`;
+function heatForCell(count: number, participantCount: number) {
+  if (!count || !participantCount) return 0;
+  return Math.max(0, Math.min(1, count / participantCount));
+}
+
+function heatColor(heat: number) {
+  const saturation = Math.round(34 + heat * 52);
+  const lightness = Math.round(15 + heat * 43);
+  return `hsl(82 ${saturation}% ${lightness}%)`;
 }
 
 function parseTime(value: string) {

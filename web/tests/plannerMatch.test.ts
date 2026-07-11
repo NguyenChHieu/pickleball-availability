@@ -25,6 +25,7 @@ function participant(
     participantId,
     eventToken: event.eventToken,
     displayName,
+    displayNameKey: displayName.toLowerCase(),
     editToken: `${participantId}-edit`,
     createdAt: event.createdAt,
     availabilityBlocks: [{ date: "2026-07-10", startMinute, endMinute }],

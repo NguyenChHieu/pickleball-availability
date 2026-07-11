@@ -6,7 +6,7 @@ import {
   sydneyRacquetTheme,
   wotsoTheme,
   type VenueTheme,
-} from "@/lib/themes";
+} from "./themes.ts";
 
 export type VenueDefinition = Readonly<{
   id: string;

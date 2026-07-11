@@ -1,16 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
-import { getVenueDefinition, venues } from "@/lib/venues";
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+import { getVenueDefinition, venues } from "../lib/venues.ts";
 import {
   getAvailabilityRecord,
   type AvailabilityPayload,
   type AvailabilityPayloadDay,
   type AvailabilityRecord,
-} from "./availabilityStore";
-import { bookingUrlForDay } from "./bookingLinks";
-import { formatDateTime } from "./formatAvailability";
-import { buildPlannerGroupTimes, buildPlannerRecommendations, mergeBlocks, parseTimeToMinutes } from "./plannerMatch";
+} from "./availabilityStore.ts";
+import { bookingUrlForDay } from "./bookingLinks.ts";
+import { formatDateTime } from "./formatAvailability.ts";
+import { buildPlannerGroupTimes, buildPlannerRecommendations, mergeBlocks, parseTimeToMinutes } from "./plannerMatch.ts";
 import type {
   PlannerAvailabilityBlock,
   PlannerEvent,
@@ -18,7 +19,7 @@ import type {
   PlannerVenueAvailability,
   PlannerVenueInterval,
   PublicPlannerEventView,
-} from "./plannerTypes";
+} from "./plannerTypes.ts";
 
 type PlannerFileRecord = {
   event: PlannerEvent;
@@ -38,9 +39,11 @@ type PlannerEventInput = {
 type ParticipantInput = {
   displayName: string;
   editToken?: string;
+  editPassword?: string;
   availabilityBlocks: PlannerAvailabilityBlock[];
 };
 
+const scryptAsync = promisify(scryptCallback);
 const DATA_DIR = process.env.PLANNER_DATA_DIR
   ? path.resolve(process.env.PLANNER_DATA_DIR)
   : path.resolve(process.cwd(), "data", "planner");
@@ -51,6 +54,8 @@ const USE_SUPABASE = Boolean(SUPABASE_URL || SUPABASE_SECRET_KEY);
 const STALE_THRESHOLD_MINUTES = 5;
 const STALE_THRESHOLD_MS = STALE_THRESHOLD_MINUTES * 60 * 1000;
 const MAX_PLANNER_DAYS = 14;
+const EDIT_PASSWORD_PREFIX = "scrypt-v1";
+const MIN_EDIT_PASSWORD_LENGTH = 4;
 
 if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SECRET_KEY)) {
   throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
@@ -78,6 +83,37 @@ function safeToken(token: unknown) {
 
 function randomToken(byteLength = 18) {
   return randomBytes(byteLength).toString("base64url");
+}
+
+export function normalizeDisplayNameKey(displayName: string) {
+  return String(displayName || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function normalizeEditPassword(value: unknown) {
+  const password = String(value || "").trim();
+  if (password && password.length < MIN_EDIT_PASSWORD_LENGTH) {
+    throw new Error(`Edit password must be at least ${MIN_EDIT_PASSWORD_LENGTH} characters.`);
+  }
+  return password;
+}
+
+async function hashEditPassword(password: string) {
+  const salt = randomBytes(16).toString("base64url");
+  const derivedKey = (await scryptAsync(password, salt, 32)) as Buffer;
+  return `${EDIT_PASSWORD_PREFIX}:${salt}:${derivedKey.toString("base64url")}`;
+}
+
+async function verifyEditPassword(password: string, storedHash: string | undefined) {
+  if (!password || !storedHash) return false;
+  const [prefix, salt, hashText] = storedHash.split(":");
+  if (prefix !== EDIT_PASSWORD_PREFIX || !salt || !hashText) return false;
+
+  const expected = Buffer.from(hashText, "base64url");
+  const actual = (await scryptAsync(password, salt, expected.length)) as Buffer;
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 function supabaseEndpoint(table: string, search = "") {
@@ -183,6 +219,25 @@ function publicParticipants(participants: PlannerParticipant[]) {
   }));
 }
 
+function normalizeParticipantRecord(participant: PlannerParticipant, eventToken: string): PlannerParticipant {
+  return {
+    ...participant,
+    eventToken: participant.eventToken || eventToken,
+    displayNameKey: participant.displayNameKey || normalizeDisplayNameKey(participant.displayName),
+    editPasswordHash: participant.editPasswordHash || undefined,
+    availabilityBlocks: mergeBlocks(participant.availabilityBlocks || []),
+  };
+}
+
+function normalizePlannerRecord(record: PlannerFileRecord): PlannerFileRecord {
+  return {
+    event: record.event,
+    participants: (record.participants || []).map((participant) =>
+      normalizeParticipantRecord(participant, record.event.eventToken)
+    ),
+  };
+}
+
 async function ensurePlannerDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
@@ -190,7 +245,7 @@ async function ensurePlannerDir() {
 async function readLocalPlannerFile(eventToken: string) {
   assertWritableLocalPlannerStore();
   try {
-    return JSON.parse(await fs.readFile(plannerPath(eventToken), "utf8")) as PlannerFileRecord;
+    return normalizePlannerRecord(JSON.parse(await fs.readFile(plannerPath(eventToken), "utf8")) as PlannerFileRecord);
   } catch (error) {
     if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") return null;
     throw error;
@@ -287,7 +342,7 @@ async function readPlannerEventSupabase(eventToken: string): Promise<PlannerFile
     await fetch(
       supabaseEndpoint(
         "planner_participants",
-        `?event_token=eq.${token}&select=participant_id,display_name,edit_token,created_at`
+        `?event_token=eq.${token}&select=participant_id,display_name,display_name_key,edit_token,edit_password_hash,created_at`
       ),
       { headers: supabaseHeaders() }
     )
@@ -331,7 +386,9 @@ async function readPlannerEventSupabase(eventToken: string): Promise<PlannerFile
       participantId: row.participant_id,
       eventToken: event.eventToken,
       displayName: row.display_name,
+      displayNameKey: row.display_name_key || normalizeDisplayNameKey(row.display_name),
       editToken: row.edit_token,
+      editPasswordHash: row.edit_password_hash || undefined,
       createdAt: row.created_at,
       availabilityBlocks: mergeBlocks(blocksByParticipant.get(row.participant_id) || []),
     })),
@@ -341,11 +398,14 @@ async function readPlannerEventSupabase(eventToken: string): Promise<PlannerFile
 export async function upsertPlannerParticipant(eventToken: string, input: Partial<ParticipantInput>) {
   const displayName = String(input.displayName || "").trim().slice(0, 60);
   if (!displayName) throw new Error("Enter a display name.");
+  const displayNameKey = normalizeDisplayNameKey(displayName);
+  if (!displayNameKey) throw new Error("Enter a display name.");
   const availabilityBlocks = normalizeBlocks(input.availabilityBlocks);
   const editToken = input.editToken ? safeToken(input.editToken) : "";
+  const editPassword = normalizeEditPassword(input.editPassword);
 
   if (USE_SUPABASE) {
-    return upsertPlannerParticipantSupabase(eventToken, { displayName, editToken, availabilityBlocks });
+    return upsertPlannerParticipantSupabase(eventToken, { displayName, displayNameKey, editToken, editPassword, availabilityBlocks });
   }
 
   const record = await readLocalPlannerFile(eventToken);
@@ -353,21 +413,40 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
   let participant = editToken
     ? record.participants.find((item) => item.editToken === editToken && item.eventToken === record.event.eventToken)
     : null;
+  const participantByName = record.participants.find((item) => item.displayNameKey === displayNameKey) || null;
 
   if (!participant) {
-    participant = {
-      participantId: randomToken(12),
-      eventToken: record.event.eventToken,
-      displayName,
-      editToken: randomToken(18),
-      availabilityBlocks,
-      createdAt: new Date().toISOString(),
-    };
-    record.participants.push(participant);
-  } else {
-    participant.displayName = displayName;
-    participant.availabilityBlocks = availabilityBlocks;
+    if (participantByName) {
+      if (!(await verifyEditPassword(editPassword, participantByName.editPasswordHash))) {
+        throw new Error("That name is already used for this event. Enter its edit password or choose another name.");
+      }
+      participant = participantByName;
+    } else {
+      if (!editPassword) throw new Error("Enter an edit password so you can update this availability later.");
+      participant = {
+        participantId: randomToken(12),
+        eventToken: record.event.eventToken,
+        displayName,
+        displayNameKey,
+        editToken: randomToken(18),
+        availabilityBlocks,
+        createdAt: new Date().toISOString(),
+      };
+      record.participants.push(participant);
+    }
+  } else if (participantByName && participantByName.participantId !== participant.participantId) {
+    throw new Error("That name is already used for this event. Choose another name.");
   }
+
+  if (editPassword) {
+    participant.editPasswordHash = await hashEditPassword(editPassword);
+  } else {
+    participant.editPasswordHash = participant.editPasswordHash || undefined;
+  }
+
+  participant.displayName = displayName;
+  participant.displayNameKey = displayNameKey;
+  participant.availabilityBlocks = availabilityBlocks;
 
   await writeLocalPlannerFile(record);
   return participant;
@@ -375,7 +454,13 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
 
 async function upsertPlannerParticipantSupabase(
   eventToken: string,
-  input: { displayName: string; editToken?: string; availabilityBlocks: PlannerAvailabilityBlock[] }
+  input: {
+    displayName: string;
+    displayNameKey: string;
+    editToken?: string;
+    editPassword?: string;
+    availabilityBlocks: PlannerAvailabilityBlock[];
+  }
 ) {
   const token = safeToken(eventToken);
   const event = await readPlannerEventSupabase(token);
@@ -384,38 +469,71 @@ async function upsertPlannerParticipantSupabase(
   let participant: PlannerParticipant | undefined = input.editToken
     ? event.participants.find((item) => item.editToken === input.editToken)
     : undefined;
+  const participantByName = event.participants.find((item) => item.displayNameKey === input.displayNameKey);
+  let participantWasCreated = false;
 
-  if (participant) {
+  if (!participant) {
+    if (participantByName) {
+      if (!(await verifyEditPassword(input.editPassword || "", participantByName.editPasswordHash))) {
+        throw new Error("That name is already used for this event. Enter its edit password or choose another name.");
+      }
+      participant = participantByName;
+    } else {
+      if (!input.editPassword) throw new Error("Enter an edit password so you can update this availability later.");
+      const editPasswordHash = await hashEditPassword(input.editPassword);
+      participant = {
+        participantId: randomToken(12),
+        eventToken: token,
+        displayName: input.displayName,
+        displayNameKey: input.displayNameKey,
+        editToken: randomToken(18),
+        editPasswordHash,
+        availabilityBlocks: [],
+        createdAt: new Date().toISOString(),
+      };
+      participantWasCreated = true;
+      await readSupabaseJson(
+        await fetch(supabaseEndpoint("planner_participants"), {
+          method: "POST",
+          headers: supabaseHeaders({ "content-type": "application/json" }),
+          body: JSON.stringify({
+            participant_id: participant.participantId,
+            event_token: participant.eventToken,
+            display_name: participant.displayName,
+            display_name_key: participant.displayNameKey,
+            edit_token: participant.editToken,
+            edit_password_hash: editPasswordHash,
+            created_at: participant.createdAt,
+          }),
+        })
+      );
+    }
+  } else if (participantByName && participantByName.participantId !== participant.participantId) {
+    throw new Error("That name is already used for this event. Choose another name.");
+  } else {
+    participant.displayName = input.displayName;
+    participant.displayNameKey = input.displayNameKey;
+  }
+
+  const patch: Record<string, string> = {
+    display_name: input.displayName,
+    display_name_key: input.displayNameKey,
+  };
+  if (input.editPassword) {
+    patch.edit_password_hash = await hashEditPassword(input.editPassword);
+  }
+
+  if (!participantWasCreated && participant.participantId) {
     await readSupabaseJson(
       await fetch(supabaseEndpoint("planner_participants", `?participant_id=eq.${participant.participantId}`), {
         method: "PATCH",
         headers: supabaseHeaders({ "content-type": "application/json" }),
-        body: JSON.stringify({ display_name: input.displayName }),
+        body: JSON.stringify(patch),
       })
     );
     participant.displayName = input.displayName;
-  } else {
-    participant = {
-      participantId: randomToken(12),
-      eventToken: token,
-      displayName: input.displayName,
-      editToken: randomToken(18),
-      availabilityBlocks: [],
-      createdAt: new Date().toISOString(),
-    };
-    await readSupabaseJson(
-      await fetch(supabaseEndpoint("planner_participants"), {
-        method: "POST",
-        headers: supabaseHeaders({ "content-type": "application/json" }),
-        body: JSON.stringify({
-          participant_id: participant.participantId,
-          event_token: participant.eventToken,
-          display_name: participant.displayName,
-          edit_token: participant.editToken,
-          created_at: participant.createdAt,
-        }),
-      })
-    );
+    participant.displayNameKey = input.displayNameKey;
+    if (patch.edit_password_hash) participant.editPasswordHash = patch.edit_password_hash;
   }
 
   await readSupabaseJson(
