@@ -83,7 +83,7 @@ test("passwordless participant cannot be reclaimed from another browser", async 
       editPassword: "newpass1",
       availabilityBlocks: block(20 * 60, 21 * 60),
     }),
-    /no recovery password/
+    /Could not verify edit access/
   );
 });
 
@@ -120,7 +120,7 @@ test("same name with wrong or missing password is rejected", async () => {
       displayName: "hieu",
       availabilityBlocks: block(20 * 60, 21 * 60),
     }),
-    /already used/
+    /Could not verify edit access/
   );
   await assert.rejects(
     upsertPlannerParticipant(event.eventToken, {
@@ -128,7 +128,7 @@ test("same name with wrong or missing password is rejected", async () => {
       editPassword: "wrongpass",
       availabilityBlocks: block(20 * 60, 21 * 60),
     }),
-    /already used/
+    /Could not verify edit access/
   );
 });
 

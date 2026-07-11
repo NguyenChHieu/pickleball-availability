@@ -56,6 +56,8 @@ const STALE_THRESHOLD_MS = STALE_THRESHOLD_MINUTES * 60 * 1000;
 const MAX_PLANNER_DAYS = 14;
 const EDIT_PASSWORD_PREFIX = "scrypt-v1";
 const MIN_EDIT_PASSWORD_LENGTH = 4;
+const PARTICIPANT_ACCESS_ERROR =
+  "Could not verify edit access. Check your details or use a different display name.";
 
 if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SECRET_KEY)) {
   throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
@@ -455,10 +457,10 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
   if (!participant) {
     if (participantByName) {
       if (!participantByName.editPasswordHash) {
-        throw new Error("That name is already used and has no recovery password. Use the original device or choose another name.");
+        throw new Error(PARTICIPANT_ACCESS_ERROR);
       }
       if (!(await verifyEditPassword(editPassword, participantByName.editPasswordHash))) {
-        throw new Error("That name is already used for this event. Enter its edit password or choose another name.");
+        throw new Error(PARTICIPANT_ACCESS_ERROR);
       }
       participant = participantByName;
     } else {
@@ -474,7 +476,7 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
       record.participants.push(participant);
     }
   } else if (participantByName && participantByName.participantId !== participant.participantId) {
-    throw new Error("That name is already used for this event. Choose another name.");
+    throw new Error(PARTICIPANT_ACCESS_ERROR);
   }
 
   if (editPassword) {
@@ -514,10 +516,10 @@ async function upsertPlannerParticipantSupabase(
   if (!participant) {
     if (participantByName) {
       if (!participantByName.editPasswordHash) {
-        throw new Error("That name is already used and has no recovery password. Use the original device or choose another name.");
+        throw new Error(PARTICIPANT_ACCESS_ERROR);
       }
       if (!(await verifyEditPassword(input.editPassword || "", participantByName.editPasswordHash))) {
-        throw new Error("That name is already used for this event. Enter its edit password or choose another name.");
+        throw new Error(PARTICIPANT_ACCESS_ERROR);
       }
       participant = participantByName;
     } else {
@@ -550,7 +552,7 @@ async function upsertPlannerParticipantSupabase(
       );
     }
   } else if (participantByName && participantByName.participantId !== participant.participantId) {
-    throw new Error("That name is already used for this event. Choose another name.");
+    throw new Error(PARTICIPANT_ACCESS_ERROR);
   } else {
     participant.displayName = input.displayName;
     participant.displayNameKey = input.displayNameKey;

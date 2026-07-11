@@ -65,6 +65,8 @@ test("planner recommendations rank bigger group overlap first", () => {
   assert.equal(recommendations[0].startMinute, 19 * 60);
   assert.equal(recommendations[0].availableParticipantCount, 2);
   assert.deepEqual(recommendations[0].availableParticipantNames, ["Hieu", "Alex"]);
+  assert.equal(recommendations[0].confidence, "same-court");
+  assert.equal(recommendations[0].courtName, "Court 1");
 });
 
 test("planner recommendations filter intervals shorter than the minimum session", () => {
@@ -77,18 +79,38 @@ test("planner recommendations filter intervals shorter than the minimum session"
   assert.equal(recommendations.length, 0);
 });
 
-test("planner recommendations prefer same-court availability over any-court availability", () => {
+test("planner recommendations collapse adjacent courts into one venue window", () => {
   const recommendations = buildPlannerRecommendations(
     event,
-    [participant("p1", "Hieu", 18 * 60, 21 * 60)],
+    [participant("p1", "Hieu", 19 * 60, 20 * 60)],
     [
       venue([
-        { startMinute: 19 * 60, endMinute: 20 * 60, confidence: "any-court" },
-        { startMinute: 20 * 60, endMinute: 21 * 60, confidence: "same-court", courtName: "Court 4" },
+        { startMinute: 19 * 60, endMinute: 19 * 60 + 30, confidence: "same-court", courtName: "Court 1" },
+        { startMinute: 19 * 60 + 30, endMinute: 20 * 60, confidence: "same-court", courtName: "Court 2" },
       ]),
     ]
   );
 
+  assert.equal(recommendations.length, 1);
+  assert.equal(recommendations[0].venueName, "ProPickle");
+  assert.equal(recommendations[0].startMinute, 19 * 60);
+  assert.equal(recommendations[0].endMinute, 20 * 60);
+  assert.equal(recommendations[0].confidence, "any-court");
+});
+
+test("planner recommendations keep court continuity as venue confidence", () => {
+  const recommendations = buildPlannerRecommendations(
+    event,
+    [participant("p1", "Hieu", 19 * 60, 20 * 60)],
+    [
+      venue([
+        { startMinute: 18 * 60, endMinute: 21 * 60, confidence: "any-court" },
+        { startMinute: 19 * 60, endMinute: 20 * 60, confidence: "same-court", courtName: "Court 4" },
+      ]),
+    ]
+  );
+
+  assert.equal(recommendations.length, 1);
   assert.equal(recommendations[0].confidence, "same-court");
   assert.equal(recommendations[0].courtName, "Court 4");
 });

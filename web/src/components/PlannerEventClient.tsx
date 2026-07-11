@@ -98,7 +98,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
       setDisplayName(identity.displayName);
       setEditPassword("");
       setView(body.view);
-      setStatus("Saved. Group times and court matches are updated.");
+      setStatus("Saved. Group times and venue matches are updated.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save availability.");
     } finally {
@@ -221,11 +221,11 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
       </section>
 
       {view.recommendations.length ? (
-        <section className="planner-panel planner-recommendations" aria-labelledby="planner-court-results-title">
+        <section className="planner-panel planner-recommendations" aria-labelledby="planner-venue-results-title">
           <div className="planner-panel__header">
             <div>
-              <h2 id="planner-court-results-title">Court Matches</h2>
-              <p>Venue-aware results from cached court availability. Refresh venues from the extension when stale.</p>
+              <h2 id="planner-venue-results-title">Venue Matches</h2>
+              <p>Venues that fit the group time using cached availability. Refresh from the extension when stale.</p>
             </div>
           </div>
           <div className="planner-recommendation-list">
@@ -390,7 +390,7 @@ function GroupTimeCard({ groupTime }: Readonly<{ groupTime: PlannerGroupTime }>)
       <div>
         <strong>{groupTime.availableParticipantCount} people available</strong>
         <span>{groupTime.availableParticipantNames.join(", ")}</span>
-        <small>Court matches appear when venue cache overlaps. Otherwise, check/book manually.</small>
+        <small>Venue matches appear when cached availability overlaps. Otherwise, check/book manually.</small>
       </div>
     </article>
   );
@@ -411,7 +411,7 @@ function RecommendationCard({ recommendation }: Readonly<{ recommendation: Plann
           {recommendation.availableParticipantCount} available -{" "}
           {recommendation.confidence === "same-court"
             ? `same-court confirmed${recommendation.courtName ? ` (${recommendation.courtName})` : ""}`
-            : "any-court available"}
+            : "venue available; a court switch may be needed"}
         </span>
         <small>
           {recommendation.availableParticipantNames.join(", ")}
