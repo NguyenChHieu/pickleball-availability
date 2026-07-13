@@ -302,6 +302,8 @@ test("Playbypoint fast reader keeps any-court intervals without probing courts",
   const day = payload.days[0];
 
   assert.deepEqual(day.open_intervals, [{ start_time: "9pm", end_time: "11pm" }]);
+  assert.equal(day.booking_date, "2026-07-16");
+  assert.equal(await global.AvailabilityProviders["playbypoint-bookbox"].selectDate(day.booking_date), true);
   assert.equal(day.continuity_status, "not_scanned");
   assert.deepEqual(day.same_court_intervals, []);
   assert.deepEqual(day.probe_debug, []);

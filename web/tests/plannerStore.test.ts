@@ -341,6 +341,31 @@ test("planner venue matches use normal ProPickle open intervals without a deep s
   assert.equal(view?.recommendations[0].confidence, "any-court");
 });
 
+test("planner venue matches accept legacy ProPickle date labels", async () => {
+  await saveAvailability("propickle", {
+    venue_id: "propickle",
+    venue_name: "ProPickle",
+    exported_at: "2026-07-10T08:00:00.000Z",
+    days: [
+      {
+        date: "Friday, July 10",
+        booking_date: "Friday, July 10",
+        open_intervals: [{ start_time: "6:00 PM", end_time: "10:00 PM" }],
+      },
+    ],
+  });
+  const event = await createPlannerEvent(eventInput());
+  await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    availabilityBlocks: block(19 * 60, 21 * 60),
+  });
+
+  const view = await getPlannerEventView(event.eventToken);
+  assert.equal(view?.venues[0].days[0].date, "2026-07-10");
+  assert.equal(view?.recommendations.length, 1);
+  assert.equal(view?.recommendations[0].confidence, "any-court");
+});
+
 test("planner venue matches keep broad venue availability when same-court data is partial", async () => {
   await saveAvailability("propickle", {
     venue_id: "propickle",

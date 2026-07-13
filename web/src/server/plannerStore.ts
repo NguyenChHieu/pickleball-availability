@@ -876,7 +876,7 @@ function isStaleTimestamp(lastReadAt: string | null) {
 }
 
 function normalizeVenueDay(day: AvailabilityPayloadDay, payload: AvailabilityPayload) {
-  const date = isoDateForDay(day);
+  const date = isoDateForDay(day, payload);
   const sameCourtIntervals = Array.isArray(day.same_court_intervals) ? day.same_court_intervals : [];
   const sameCourt = sameCourtIntervals.flatMap((group) => {
     const courtName = group.court_name || group.courtName || group.resource_name || group.provider_name || "";
@@ -898,12 +898,60 @@ function normalizeVenueDay(day: AvailabilityPayloadDay, payload: AvailabilityPay
   };
 }
 
-function isoDateForDay(day: AvailabilityPayloadDay) {
+const MONTH_INDEX = new Map<string, number>(
+  [
+    ["jan", 0],
+    ["january", 0],
+    ["feb", 1],
+    ["february", 1],
+    ["mar", 2],
+    ["march", 2],
+    ["apr", 3],
+    ["april", 3],
+    ["may", 4],
+    ["jun", 5],
+    ["june", 5],
+    ["jul", 6],
+    ["july", 6],
+    ["aug", 7],
+    ["august", 7],
+    ["sep", 8],
+    ["september", 8],
+    ["oct", 9],
+    ["october", 9],
+    ["nov", 10],
+    ["november", 10],
+    ["dec", 11],
+    ["december", 11],
+  ]
+);
+
+function isoDateForDay(day: AvailabilityPayloadDay, payload: AvailabilityPayload) {
   const explicit = String(day.booking_date || "");
   if (isIsoDate(explicit)) return explicit;
   const date = String(day.date || "");
   if (isIsoDate(date)) return date;
-  return "";
+  return isoDateFromLabel(explicit || date, payload.exported_at);
+}
+
+function isoDateFromLabel(label: string, referenceValue?: string) {
+  const parts = label.replaceAll(",", " ").trim().split(/\s+/);
+  const monthIndex = parts.map((part) => MONTH_INDEX.get(part.toLowerCase())).find((value) => value !== undefined);
+  const day = Number(parts.find((part) => /^\d{1,2}$/.test(part)) || 0);
+  if (monthIndex === undefined || !day) return "";
+
+  const parsedReference = Date.parse(String(referenceValue || ""));
+  const referenceTime = Number.isFinite(parsedReference) ? parsedReference : Date.now();
+  const referenceYear = new Date(referenceTime).getUTCFullYear();
+  const candidates = [referenceYear - 1, referenceYear, referenceYear + 1]
+    .map((year) => ({ year, time: Date.UTC(year, monthIndex, day) }))
+    .filter(({ time }) => {
+      const candidate = new Date(time);
+      return candidate.getUTCMonth() === monthIndex && candidate.getUTCDate() === day;
+    })
+    .sort((left, right) => Math.abs(left.time - referenceTime) - Math.abs(right.time - referenceTime));
+  const year = candidates[0]?.year;
+  return year ? `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
 }
 
 function normalizeVenueInterval(
