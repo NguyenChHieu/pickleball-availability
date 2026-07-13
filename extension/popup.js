@@ -12,6 +12,7 @@ const venueStatusListElement = document.querySelector("#venueStatusList");
 const savedSummaryElement = document.querySelector("#savedSummary");
 const loaderElement = document.querySelector("#loader");
 const statusElement = document.querySelector("#status");
+const openSetupWindowButton = document.querySelector("#openSetupWindowButton");
 const actionsElement = document.querySelector("#actions");
 const refreshHistoryElement = document.querySelector("#refreshHistory");
 const refreshHistoryListElement = document.querySelector("#refreshHistoryList");
@@ -24,6 +25,7 @@ const MESSAGE = Object.freeze({
   START_REFRESH_JOB: "AVAILABILITY_START_REFRESH_JOB",
   GET_REFRESH_JOB: "AVAILABILITY_GET_REFRESH_JOB",
   GET_REFRESH_HISTORY: "AVAILABILITY_GET_REFRESH_HISTORY",
+  OPEN_SETUP_WINDOW: "AVAILABILITY_OPEN_SETUP_WINDOW",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
 });
 
@@ -76,10 +78,12 @@ function setBusy(value) {
 
   isBusy = nextBusy;
   if (nextBusy) resetRefreshAllConfirm();
+  if (nextBusy) openSetupWindowButton.hidden = true;
   refreshVenueButton.disabled = nextBusy;
   refreshStaleButton.disabled = nextBusy;
   refreshAllButton.disabled = nextBusy;
   deepScanVenueButton.disabled = nextBusy;
+  openSetupWindowButton.disabled = nextBusy;
   copyProbeSummaryButton.disabled = nextBusy;
   readCurrentPageButton.disabled = nextBusy;
   createPlannerButton.disabled = nextBusy;
@@ -457,7 +461,7 @@ function jobStatusMessage(job) {
   const isDeepScan = job.scanMode === "deep";
   const prefix = isDeepScan ? "Deep scan" : job.label || "Refresh";
   const parallelLimit = Number(job.parallelLimit || 1);
-  const parallelNote = parallelLimit > 1 ? ` Up to ${parallelLimit} venues run at once.` : "";
+  const parallelNote = parallelLimit > 1 ? ` Up to ${parallelLimit} venues refresh at once.` : "";
   const deepScanNote = isDeepScan ? " Keep the reader window visible." : "";
 
   if (isActiveJob(job)) {
@@ -559,7 +563,7 @@ function historyMeta(job) {
   if (counts.failed) pieces.push(`${counts.failed} failed`);
   if (counts.setupRequired) pieces.push(`${counts.setupRequired} setup`);
   if (counts.cacheHits) pieces.push(`${counts.cacheHits} cached`);
-  if (parallelLimit > 1) pieces.push(`${parallelLimit} at once`);
+  if (parallelLimit > 1) pieces.push(`${parallelLimit} venues at once`);
   const elapsed = formatElapsed(job.startedAt, job.finishedAt);
   const slowest = slowestResultSummary(job);
   const age = formatIsoAge(job.finishedAt);
@@ -622,6 +626,7 @@ async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {
   const job = response.job || null;
   const active = isActiveJob(job);
   setBusy(active);
+  syncSetupAction(job, response.pendingSetupVenueIds);
   if (!job) return null;
   if (silentWhenInactive && (job.status === "completed" || job.status === "completed_with_issues")) return job;
 
@@ -642,6 +647,27 @@ async function loadRefreshJobStatus({ silentWhenInactive = false } = {}) {
     setStatus(jobStatusMessage(job));
   }
   return job;
+}
+
+function syncSetupAction(job, pendingSetupVenueIds = []) {
+  const pendingVenueIds = new Set(Array.isArray(pendingSetupVenueIds) ? pendingSetupVenueIds : []);
+  const setupResult = Array.isArray(job?.results)
+    ? job.results.find(
+        (result) => result.status === "setup_required" && result.pendingRefresh && pendingVenueIds.has(result.venueId)
+      )
+    : null;
+  openSetupWindowButton.hidden = !setupResult || isActiveJob(job);
+  openSetupWindowButton.dataset.venueId = setupResult?.venueId || "";
+}
+
+async function openSetupWindow() {
+  const response = await sendMessage({
+    type: MESSAGE.OPEN_SETUP_WINDOW,
+    venueId: openSetupWindowButton.dataset.venueId || "",
+  });
+  if (!response?.ok) throw new Error(response?.error || "Could not open the setup window.");
+  openSetupWindowButton.hidden = true;
+  setStatus("Opened the setup window. Finish setup there; the read will retry automatically.");
 }
 
 async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh" }) {
@@ -917,7 +943,7 @@ function confirmRefreshAll() {
   refreshAllButton.classList.add("is-confirming");
   refreshAllButton.textContent = "Confirm Refresh all";
   setStatus(
-    "Refresh all may open multiple booking tabs and slow venues can take a while. Click Confirm Refresh all within 5 seconds to continue."
+    "Refresh all may use a separate reader window and slow venues can take a while. Click Confirm Refresh all within 5 seconds to continue."
   );
 
   if (refreshAllConfirmTimer) clearTimeout(refreshAllConfirmTimer);
@@ -975,6 +1001,9 @@ viewAvailabilityButton.addEventListener("click", viewAvailability);
 copyShareLinkButton.addEventListener("click", copyShareLink);
 createPlannerButton.addEventListener("click", createGroupPlanner);
 copyProbeSummaryButton.addEventListener("click", copyProbeSummary);
+openSetupWindowButton.addEventListener("click", () => {
+  openSetupWindow().catch((error) => setStatus(error?.message || String(error)));
+});
 
 init().catch((error) => {
   setBusy(false);

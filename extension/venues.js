@@ -58,6 +58,7 @@
       cacheFirstTtlMs: 5 * 60 * 1000,
       readProviders: false,
       deepReadProviders: true,
+      preferActiveReaderTab: true,
       retryActiveOnFailure: true,
       maxProviders: 24,
       matchUrls: [`${NORTH_RYDE_MINDBODY_BASE}/*`],
