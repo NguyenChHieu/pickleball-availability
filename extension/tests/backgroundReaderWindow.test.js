@@ -74,6 +74,11 @@ function loadBackground() {
     tabs: {
       async create(options) {
         if (!windows.has(Number(options.windowId))) throw new Error("Unknown window");
+        if (options.active) {
+          for (const candidate of tabs.values()) {
+            if (candidate.windowId === Number(options.windowId)) candidate.active = false;
+          }
+        }
         return addTab(Number(options.windowId), options.url, Boolean(options.active));
       },
       async get(tabId) {
@@ -124,14 +129,21 @@ function loadBackground() {
 
 test("fast refresh tabs share one unfocused reader window and clean it up", async () => {
   const { calls, context, windows } = loadBackground();
-  const venues = ["one", "two", "three"].map((id) => ({ id, startUrl: `https://example.com/${id}` }));
+  const venues = ["one", "two", "three"].map((id) => ({
+    id,
+    startUrl: `https://example.com/${id}`,
+    preferActiveReaderTab: id === "three",
+  }));
 
   const openedTabs = await Promise.all(venues.map((venue) => context.createRefreshReaderTab(venue)));
 
   assert.equal(calls.createdWindows, 1);
   assert.equal(new Set(openedTabs.map((tab) => tab.windowId)).size, 1);
   assert.equal(windows.get(openedTabs[0].windowId).focused, false);
-  assert.ok(openedTabs.every((tab) => tab.active === false));
+  assert.deepEqual(
+    openedTabs.map((tab) => tab.active),
+    [false, false, true]
+  );
 
   await context.releaseRefreshReaderWindow();
   assert.equal(windows.size, 0);

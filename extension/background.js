@@ -287,7 +287,7 @@ async function createRefreshReaderTab(venue) {
       const tab = await chrome.tabs.create({
         windowId: readerWindow.windowId,
         url: venue.startUrl,
-        active: false,
+        active: Boolean(venue.preferActiveReaderTab),
       });
       if (!tab?.id) throw new Error("Could not open a venue reader tab.");
       readerWindow.tabIds.add(tab.id);
