@@ -87,8 +87,6 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
-  const themeLabel = theme === "dark" ? "Dark" : "Light";
-
   return (
     <div className="home-shell" data-theme={theme}>
       <header className="home-nav">
@@ -110,10 +108,10 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
           className="home-theme"
           type="button"
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
         >
-          <span aria-hidden="true" />
-          {themeLabel}
+          <span aria-hidden="true">{theme === "dark" ? "☾" : "☀"}</span>
         </button>
       </header>
 

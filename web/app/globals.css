@@ -1729,46 +1729,29 @@ dd {
   align-items: center;
   background: var(--home-surface);
   border: 1px solid var(--home-border);
-  border-radius: 999px;
+  border-radius: 50%;
   color: var(--home-text);
   cursor: pointer;
   display: inline-flex;
-  font-size: 13px;
-  font-weight: 700;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 14px 0 8px;
+  flex: 0 0 44px;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+  width: 44px;
   transition:
     border-color 180ms ease,
     transform 180ms ease;
 }
 
 .home-theme span {
-  background: var(--home-lime);
-  border-radius: 999px;
-  display: inline-block;
+  align-items: center;
+  color: var(--home-lime);
+  display: inline-flex;
+  font-size: 22px;
   height: 24px;
-  position: relative;
+  justify-content: center;
+  line-height: 1;
   width: 24px;
-}
-
-.home-theme span::after {
-  background: var(--home-surface);
-  border-radius: 999px;
-  content: "";
-  height: 8px;
-  left: 8px;
-  position: absolute;
-  top: 8px;
-  width: 8px;
-}
-
-.home-shell[data-theme="dark"] .home-theme span::after {
-  box-shadow: 5px -3px 0 var(--home-lime);
-  height: 15px;
-  left: 5px;
-  top: 4px;
-  width: 15px;
 }
 
 .home-theme:hover {
@@ -2303,10 +2286,6 @@ dd {
 
   .home-brand__short {
     display: inline;
-  }
-
-  .home-theme {
-    padding-right: 10px;
   }
 
   .home-actions {
