@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildPlannerGroupTimes, buildPlannerRecommendations, mergeBlocks } from "../src/server/plannerMatch.ts";
+import { buildPlannerRecommendations, mergeBlocks } from "../src/server/plannerMatch.ts";
 import type { PlannerEvent, PlannerParticipant, PlannerVenueAvailability } from "../src/server/plannerTypes.ts";
 
 const event: PlannerEvent = {
@@ -142,29 +142,6 @@ test("planner recommendations handle missing venue availability", () => {
   ]);
 
   assert.deepEqual(recommendations, []);
-});
-
-test("planner group times still show people overlap without venue cache", () => {
-  const groupTimes = buildPlannerGroupTimes(event, [
-    participant("p1", "Hieu", 18 * 60, 21 * 60),
-    participant("p2", "Alex", 19 * 60, 20 * 60),
-  ]);
-
-  assert.equal(groupTimes[0].date, "2026-07-10");
-  assert.equal(groupTimes[0].startMinute, 19 * 60);
-  assert.equal(groupTimes[0].endMinute, 20 * 60);
-  assert.equal(groupTimes[0].availableParticipantCount, 2);
-  assert.deepEqual(groupTimes[0].availableParticipantNames, ["Hieu", "Alex"]);
-});
-
-test("planner group times filter overlaps shorter than the minimum session", () => {
-  const groupTimes = buildPlannerGroupTimes(event, [
-    participant("p1", "Hieu", 18 * 60, 20 * 60),
-    participant("p2", "Alex", 18 * 60, 18 * 60 + 30),
-  ]);
-
-  assert.equal(groupTimes.some((groupTime) => groupTime.availableParticipantCount === 2), false);
-  assert.equal(groupTimes[0].availableParticipantCount, 1);
 });
 
 test("mergeBlocks joins adjacent participant cells", () => {

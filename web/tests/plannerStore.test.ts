@@ -16,6 +16,7 @@ const {
   createPlannerEvent,
   getPlannerEventView,
   normalizeDisplayNameKey,
+  PlannerRecoveryRateLimitError,
   upsertPlannerParticipant,
 } = await import("../src/server/plannerStore.ts");
 const { saveAvailability } = await import("../src/server/availabilityStore.ts");
@@ -87,6 +88,44 @@ test("same browser edit token updates without re-entering password", async () =>
 
   assert.equal(updated?.participantId, created.participantId);
   assert.deepEqual(updated?.availabilityBlocks, block(19 * 60, 21 * 60));
+});
+
+test("valid local edit tokens keep working after recovery attempts are rate limited", async () => {
+  const event = await createPlannerEvent(eventInput());
+  const created = await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    editPassword: "court123",
+    availabilityBlocks: block(18 * 60, 19 * 60),
+  });
+  assert.ok(created);
+
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    await assert.rejects(
+      upsertPlannerParticipant(event.eventToken, {
+        displayName: "hieu",
+        editPassword: "wrongpass",
+        recoverOnly: true,
+        availabilityBlocks: [],
+      }),
+      /Could not verify edit access/
+    );
+  }
+  await assert.rejects(
+    upsertPlannerParticipant(event.eventToken, {
+      displayName: "hieu",
+      editPassword: "wrongpass",
+      recoverOnly: true,
+      availabilityBlocks: [],
+    }),
+    PlannerRecoveryRateLimitError
+  );
+
+  const updated = await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    editToken: created.editToken,
+    availabilityBlocks: block(20 * 60, 21 * 60),
+  });
+  assert.deepEqual(updated?.availabilityBlocks, block(20 * 60, 21 * 60));
 });
 
 test("passwordless participant cannot be reclaimed from another browser", async () => {
@@ -231,6 +270,34 @@ test("legacy localStorage-token participants can set a password on next save", a
   assert.equal(reclaimed?.participantId, "legacy-participant");
 });
 
+test("authenticated participants change recovery password without changing availability", async () => {
+  const event = await createPlannerEvent(eventInput());
+  const created = await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    editPassword: "court123",
+    availabilityBlocks: block(18 * 60, 20 * 60),
+  });
+  assert.ok(created);
+
+  const passwordUpdated = await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    editToken: created.editToken,
+    editPassword: "newcourt1",
+    updatePasswordOnly: true,
+    availabilityBlocks: [],
+  });
+  assert.deepEqual(passwordUpdated?.availabilityBlocks, block(18 * 60, 20 * 60));
+
+  const recovered = await upsertPlannerParticipant(event.eventToken, {
+    displayName: "hieu",
+    editPassword: "newcourt1",
+    recoverOnly: true,
+    availabilityBlocks: [],
+  });
+  assert.equal(recovered?.participantId, created.participantId);
+  assert.deepEqual(recovered?.availabilityBlocks, block(18 * 60, 20 * 60));
+});
+
 test("public planner view never exposes edit tokens or password hashes", async () => {
   const event = await createPlannerEvent(eventInput());
   await upsertPlannerParticipant(event.eventToken, {
@@ -246,6 +313,32 @@ test("public planner view never exposes edit tokens or password hashes", async (
   assert.equal("editPasswordHash" in view.participants[0], false);
   assert.equal(serialized.includes("court123"), false);
   assert.equal(serialized.includes("scrypt-v1"), false);
+  assert.equal("groupTimes" in (view || {}), false);
+});
+
+test("planner venue matches use normal ProPickle open intervals without a deep scan", async () => {
+  await saveAvailability("propickle", {
+    venue_id: "propickle",
+    venue_name: "ProPickle",
+    exported_at: "2026-07-10T08:00:00.000Z",
+    days: [
+      {
+        booking_date: "2026-07-10",
+        open_intervals: [{ start_time: "6:00 PM", end_time: "10:00 PM" }],
+      },
+    ],
+  });
+  const event = await createPlannerEvent(eventInput());
+  await upsertPlannerParticipant(event.eventToken, {
+    displayName: "Hieu",
+    availabilityBlocks: block(19 * 60, 21 * 60),
+  });
+
+  const view = await getPlannerEventView(event.eventToken);
+  assert.equal(view?.recommendations.length, 1);
+  assert.equal(view?.recommendations[0].startMinute, 19 * 60);
+  assert.equal(view?.recommendations[0].endMinute, 21 * 60);
+  assert.equal(view?.recommendations[0].confidence, "any-court");
 });
 
 test("planner venue matches keep broad venue availability when same-court data is partial", async () => {

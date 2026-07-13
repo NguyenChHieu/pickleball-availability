@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type {
   PlannerAvailabilityBlock,
-  PlannerGroupTime,
   PlannerRecommendation,
   PublicPlannerEventView,
   PublicPlannerParticipant,
@@ -30,9 +29,11 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   const [selectedCells, setSelectedCells] = useState<Set<string>>(() => new Set());
   const [savedIdentity, setSavedIdentity] = useState<SavedPlannerIdentity | null>(null);
   const [editPassword, setEditPassword] = useState("");
+  const [newEditPassword, setNewEditPassword] = useState("");
+  const [inspectedCell, setInspectedCell] = useState<string | null>(null);
   const [dragMode, setDragMode] = useState<boolean | null>(null);
   const [status, setStatus] = useState("");
-  const [pendingAction, setPendingAction] = useState<"save" | "recover" | null>(null);
+  const [pendingAction, setPendingAction] = useState<"save" | "recover" | "password" | null>(null);
   const dates = useMemo(() => dateRange(view.event.dateStart, view.event.dateEnd), [view.event]);
   const timeSlots = useMemo(
     () => timeRange(view.event.preferredStartTime, view.event.preferredEndTime),
@@ -40,9 +41,8 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   );
   const cellSummaries = useMemo(() => buildCellSummaries(view.participants), [view.participants]);
   const participantCount = view.participants.length;
-  const groupTimes = view.groupTimes || [];
   const isBusy = pendingAction !== null;
-  const statusIsSuccess = /^(Saved|Cleared|Recovered)/.test(status);
+  const statusIsSuccess = /^(Saved|Cleared|Recovered|Recovery password updated)/.test(status);
 
   useEffect(() => {
     if (savedIdentity) return;
@@ -74,12 +74,14 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   }
 
   function handlePointerDown(cellKey: string) {
+    setInspectedCell(cellKey);
     const shouldSelect = !selectedCells.has(cellKey);
     setDragMode(shouldSelect);
     setCell(cellKey, shouldSelect);
   }
 
   function handleToggle(cellKey: string) {
+    setInspectedCell(cellKey);
     setCell(cellKey, !selectedCells.has(cellKey));
   }
 
@@ -119,7 +121,7 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
         availabilityBlocks: blocksFromCells(selectedCells),
       });
       rememberParticipant(body);
-      setStatus("Saved. Group times and venue matches are updated.");
+      setStatus("Saved. The heatmap and venue matches are updated.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save availability.");
     } finally {
@@ -145,11 +147,33 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
     }
   }
 
+  async function handlePasswordChange() {
+    if (!savedIdentity) return;
+    setPendingAction("password");
+    setStatus("");
+    try {
+      const body = await submitParticipant({
+        displayName: savedIdentity.displayName,
+        editToken: savedIdentity.editToken,
+        editPassword: newEditPassword.trim(),
+        updatePasswordOnly: true,
+      });
+      rememberParticipant(body);
+      setNewEditPassword("");
+      setStatus("Recovery password updated.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not update recovery password.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
   function handleForgetDevice() {
     window.localStorage.removeItem(storageKey);
     setSavedIdentity(null);
     setDisplayName("");
     setEditPassword("");
+    setNewEditPassword("");
     setSelectedCells(new Set());
     setStatus("Cleared local edit access on this device.");
   }
@@ -185,20 +209,24 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
                   readOnly={Boolean(savedIdentity)}
                 />
               </label>
-              <label className="planner-name">
-                <span>Edit password (optional)</span>
-                <input
-                  value={editPassword}
-                  onChange={(event) => setEditPassword(event.target.value)}
-                  placeholder={savedIdentity ? "Add or change recovery" : "For editing on another device"}
-                  maxLength={80}
-                  minLength={MIN_EDIT_PASSWORD_LENGTH}
-                  type="password"
-                />
-              </label>
-              <p className="planner-password-note">
-                Use 8+ characters only if you want to edit from another browser. This device can edit without one.
-              </p>
+              {!savedIdentity ? (
+                <>
+                  <label className="planner-name">
+                    <span>Edit password (optional)</span>
+                    <input
+                      value={editPassword}
+                      onChange={(event) => setEditPassword(event.target.value)}
+                      placeholder="For editing on another device"
+                      maxLength={80}
+                      minLength={MIN_EDIT_PASSWORD_LENGTH}
+                      type="password"
+                    />
+                  </label>
+                  <p className="planner-password-note">
+                    Use 8+ characters only if you want to edit from another browser. This device can edit without one.
+                  </p>
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -212,6 +240,12 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
             onPointerEnter={handlePointerEnter}
             onToggle={handleToggle}
           />
+
+          <p className="planner-cell-summary" aria-live="polite">
+            {inspectedCell
+              ? describeCell(inspectedCell, cellSummaries.get(inspectedCell))
+              : "Hover or tap a time to see who is available."}
+          </p>
 
           <div className="planner-actions">
             <button
@@ -242,6 +276,31 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
                 Forget this device
               </button>
             ) : null}
+            {savedIdentity ? (
+              <details className="planner-password-settings">
+                <summary>Change recovery password</summary>
+                <div>
+                  <label className="planner-name">
+                    <span>New recovery password</span>
+                    <input
+                      value={newEditPassword}
+                      onChange={(event) => setNewEditPassword(event.target.value)}
+                      maxLength={80}
+                      minLength={MIN_EDIT_PASSWORD_LENGTH}
+                      type="password"
+                    />
+                  </label>
+                  <button
+                    className="planner-secondary"
+                    disabled={isBusy || newEditPassword.trim().length < MIN_EDIT_PASSWORD_LENGTH}
+                    onClick={handlePasswordChange}
+                    type="button"
+                  >
+                    {pendingAction === "password" ? "Updating..." : "Update password"}
+                  </button>
+                </div>
+              </details>
+            ) : null}
             {status ? (
               <p
                 className={statusIsSuccess ? "planner-success" : "planner-error"}
@@ -257,27 +316,6 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
           <ParticipantsList participants={view.participants} />
           <VenueFreshness view={view} />
         </aside>
-      </section>
-
-      <section className="planner-panel planner-recommendations" aria-labelledby="planner-results-title">
-        <div className="planner-panel__header">
-          <div>
-            <h2 id="planner-results-title">Group Times</h2>
-            <p>People overlap only. These times are useful even before a venue cache exists.</p>
-          </div>
-        </div>
-        {groupTimes.length ? (
-          <div className="planner-recommendation-list">
-            {groupTimes.map((groupTime) => (
-              <GroupTimeCard groupTime={groupTime} key={groupTime.id} />
-            ))}
-          </div>
-        ) : (
-          <div className="planner-empty">
-            <h3>No group overlap yet.</h3>
-            <p>Add participant availability or widen the event hours to find shared times.</p>
-          </div>
-        )}
       </section>
 
       {view.recommendations.length ? (
@@ -448,24 +486,6 @@ function VenueFreshness({ view }: Readonly<{ view: PublicPlannerEventView }>) {
   );
 }
 
-function GroupTimeCard({ groupTime }: Readonly<{ groupTime: PlannerGroupTime }>) {
-  return (
-    <article className="planner-recommendation planner-recommendation--group">
-      <div>
-        <p>{formatDate(groupTime.date)}</p>
-        <h3>
-          {formatMinutes(groupTime.startMinute)}-{formatMinutes(groupTime.endMinute)}
-        </h3>
-      </div>
-      <div>
-        <strong>{peopleAvailableLabel(groupTime.availableParticipantCount)}</strong>
-        <span>{groupTime.availableParticipantNames.join(", ")}</span>
-        <small>Venue matches appear when cached availability overlaps. Otherwise, check/book manually.</small>
-      </div>
-    </article>
-  );
-}
-
 function RecommendationCard({ recommendation }: Readonly<{ recommendation: PlannerRecommendation }>) {
   return (
     <article className="planner-recommendation">
@@ -528,6 +548,15 @@ function buildCellSummaries(participants: PublicPlannerParticipant[]) {
     }
   }
   return summaries;
+}
+
+function describeCell(cellKey: string, summary: CellSummary | undefined) {
+  const [date, minuteText] = cellKey.split(":");
+  const count = summary?.count || 0;
+  const availability = count
+    ? `${peopleAvailableLabel(count)}: ${summary?.names.join(", ")}`
+    : "No one has saved availability";
+  return `${formatDate(date)} at ${formatMinutes(Number(minuteText))}. ${availability}.`;
 }
 
 function heatForCell(count: number, participantCount: number) {

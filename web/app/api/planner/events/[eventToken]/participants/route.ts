@@ -1,4 +1,8 @@
-import { getPlannerEventView, upsertPlannerParticipant } from "@/server/plannerStore";
+import {
+  getPlannerEventView,
+  PlannerRecoveryRateLimitError,
+  upsertPlannerParticipant,
+} from "@/server/plannerStore";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +32,7 @@ export async function POST(request: Request, { params }: PlannerParticipantRoute
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : "Could not save availability." },
-      { status: 400 }
+      { status: error instanceof PlannerRecoveryRateLimitError ? 429 : 400 }
     );
   }
 }

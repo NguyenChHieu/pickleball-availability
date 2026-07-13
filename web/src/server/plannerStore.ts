@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { getVenueDefinition, venues } from "../lib/venues.ts";
 import {
@@ -11,7 +11,7 @@ import {
 } from "./availabilityStore.ts";
 import { bookingUrlForDay } from "./bookingLinks.ts";
 import { formatDateTime } from "./formatAvailability.ts";
-import { buildPlannerGroupTimes, buildPlannerRecommendations, mergeBlocks, parseTimeToMinutes } from "./plannerMatch.ts";
+import { buildPlannerRecommendations, mergeBlocks, parseTimeToMinutes } from "./plannerMatch.ts";
 import type {
   PlannerAvailabilityBlock,
   PlannerEvent,
@@ -24,6 +24,13 @@ import type {
 type PlannerFileRecord = {
   event: PlannerEvent;
   participants: PlannerParticipant[];
+  recoveryAttempts?: Record<string, RecoveryAttempt>;
+};
+
+type RecoveryAttempt = {
+  failedCount: number;
+  windowStartedAt: string;
+  blockedUntil?: string;
 };
 
 type PlannerEventInput = {
@@ -41,6 +48,7 @@ type ParticipantInput = {
   editToken?: string;
   editPassword?: string;
   recoverOnly?: boolean;
+  updatePasswordOnly?: boolean;
   availabilityBlocks: PlannerAvailabilityBlock[];
 };
 
@@ -60,8 +68,21 @@ const MAX_PARTICIPANT_BLOCKS = MAX_PLANNER_DAYS * 48;
 const EDIT_PASSWORD_PREFIX = "scrypt-v1";
 const MIN_EDIT_PASSWORD_LENGTH = 8;
 const MAX_EDIT_PASSWORD_LENGTH = 80;
+const RECOVERY_FAILURE_LIMIT = 5;
+const RECOVERY_WINDOW_MS = 15 * 60 * 1000;
+const RECOVERY_BLOCK_MS = 15 * 60 * 1000;
 const PARTICIPANT_ACCESS_ERROR =
   "Could not verify edit access. Check your details or use a different display name.";
+const RECOVERY_RATE_LIMIT_ERROR = "Too many recovery attempts. Try again later.";
+
+export class PlannerRecoveryRateLimitError extends Error {
+  readonly status = 429;
+
+  constructor() {
+    super(RECOVERY_RATE_LIMIT_ERROR);
+    this.name = "PlannerRecoveryRateLimitError";
+  }
+}
 
 if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SECRET_KEY)) {
   throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
@@ -125,8 +146,93 @@ async function verifyEditPassword(password: string, storedHash: string | undefin
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
+function recoveryAttemptKey(eventToken: string, displayNameKey: string) {
+  return createHash("sha256").update(`${eventToken}\0${displayNameKey}`).digest("hex");
+}
+
+function isAttemptBlocked(attempt: RecoveryAttempt | undefined, now = Date.now()) {
+  return Boolean(attempt?.blockedUntil && Date.parse(attempt.blockedUntil) > now);
+}
+
+function checkLocalRecoveryLimit(record: PlannerFileRecord, attemptKey: string) {
+  if (isAttemptBlocked(record.recoveryAttempts?.[attemptKey])) {
+    throw new PlannerRecoveryRateLimitError();
+  }
+}
+
+async function recordLocalRecoveryFailure(record: PlannerFileRecord, attemptKey: string) {
+  const now = Date.now();
+  const attempts = (record.recoveryAttempts ||= {});
+  const previous = attempts[attemptKey];
+  const previousWindow = previous ? Date.parse(previous.windowStartedAt) : Number.NaN;
+  const failedCount = Number.isFinite(previousWindow) && now - previousWindow < RECOVERY_WINDOW_MS
+    ? previous.failedCount + 1
+    : 1;
+  const next: RecoveryAttempt = {
+    failedCount,
+    windowStartedAt:
+      Number.isFinite(previousWindow) && now - previousWindow < RECOVERY_WINDOW_MS
+        ? previous.windowStartedAt
+        : new Date(now).toISOString(),
+  };
+  if (failedCount >= RECOVERY_FAILURE_LIMIT) {
+    next.blockedUntil = new Date(now + RECOVERY_BLOCK_MS).toISOString();
+  }
+  attempts[attemptKey] = next;
+  await writeLocalPlannerFile(record);
+  if (next.blockedUntil) throw new PlannerRecoveryRateLimitError();
+  throw new Error(PARTICIPANT_ACCESS_ERROR);
+}
+
+async function clearLocalRecoveryFailures(record: PlannerFileRecord, attemptKey: string) {
+  if (!record.recoveryAttempts?.[attemptKey]) return;
+  delete record.recoveryAttempts[attemptKey];
+  await writeLocalPlannerFile(record);
+}
+
 function supabaseEndpoint(table: string, search = "") {
   return `${SUPABASE_URL}/rest/v1/${encodeURIComponent(table)}${search}`;
+}
+
+function supabaseRpcEndpoint(functionName: string) {
+  return `${SUPABASE_URL}/rest/v1/rpc/${encodeURIComponent(functionName)}`;
+}
+
+async function callSupabaseRpc(functionName: string, body: Record<string, unknown>) {
+  return readSupabaseJson(
+    await fetch(supabaseRpcEndpoint(functionName), {
+      method: "POST",
+      headers: supabaseHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify(body),
+    })
+  );
+}
+
+function isMissingRecoveryRateLimitMigration(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return (
+    message.includes("planner_recovery_") &&
+    (message.includes("PGRST202") || message.includes("does not exist") || message.includes("schema cache"))
+  );
+}
+
+function recoveryRateLimitMigrationError() {
+  return new Error("Planner recovery rate limiting needs the latest Supabase migration. Run web/supabase.sql, then retry.");
+}
+
+async function checkSupabaseRecoveryLimit(attemptKey: string) {
+  const result = await callSupabaseRpc("planner_recovery_check", { p_attempt_key: attemptKey });
+  if (result?.blocked) throw new PlannerRecoveryRateLimitError();
+}
+
+async function recordSupabaseRecoveryFailure(attemptKey: string): Promise<never> {
+  const result = await callSupabaseRpc("planner_recovery_fail", { p_attempt_key: attemptKey });
+  if (result?.blocked) throw new PlannerRecoveryRateLimitError();
+  throw new Error(PARTICIPANT_ACCESS_ERROR);
+}
+
+async function clearSupabaseRecoveryFailures(attemptKey: string) {
+  await callSupabaseRpc("planner_recovery_clear", { p_attempt_key: attemptKey });
 }
 
 function supabaseHeaders(extra: Record<string, string> = {}) {
@@ -301,6 +407,7 @@ function normalizePlannerRecord(record: PlannerFileRecord): PlannerFileRecord {
     participants: (record.participants || []).map((participant) =>
       normalizeParticipantRecord(participant, record.event.eventToken)
     ),
+    recoveryAttempts: record.recoveryAttempts || {},
   };
 }
 
@@ -388,7 +495,6 @@ export async function getPlannerEventView(eventToken: string): Promise<PublicPla
     event: record.event,
     participants: publicParticipants(record.participants),
     venues: plannerVenues,
-    groupTimes: buildPlannerGroupTimes(record.event, record.participants).slice(0, 24),
     recommendations: buildPlannerRecommendations(record.event, record.participants, plannerVenues).slice(0, 24),
   };
 }
@@ -495,6 +601,10 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
   const editToken = input.editToken ? safeToken(input.editToken) : "";
   const editPassword = normalizeEditPassword(input.editPassword);
   const recoverOnly = input.recoverOnly === true;
+  const updatePasswordOnly = input.updatePasswordOnly === true;
+  if (updatePasswordOnly && (!editToken || !editPassword)) {
+    throw new Error(PARTICIPANT_ACCESS_ERROR);
+  }
 
   if (USE_SUPABASE) {
     try {
@@ -504,9 +614,12 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
         editToken,
         editPassword,
         recoverOnly,
+        updatePasswordOnly,
         availabilityBlocks: requestedBlocks,
       });
     } catch (error) {
+      if (error instanceof PlannerRecoveryRateLimitError) throw error;
+      if (isMissingRecoveryRateLimitMigration(error)) throw recoveryRateLimitMigrationError();
       if (isMissingPlannerPasswordColumns(error)) throw plannerPasswordMigrationError();
       if (isSupabaseUniqueViolation(error)) throw new Error(PARTICIPANT_ACCESS_ERROR);
       if (isSupabasePlannerError(error)) {
@@ -524,18 +637,21 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
     ? record.participants.find((item) => item.editToken === editToken && item.eventToken === record.event.eventToken)
     : null;
   const participantByName = record.participants.find((item) => item.displayNameKey === displayNameKey) || null;
+  const attemptKey = recoveryAttemptKey(record.event.eventToken, displayNameKey);
 
   if (!participant) {
+    if (participantByName || recoverOnly) checkLocalRecoveryLimit(record, attemptKey);
     if (participantByName) {
       if (!participantByName.editPasswordHash) {
-        throw new Error(PARTICIPANT_ACCESS_ERROR);
+        return recordLocalRecoveryFailure(record, attemptKey);
       }
       if (!(await verifyEditPassword(editPassword, participantByName.editPasswordHash))) {
-        throw new Error(PARTICIPANT_ACCESS_ERROR);
+        return recordLocalRecoveryFailure(record, attemptKey);
       }
       participant = participantByName;
+      await clearLocalRecoveryFailures(record, attemptKey);
     } else {
-      if (recoverOnly) throw new Error(PARTICIPANT_ACCESS_ERROR);
+      if (recoverOnly) return recordLocalRecoveryFailure(record, attemptKey);
       if (record.participants.length >= MAX_PARTICIPANTS_PER_EVENT) {
         throw new Error("This planner has reached its participant limit.");
       }
@@ -555,6 +671,12 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
   }
 
   if (recoverOnly) return participant;
+
+  if (updatePasswordOnly) {
+    participant.editPasswordHash = await hashEditPassword(editPassword);
+    await writeLocalPlannerFile(record);
+    return participant;
+  }
 
   if (editPassword) {
     participant.editPasswordHash = await hashEditPassword(editPassword);
@@ -578,6 +700,7 @@ async function upsertPlannerParticipantSupabase(
     editToken?: string;
     editPassword?: string;
     recoverOnly?: boolean;
+    updatePasswordOnly?: boolean;
     availabilityBlocks: PlannerAvailabilityBlock[];
   }
 ) {
@@ -590,19 +713,22 @@ async function upsertPlannerParticipantSupabase(
     ? event.participants.find((item) => item.editToken === input.editToken)
     : undefined;
   const participantByName = event.participants.find((item) => item.displayNameKey === input.displayNameKey);
+  const attemptKey = recoveryAttemptKey(token, input.displayNameKey);
   let participantWasCreated = false;
 
   if (!participant) {
+    if (participantByName || input.recoverOnly) await checkSupabaseRecoveryLimit(attemptKey);
     if (participantByName) {
       if (!participantByName.editPasswordHash) {
-        throw new Error(PARTICIPANT_ACCESS_ERROR);
+        return recordSupabaseRecoveryFailure(attemptKey);
       }
       if (!(await verifyEditPassword(input.editPassword || "", participantByName.editPasswordHash))) {
-        throw new Error(PARTICIPANT_ACCESS_ERROR);
+        return recordSupabaseRecoveryFailure(attemptKey);
       }
       participant = participantByName;
+      await clearSupabaseRecoveryFailures(attemptKey);
     } else {
-      if (input.recoverOnly) throw new Error(PARTICIPANT_ACCESS_ERROR);
+      if (input.recoverOnly) return recordSupabaseRecoveryFailure(attemptKey);
       if (event.participants.length >= MAX_PARTICIPANTS_PER_EVENT) {
         throw new Error("This planner has reached its participant limit.");
       }
@@ -642,6 +768,19 @@ async function upsertPlannerParticipantSupabase(
   }
 
   if (input.recoverOnly) return participant;
+
+  if (input.updatePasswordOnly) {
+    const editPasswordHash = await hashEditPassword(input.editPassword || "");
+    await readSupabaseJson(
+      await fetch(supabaseEndpoint("planner_participants", `?participant_id=eq.${participant.participantId}`), {
+        method: "PATCH",
+        headers: supabaseHeaders({ "content-type": "application/json" }),
+        body: JSON.stringify({ edit_password_hash: editPasswordHash }),
+      })
+    );
+    participant.editPasswordHash = editPasswordHash;
+    return participant;
+  }
 
   const patch: Record<string, string> = {
     display_name: input.displayName,
