@@ -136,6 +136,26 @@ test("planner recommendations prefer fresh venue cache over stale cache when ove
   assert.equal(recommendations[0].venueId, "fresh");
 });
 
+test("planner recommendations prefer same-court confidence when people and freshness are tied", () => {
+  const recommendations = buildPlannerRecommendations(
+    event,
+    [participant("p1", "Hieu", 18 * 60, 21 * 60)],
+    [
+      venue([{ startMinute: 18 * 60, endMinute: 19 * 60, confidence: "any-court" }], {
+        venueId: "any-court",
+        venueName: "Any Court Venue",
+      }),
+      venue([{ startMinute: 19 * 60, endMinute: 20 * 60, confidence: "same-court", courtName: "Court 2" }], {
+        venueId: "same-court",
+        venueName: "Same Court Venue",
+      }),
+    ]
+  );
+
+  assert.equal(recommendations[0].venueId, "same-court");
+  assert.equal(recommendations[0].confidence, "same-court");
+});
+
 test("planner recommendations handle missing venue availability", () => {
   const recommendations = buildPlannerRecommendations(event, [participant("p1", "Hieu", 18 * 60, 21 * 60)], [
     venue([], { state: "empty", days: [] }),
