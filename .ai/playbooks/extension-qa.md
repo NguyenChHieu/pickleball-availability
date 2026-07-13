@@ -44,9 +44,13 @@ On this Windows checkout, if `next build` fails only with `EPERM` writing `web\.
 6. Confirm long venue names wrap instead of clipping.
 7. Tick at least two venues in Saved results.
 8. Click `Refresh Selected`.
-9. Confirm status says multiple venues can run at once when applicable.
-10. Confirm loader, status, and recent refresh history stay in the refresh panel.
-11. Confirm share actions appear only when a synced saved payload exists.
+9. Confirm a separate, unfocused reader window opens only when a venue page must be read.
+10. Confirm up to three venue tabs run there while the current browser window keeps focus.
+11. Confirm successful temporary tabs and an empty reader window close after the job.
+12. If a venue needs setup, confirm its tab stays open and `Open setup window` appears in the popup.
+13. Confirm deep scans still open a visible reader window and run one venue at a time.
+14. Confirm loader, status, and recent refresh history stay in the refresh panel.
+15. Confirm share actions appear only when a synced saved payload exists.
 
 ## Share Page QA
 

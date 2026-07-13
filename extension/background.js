@@ -7,6 +7,7 @@ const MESSAGE = Object.freeze({
   START_REFRESH_JOB: "AVAILABILITY_START_REFRESH_JOB",
   GET_REFRESH_JOB: "AVAILABILITY_GET_REFRESH_JOB",
   GET_REFRESH_HISTORY: "AVAILABILITY_GET_REFRESH_HISTORY",
+  OPEN_SETUP_WINDOW: "AVAILABILITY_OPEN_SETUP_WINDOW",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
   READ_CURRENT_PAGE: "AVAILABILITY_READ_CURRENT_PAGE",
 });
@@ -37,6 +38,8 @@ const pendingRefreshAttempts = new Set();
 const pendingRefreshTimers = new Map();
 let refreshJobPromise = null;
 let activeRefreshJob = null;
+let refreshReaderWindow = null;
+let refreshReaderWindowPromise = null;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const venueDisplayName = (venue) => venue?.displayName || venue?.name || "Venue";
@@ -227,12 +230,7 @@ function syncErrorMessage(error, endpoint) {
   return message;
 }
 
-async function firstOpenVenueTab(venue) {
-  const tabs = await chrome.tabs.query({ url: venue.matchUrls });
-  return tabs.find((tab) => tab.id) || null;
-}
-
-async function createReaderWindow(venue) {
+async function createDeepReaderWindow(venue) {
   const readerWindow = await chrome.windows.create({
     url: venue.startUrl,
     type: "popup",
@@ -245,14 +243,95 @@ async function createReaderWindow(venue) {
   return { tab, closeWhenDone: true };
 }
 
+async function ensureRefreshReaderWindow() {
+  if (refreshReaderWindow?.windowId) {
+    const existing = await chrome.windows.get(refreshReaderWindow.windowId).catch(() => null);
+    if (existing) return refreshReaderWindow;
+    refreshReaderWindow = null;
+  }
+
+  if (!refreshReaderWindowPromise) {
+    // Keep a placeholder alive so one fast worker cannot close the shared window before another opens its tab.
+    refreshReaderWindowPromise = chrome.windows
+      .create({
+        url: "about:blank",
+        type: "normal",
+        focused: false,
+        width: READER_WINDOW_WIDTH,
+        height: READER_WINDOW_HEIGHT,
+      })
+      .then((readerWindow) => {
+        const placeholderTab = readerWindow.tabs?.find((candidate) => candidate.id) || null;
+        if (!readerWindow.id || !placeholderTab?.id) {
+          throw new Error("Could not open the background reader window.");
+        }
+        refreshReaderWindow = {
+          windowId: readerWindow.id,
+          placeholderTabId: placeholderTab.id,
+          tabIds: new Set(),
+        };
+        return refreshReaderWindow;
+      })
+      .finally(() => {
+        refreshReaderWindowPromise = null;
+      });
+  }
+
+  return refreshReaderWindowPromise;
+}
+
+async function createRefreshReaderTab(venue) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const readerWindow = await ensureRefreshReaderWindow();
+    try {
+      const tab = await chrome.tabs.create({
+        windowId: readerWindow.windowId,
+        url: venue.startUrl,
+        active: false,
+      });
+      if (!tab?.id) throw new Error("Could not open a venue reader tab.");
+      readerWindow.tabIds.add(tab.id);
+      return tab;
+    } catch (error) {
+      const existing = await chrome.windows.get(readerWindow.windowId).catch(() => null);
+      if (existing || attempt === 1) throw error;
+      if (refreshReaderWindow?.windowId === readerWindow.windowId) refreshReaderWindow = null;
+    }
+  }
+  throw new Error("Could not open a venue reader tab.");
+}
+
+async function releaseRefreshReaderWindow() {
+  const readerWindow = refreshReaderWindow;
+  refreshReaderWindow = null;
+  refreshReaderWindowPromise = null;
+  if (!readerWindow?.windowId) return;
+
+  const pendingRefreshes = await loadPendingRefreshes();
+  const hasPendingSetup = Object.values(pendingRefreshes).some((session) =>
+    readerWindow.tabIds.has(Number(session?.tabId))
+  );
+
+  if (hasPendingSetup) {
+    await closeTab(readerWindow.placeholderTabId);
+    return;
+  }
+
+  await chrome.windows.remove(readerWindow.windowId).catch(() => null);
+}
+
 async function tabForVenue(venue) {
-  if (venue.scanMode === "deep") return createReaderWindow(venue);
-
-  const existingTab = await firstOpenVenueTab(venue);
-  if (existingTab?.id) return { tab: existingTab, closeWhenDone: false };
-
-  const tab = await chrome.tabs.create({ url: venue.startUrl, active: false });
+  if (venue.scanMode === "deep") return createDeepReaderWindow(venue);
+  const tab = await createRefreshReaderTab(venue);
   return { tab, closeWhenDone: true };
+}
+
+async function activateTab(tabId) {
+  try {
+    await chrome.tabs.update(tabId, { active: true });
+  } catch {
+    // A closed reader tab cannot be retried.
+  }
 }
 
 async function focusTab(tabId) {
@@ -271,6 +350,7 @@ async function focusTab(tabId) {
 }
 
 async function closeTab(tabId) {
+  refreshReaderWindow?.tabIds.delete(Number(tabId));
   try {
     await chrome.tabs.remove(tabId);
   } catch {
@@ -501,7 +581,11 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
     let readError = error;
     if (!readError.manualSetupRequired && readVenue.retryActiveOnFailure && tab.id) {
       try {
-        await focusTab(tab.id);
+        if (scanMode === "deep") {
+          await focusTab(tab.id);
+        } else {
+          await activateTab(tab.id);
+        }
         await wait(1800);
         const payload = await readTab(tab.id, readVenue);
         const syncStatus = await saveVenuePayload(venue.id, payload);
@@ -529,7 +613,6 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
       };
     }
 
-    await focusTab(tab.id);
     await savePendingRefresh(pendingRefreshSession(tab.id, readVenue, closeWhenDone, readError));
     return {
       venue,
@@ -539,6 +622,38 @@ async function refreshVenueNow(venueId, scanMode = "fast") {
       error: readError?.message || String(readError),
     };
   }
+}
+
+async function openPendingSetupWindow(venueId = "") {
+  const pendingRefreshes = await loadPendingRefreshes();
+  const candidates = Object.values(pendingRefreshes)
+    .filter((session) => !venueId || session?.venueId === venueId)
+    .sort((left, right) => Number(right?.startedAt || 0) - Number(left?.startedAt || 0));
+
+  for (const session of candidates) {
+    const tab = await chrome.tabs.get(Number(session?.tabId)).catch(() => null);
+    if (!tab?.id) {
+      await clearPendingRefresh(Number(session?.tabId));
+      continue;
+    }
+    await focusTab(tab.id);
+    return { venueId: session.venueId, tabId: tab.id };
+  }
+
+  throw new Error("No setup window is waiting. Start the venue refresh again.");
+}
+
+async function pendingSetupVenueIds() {
+  const pendingRefreshes = await loadPendingRefreshes();
+  const now = Date.now();
+  return [
+    ...new Set(
+      Object.values(pendingRefreshes)
+        .filter((session) => Number(session?.expiresAt || 0) > now)
+        .map((session) => session?.venueId)
+        .filter(Boolean)
+    ),
+  ];
 }
 
 function isActiveRefreshJob(job) {
@@ -759,7 +874,7 @@ async function runRefreshJob(initialJob) {
 
 async function startRefreshJob(request = {}) {
   const existingJob = await currentRefreshJob();
-  if (isActiveRefreshJob(existingJob)) return { job: existingJob, alreadyRunning: true };
+  if (isActiveRefreshJob(existingJob) || refreshJobPromise) return { job: existingJob, alreadyRunning: true };
 
   const job = makeRefreshJob(request);
   await saveRefreshJob(job);
@@ -773,7 +888,10 @@ async function startRefreshJob(request = {}) {
       await recordRefreshJob(failedJob).catch((historyError) => console.warn(historyError));
       return failedJob;
     })
-    .finally(() => {
+    .finally(async () => {
+      if (job.scanMode !== "deep") {
+        await releaseRefreshReaderWindow().catch((error) => console.warn(error));
+      }
       refreshJobPromise = null;
     });
 
@@ -810,7 +928,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
+  refreshReaderWindow?.tabIds.delete(Number(tabId));
   clearPendingRefresh(tabId).catch((error) => console.warn(error));
+});
+
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (refreshReaderWindow?.windowId === windowId) refreshReaderWindow = null;
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -819,8 +942,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === MESSAGE.GET_VENUE_PAYLOAD) return getVenuePayload(message.venueId);
     if (message?.type === MESSAGE.SET_SELECTED_VENUE) return setSelectedVenue(message.venueId);
     if (message?.type === MESSAGE.START_REFRESH_JOB) return startRefreshJob(message);
-    if (message?.type === MESSAGE.GET_REFRESH_JOB) return { job: await currentRefreshJob() };
+    if (message?.type === MESSAGE.GET_REFRESH_JOB) {
+      return { job: await currentRefreshJob(), pendingSetupVenueIds: await pendingSetupVenueIds() };
+    }
     if (message?.type === MESSAGE.GET_REFRESH_HISTORY) return { history: await storedRefreshHistory() };
+    if (message?.type === MESSAGE.OPEN_SETUP_WINDOW) return openPendingSetupWindow(message.venueId);
     if (message?.type === MESSAGE.READ_ACTIVE_TAB) return readActiveTab();
     throw new Error("Unknown availability message.");
   })()

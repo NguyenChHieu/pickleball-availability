@@ -612,6 +612,11 @@ button:disabled {
   white-space: pre-line;
 }
 
+.setup-action {
+  margin-top: 8px;
+  width: 100%;
+}
+
 .refresh-history {
   margin-top: 10px;
 }
