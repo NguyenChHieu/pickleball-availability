@@ -4,7 +4,7 @@
 
 - Path: `C:\Users\nguye\Downloads\propickle-buddy`
 - Git branch: `codex/planner-release-qa`
-- Git status: planner release QA and control-plane documentation reconciliation; do not merge before Vercel preview review.
+- Git status: planner release QA passed locally and on Vercel preview; do not merge before user preview review.
 - Local instructions: `AGENTS.md` plus `.ai/agent-router.md`.
 
 ## Stack
@@ -115,6 +115,7 @@ Planner release branch checked on July 13 before preview publication:
 - Local planner smoke: create, save, reload, forget-device, wrong/correct recovery, mobile layout, and `429` throttling passed.
 - Code review: no remaining required findings after adding the same-court recommendation tie-breaker.
 - Simplicity review: no new abstraction or dependency; the behavior fix is confined to the existing sorter and one regression test.
+- Vercel preview: event create/save/reload/recovery, ProPickle cached matching, durable `429`, valid-token bypass, and public secret-field checks passed.
 - Extension syntax checks passed for background, content, popup, options, venues, booking deep-link, and all providers.
 - Manifest JSON validation passed.
 

@@ -41,7 +41,7 @@
 
 ## Current Release Requirements
 
-- [ ] **QA-01**: Vercel preview passes event creation, first save, reload edit, forget-device, wrong-password, correct recovery, heatmap, and venue matching smoke tests.
+- [x] **QA-01**: Vercel preview passes event creation, first save, reload edit, forget-device, wrong-password, correct recovery, heatmap, and venue matching smoke tests.
 - [x] **QA-02**: Fixtures, typecheck, lint, production build, code review, and simplicity review pass on the planner release branch.
 - [ ] **QA-03**: User reviews the preview before the planner release branch merges to `main`.
 
