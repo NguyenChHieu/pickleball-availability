@@ -27,7 +27,9 @@ create table if not exists public.planner_participants (
   participant_id text primary key,
   event_token text not null references public.planner_events(event_token) on delete cascade,
   display_name text not null,
+  display_name_key text,
   edit_token text not null,
+  edit_password_hash text,
   created_at timestamptz not null default now(),
   unique (event_token, edit_token)
 );
@@ -45,11 +47,144 @@ create table if not exists public.planner_availability_blocks (
 create index if not exists planner_participants_event_token_idx
   on public.planner_participants(event_token);
 
+alter table public.planner_participants
+  add column if not exists display_name_key text;
+
+alter table public.planner_participants
+  add column if not exists edit_password_hash text;
+
+with ranked_names as (
+  select
+    participant_id,
+    lower(regexp_replace(btrim(display_name), '[[:space:]]+', ' ', 'g')) as normalized_name,
+    row_number() over (
+      partition by event_token, lower(regexp_replace(btrim(display_name), '[[:space:]]+', ' ', 'g'))
+      order by created_at, participant_id
+    ) as name_rank
+  from public.planner_participants
+)
+update public.planner_participants as participant
+set display_name_key = case
+  when ranked_names.name_rank = 1 then ranked_names.normalized_name
+  else null
+end
+from ranked_names
+where participant.participant_id = ranked_names.participant_id;
+
+create unique index if not exists planner_participants_event_display_name_key_idx
+  on public.planner_participants(event_token, display_name_key)
+  where display_name_key is not null;
+
 create index if not exists planner_availability_blocks_event_token_idx
   on public.planner_availability_blocks(event_token);
 
 create index if not exists planner_availability_blocks_participant_id_idx
   on public.planner_availability_blocks(participant_id);
+
+create table if not exists public.planner_recovery_attempts (
+  attempt_key text primary key,
+  failed_count integer not null default 0,
+  window_started_at timestamptz not null default now(),
+  blocked_until timestamptz,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.planner_recovery_attempts enable row level security;
+
+create or replace function public.planner_recovery_check(p_attempt_key text)
+returns jsonb
+language sql
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'blocked', coalesce(blocked_until > now(), false),
+    'retryAfterSeconds', case
+      when blocked_until > now() then greatest(1, ceil(extract(epoch from blocked_until - now())))::integer
+      else 0
+    end
+  )
+  from (select blocked_until from public.planner_recovery_attempts where attempt_key = p_attempt_key) attempt
+  union all
+  select jsonb_build_object('blocked', false, 'retryAfterSeconds', 0)
+  where not exists (
+    select 1 from public.planner_recovery_attempts where attempt_key = p_attempt_key
+  )
+  limit 1;
+$$;
+
+create or replace function public.planner_recovery_fail(p_attempt_key text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  attempt public.planner_recovery_attempts%rowtype;
+begin
+  insert into public.planner_recovery_attempts (attempt_key, failed_count)
+  values (p_attempt_key, 0)
+  on conflict (attempt_key) do nothing;
+
+  select * into attempt
+  from public.planner_recovery_attempts
+  where attempt_key = p_attempt_key
+  for update;
+
+  if attempt.blocked_until > now() then
+    return jsonb_build_object(
+      'blocked', true,
+      'retryAfterSeconds', greatest(1, ceil(extract(epoch from attempt.blocked_until - now())))::integer
+    );
+  end if;
+
+  if attempt.window_started_at <= now() - interval '15 minutes' then
+    attempt.failed_count := 1;
+    attempt.window_started_at := now();
+  else
+    attempt.failed_count := attempt.failed_count + 1;
+  end if;
+
+  if attempt.failed_count >= 5 then
+    attempt.blocked_until := now() + interval '15 minutes';
+  else
+    attempt.blocked_until := null;
+  end if;
+
+  update public.planner_recovery_attempts
+  set failed_count = attempt.failed_count,
+      window_started_at = attempt.window_started_at,
+      blocked_until = attempt.blocked_until,
+      updated_at = now()
+  where attempt_key = p_attempt_key;
+
+  return jsonb_build_object(
+    'blocked', attempt.blocked_until > now(),
+    'retryAfterSeconds', case
+      when attempt.blocked_until > now()
+        then greatest(1, ceil(extract(epoch from attempt.blocked_until - now())))::integer
+      else 0
+    end
+  );
+end;
+$$;
+
+create or replace function public.planner_recovery_clear(p_attempt_key text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from public.planner_recovery_attempts where attempt_key = p_attempt_key;
+$$;
+
+revoke all on table public.planner_recovery_attempts from anon, authenticated;
+revoke all on function public.planner_recovery_check(text) from public, anon, authenticated;
+revoke all on function public.planner_recovery_fail(text) from public, anon, authenticated;
+revoke all on function public.planner_recovery_clear(text) from public, anon, authenticated;
+grant execute on function public.planner_recovery_check(text) to service_role;
+grant execute on function public.planner_recovery_fail(text) to service_role;
+grant execute on function public.planner_recovery_clear(text) to service_role;
 
 alter table public.planner_events enable row level security;
 alter table public.planner_event_venues enable row level security;

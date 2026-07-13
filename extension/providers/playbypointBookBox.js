@@ -55,6 +55,26 @@
   const bookBoxRoot = () => document.querySelector('[data-react-class="BookBox"]');
   const normalizedText = (element) => normalizeWhitespace(element?.innerText || "").toLowerCase();
 
+  const isoDateFromLabel = (label, referenceDate = new Date()) => {
+    const parts = normalizeWhitespace(label).replaceAll(",", "").split(" ");
+    const month = parts.map(normalizeMonth).find(Boolean);
+    const day = Number(parts.find((part) => /^\d{1,2}$/.test(part)) || 0);
+    if (!month || !day) return "";
+
+    const monthIndex = monthOrder.indexOf(month);
+    const referenceTime = Number.isFinite(referenceDate.getTime()) ? referenceDate.getTime() : Date.now();
+    const referenceYear = new Date(referenceTime).getUTCFullYear();
+    const candidates = [referenceYear - 1, referenceYear, referenceYear + 1]
+      .map((year) => ({ year, time: Date.UTC(year, monthIndex, day) }))
+      .filter(({ time }) => {
+        const candidate = new Date(time);
+        return candidate.getUTCMonth() === monthIndex && candidate.getUTCDate() === day;
+      })
+      .sort((left, right) => Math.abs(left.time - referenceTime) - Math.abs(right.time - referenceTime));
+    const year = candidates[0]?.year;
+    return year ? `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
+  };
+
   const isVisible = (element) => {
     if (!element) return false;
     const style = window.getComputedStyle(element);
@@ -105,6 +125,14 @@
   };
 
   const dateKey = (label) => {
+    const isoMatch = normalizeWhitespace(label).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const date = new Date(Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])));
+      const weekday = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"][date.getUTCDay()];
+      const month = monthOrder[date.getUTCMonth()];
+      return `${weekday}:${month}:${date.getUTCDate()}`;
+    }
+
     const parts = normalizeWhitespace(label).replaceAll(",", "").split(" ");
     const weekday = normalizeDay(parts[0]);
     const month = parts.map(normalizeMonth).find(Boolean) || "";
@@ -658,7 +686,7 @@
         source_url: window.location.href,
         title,
         date: currentDate,
-        booking_date: currentDate,
+        booking_date: isoDateFromLabel(currentDate) || currentDate,
         open_intervals: openIntervals,
         same_court_intervals: courtIntervals,
         continuity_status: probeCourts

@@ -20,12 +20,17 @@ export type PlannerParticipant = {
   participantId: string;
   eventToken: string;
   displayName: string;
+  displayNameKey: string;
   editToken: string;
+  editPasswordHash?: string;
   availabilityBlocks: PlannerAvailabilityBlock[];
   createdAt: string;
 };
 
-export type PublicPlannerParticipant = Omit<PlannerParticipant, "eventToken" | "editToken">;
+export type PublicPlannerParticipant = Pick<
+  PlannerParticipant,
+  "participantId" | "displayName" | "availabilityBlocks" | "createdAt"
+>;
 
 export type PlannerVenueInterval = {
   startMinute: number;

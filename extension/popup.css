@@ -722,6 +722,15 @@ button:disabled {
   width: 100%;
 }
 
+.planner-actions {
+  display: grid;
+  margin-top: 8px;
+}
+
+.planner-actions button {
+  width: 100%;
+}
+
 @media (max-width: 360px) {
   html,
   body {

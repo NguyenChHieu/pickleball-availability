@@ -151,7 +151,7 @@ function buildParticipantBands(
 
 function intersectIntervals(
   band: ParticipantBand,
-  interval: PlannerVenueInterval,
+  interval: Pick<PlannerVenueInterval, "startMinute" | "endMinute">,
   minimumDurationMinutes: number
 ) {
   const startMinute = Math.max(band.startMinute, interval.startMinute);
@@ -172,18 +172,21 @@ export function buildPlannerRecommendations(
     if (venue.state !== "ready") continue;
     for (const day of venue.days) {
       const bandsForDay = participantBands.filter((band) => band.date === day.date);
+      const venueIntervals = mergeVenueIntervals(day.intervals);
+      const sameCourtRuns = mergeSameCourtRuns(day.intervals);
       for (const band of bandsForDay) {
-        for (const interval of day.intervals) {
+        for (const interval of venueIntervals) {
           const intersection = intersectIntervals(band, interval, event.minimumDurationMinutes);
           if (!intersection) continue;
+          const sameCourtRun = sameCourtRuns.find(
+            (run) => run.startMinute <= intersection.startMinute && run.endMinute >= intersection.endMinute
+          );
           recommendations.push({
             id: [
               venue.venueId,
               day.date,
               intersection.startMinute,
               intersection.endMinute,
-              interval.confidence,
-              interval.courtName || "any",
             ].join(":"),
             venueId: venue.venueId,
             venueName: venue.venueName,
@@ -192,8 +195,8 @@ export function buildPlannerRecommendations(
             endMinute: intersection.endMinute,
             availableParticipantCount: band.participantIds.length,
             availableParticipantNames: band.participantNames,
-            confidence: interval.confidence,
-            courtName: interval.courtName,
+            confidence: sameCourtRun ? "same-court" : "any-court",
+            courtName: sameCourtRun?.courtName,
             freshnessLabel: venue.freshnessLabel,
             isStale: venue.isStale,
           });
@@ -205,16 +208,47 @@ export function buildPlannerRecommendations(
   return recommendations.sort((left, right) => {
     const people = right.availableParticipantCount - left.availableParticipantCount;
     if (people) return people;
-    const continuity = confidenceScore(right.confidence) - confidenceScore(left.confidence);
-    if (continuity) return continuity;
     const freshness = Number(left.isStale) - Number(right.isStale);
     if (freshness) return freshness;
     const date = left.date.localeCompare(right.date);
     if (date) return date;
-    return left.startMinute - right.startMinute;
+    const time = left.startMinute - right.startMinute;
+    if (time) return time;
+    return left.venueName.localeCompare(right.venueName);
   });
 }
 
-function confidenceScore(confidence: PlannerRecommendation["confidence"]) {
-  return confidence === "same-court" ? 1 : 0;
+function mergeVenueIntervals(intervals: PlannerVenueInterval[]) {
+  const sorted = intervals
+    .filter((interval) => interval.endMinute > interval.startMinute)
+    .sort((left, right) => left.startMinute - right.startMinute || left.endMinute - right.endMinute);
+  const merged: Array<Pick<PlannerVenueInterval, "startMinute" | "endMinute">> = [];
+
+  for (const interval of sorted) {
+    const last = merged.at(-1);
+    if (last && last.endMinute >= interval.startMinute) {
+      last.endMinute = Math.max(last.endMinute, interval.endMinute);
+    } else {
+      merged.push({ startMinute: interval.startMinute, endMinute: interval.endMinute });
+    }
+  }
+
+  return merged;
+}
+
+function mergeSameCourtRuns(intervals: PlannerVenueInterval[]) {
+  const groups = new Map<string, PlannerVenueInterval[]>();
+
+  intervals.forEach((interval, index) => {
+    if (interval.confidence !== "same-court") return;
+    const key = interval.courtName || `unknown-${index}`;
+    const group = groups.get(key) || [];
+    group.push(interval);
+    groups.set(key, group);
+  });
+
+  return [...groups.values()].flatMap((group) => {
+    const courtName = group[0]?.courtName;
+    return mergeVenueIntervals(group).map((interval) => ({ ...interval, courtName }));
+  });
 }

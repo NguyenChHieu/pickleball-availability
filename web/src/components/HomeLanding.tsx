@@ -33,17 +33,17 @@ const slots = [
 const steps = [
   {
     title: "Refresh stale",
-    body: "The extension checks only venues with missing or older cached results, keeping normal refreshes quick and polite.",
+    body: "The extension reads supported booking pages and updates cached availability pages for each venue.",
     index: "01",
   },
   {
-    title: "Cache updates",
-    body: "The web app stores the latest normalized availability so every venue has a share page ready to revisit.",
+    title: "Share availability",
+    body: "Availability links are venue-specific cached pages created by the extension, with secret tokens kept out of the public homepage.",
     index: "02",
   },
   {
-    title: "Share or inspect",
-    body: "Friends see phone-friendly open intervals, and the popup keeps recent refresh history and timings.",
+    title: "Plan a group hit",
+    body: "Planner links come from the web app: friends mark times, then cached venue freshness helps rank the best options.",
     index: "03",
   },
 ];
@@ -87,8 +87,6 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
-  const themeLabel = theme === "dark" ? "Dark" : "Light";
-
   return (
     <div className="home-shell" data-theme={theme}>
       <header className="home-nav">
@@ -104,15 +102,16 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
         <nav className="home-links" aria-label="Homepage">
           <a href="#how-it-works">How it works</a>
           <a href="#venues">Venues</a>
+          <Link href="/planner/new">Planner</Link>
         </nav>
         <button
           className="home-theme"
           type="button"
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           onClick={() => setTheme((current) => (current === "dark" ? "light" : "dark"))}
         >
-          <span aria-hidden="true" />
-          {themeLabel}
+          <span aria-hidden="true">{theme === "dark" ? "☾" : "☀"}</span>
         </button>
       </header>
 
@@ -126,21 +125,20 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
             <h1 id="home-title">Stop clicking through every day just to find open court time.</h1>
             <p className="home-lede">
               Pickleball Buddy tracks {venueCount} Sydney pickleball venues with a small browser extension, cached
-              share pages, refresh history, and venue-specific booking links.
+              availability pages, group planner links, refresh history, and venue-specific booking links.
             </p>
             <div className="home-actions">
-              <a className="home-button home-button--primary" href="#how-it-works">
+              <Link className="home-button home-button--primary" href="/planner/new">
+                Create group planner
+              </Link>
+              <a className="home-button home-button--secondary" href="#how-it-works">
                 See how it works
               </a>
               {hasFeaturedShare ? (
                 <a className="home-button home-button--secondary" href={featuredSharePath}>
                   View availability
                 </a>
-              ) : (
-                <a className="home-button home-button--secondary" href="#venues">
-                  See venues
-                </a>
-              )}
+              ) : null}
             </div>
           </div>
 
@@ -209,6 +207,9 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
                 </div>
                 <small>{venue.freshness.detail}</small>
                 <p>{venue.detail}</p>
+                <Link className="home-venue__link" href={`/planner/new?venues=${encodeURIComponent(venue.id)}`}>
+                  Plan with this venue
+                </Link>
               </article>
             ))}
           </div>
@@ -218,7 +219,8 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
           <h2>Designed to stay boring where it matters.</h2>
           <p>
             The public homepage does not expose share tokens. The share pages show cached availability
-            only, and the project stays away from login automation, checkout, payment, and bookings.
+            only. Planner links are created separately for groups, and the project stays away from
+            login automation, checkout, payment, and bookings.
           </p>
         </section>
       </main>

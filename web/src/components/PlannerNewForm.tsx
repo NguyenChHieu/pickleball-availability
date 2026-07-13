@@ -11,17 +11,27 @@ type VenueOption = {
 type PlannerNewFormProps = Readonly<{
   defaultStartDate: string;
   defaultEndDate: string;
+  defaultName?: string;
+  selectedVenueIds?: string[];
   venues: VenueOption[];
 }>;
 
-export function PlannerNewForm({ defaultStartDate, defaultEndDate, venues }: PlannerNewFormProps) {
-  const [name, setName] = useState("Weekend pickleball");
+export function PlannerNewForm({
+  defaultName = "Weekend pickleball",
+  defaultStartDate,
+  defaultEndDate,
+  selectedVenueIds,
+  venues,
+}: PlannerNewFormProps) {
+  const [name, setName] = useState(defaultName);
   const [dateStart, setDateStart] = useState(defaultStartDate);
   const [dateEnd, setDateEnd] = useState(defaultEndDate);
   const [preferredStartTime, setPreferredStartTime] = useState("18:00");
   const [preferredEndTime, setPreferredEndTime] = useState("23:00");
   const [minimumDurationMinutes, setMinimumDurationMinutes] = useState(60);
-  const [selectedVenueIds, setSelectedVenueIds] = useState(() => venues.map((venue) => venue.id));
+  const [selectedVenueIdsState, setSelectedVenueIds] = useState(() =>
+    selectedVenueIds?.length ? selectedVenueIds : venues.map((venue) => venue.id)
+  );
   const [status, setStatus] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
@@ -46,7 +56,7 @@ export function PlannerNewForm({ defaultStartDate, defaultEndDate, venues }: Pla
           preferredStartTime,
           preferredEndTime,
           minimumDurationMinutes,
-          venueIds: selectedVenueIds,
+          venueIds: selectedVenueIdsState,
         }),
       });
       const body = await response.json();
@@ -123,7 +133,7 @@ export function PlannerNewForm({ defaultStartDate, defaultEndDate, venues }: Pla
             <label className="planner-venue-choice" key={venue.id}>
               <input
                 type="checkbox"
-                checked={selectedVenueIds.includes(venue.id)}
+                checked={selectedVenueIdsState.includes(venue.id)}
                 onChange={() => toggleVenue(venue.id)}
               />
               <span>
@@ -136,7 +146,7 @@ export function PlannerNewForm({ defaultStartDate, defaultEndDate, venues }: Pla
 
         {status ? <p className="planner-error">{status}</p> : null}
 
-        <button className="planner-primary" disabled={isCreating || !selectedVenueIds.length} type="submit">
+        <button className="planner-primary" disabled={isCreating || !selectedVenueIdsState.length} type="submit">
           {isCreating ? "Creating..." : "Create planner"}
         </button>
       </form>

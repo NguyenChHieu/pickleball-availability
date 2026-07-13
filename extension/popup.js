@@ -6,6 +6,7 @@ const deepScanVenueButton = document.querySelector("#deepScanVenueButton");
 const readCurrentPageButton = document.querySelector("#readCurrentPageButton");
 const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton");
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
+const createPlannerButton = document.querySelector("#createPlannerButton");
 const copyProbeSummaryButton = document.querySelector("#copyProbeSummaryButton");
 const venueStatusListElement = document.querySelector("#venueStatusList");
 const savedSummaryElement = document.querySelector("#savedSummary");
@@ -81,6 +82,7 @@ function setBusy(value) {
   deepScanVenueButton.disabled = nextBusy;
   copyProbeSummaryButton.disabled = nextBusy;
   readCurrentPageButton.disabled = nextBusy;
+  createPlannerButton.disabled = nextBusy;
   venueSelect.disabled = nextBusy;
   syncLoader(nextBusy);
   syncActions();
@@ -193,7 +195,7 @@ function syncRefreshSelectionUi() {
 
 function setSavedSummary(savedCount = savedSummaryCounts.saved, totalCount = savedSummaryCounts.total) {
   savedSummaryCounts = { saved: savedCount, total: totalCount };
-  savedSummaryElement.textContent = `${savedCount}/${totalCount} saved · ${refreshSelection.size} selected`;
+  savedSummaryElement.textContent = `${savedCount}/${totalCount} saved - ${refreshSelection.size} selected`;
 }
 
 function venueDisplayName(venue) {
@@ -227,8 +229,8 @@ function savedPayloadStatus(payload, syncStatus) {
   const exportedAt = formatExportTime(payload);
   const age = formatAge(payload);
   const shareHint = syncStatus?.ok
-    ? "View Availability and Copy Share Link are ready."
-    : "Tick venues above and use Refresh Selected, or use Read Current Page to update the share page.";
+    ? "View Availability and Copy Availability Link are ready."
+    : "Tick venues above and use Refresh Selected, or use Read Current Page to update the availability page.";
   const timeText = age || exportedAt ? ` Last read ${age || exportedAt}.` : "";
   return `Showing saved ${sourceLabel(payload)} result.${timeText} ${shareHint}`;
 }
@@ -759,13 +761,13 @@ async function shareLink() {
   if (!latestPayload) return;
 
   if (!latestSyncStatus?.ok) {
-    throw new Error("Sync to the web app first, then use the share page.");
+    throw new Error("Sync to the web app first, then use the availability page.");
   }
 
   const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
   const config = stored[SYNC_CONFIG_KEY] || {};
   const venueId = latestPayload.venue_id || selectedVenueId;
-  if (!venueId) throw new Error("Select a venue before opening a share link.");
+  if (!venueId) throw new Error("Select a venue before opening an availability link.");
 
   const base = normalizeShareUrlBase(config.shareUrlBase);
   const shareToken = (config.shareToken || DEFAULT_SHARE_TOKEN).trim();
@@ -788,7 +790,27 @@ async function copyShareLink() {
     const link = await shareLink();
     if (!link) return;
     await navigator.clipboard.writeText(link);
-    setStatus("Copied share link.");
+    setStatus("Copied availability link.");
+  } catch (error) {
+    setStatus(error?.message || String(error));
+  }
+}
+
+async function plannerLink() {
+  const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
+  const config = stored[SYNC_CONFIG_KEY] || {};
+  const base = normalizeShareUrlBase(config.shareUrlBase);
+  const venueIds = selectedRefreshVenueIds();
+  const selectedIds = venueIds.length ? venueIds : selectedVenueId ? [selectedVenueId] : [];
+  if (!selectedIds.length) throw new Error("Select at least one venue before creating a planner.");
+  return `${base}/planner/new?venues=${encodeURIComponent(selectedIds.join(","))}`;
+}
+
+async function createGroupPlanner() {
+  try {
+    const link = await plannerLink();
+    await chrome.tabs.create({ url: link });
+    setStatus("Opened planner setup.");
   } catch (error) {
     setStatus(error?.message || String(error));
   }
@@ -951,6 +973,7 @@ deepScanVenueButton.addEventListener("click", () => deepScanVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
 viewAvailabilityButton.addEventListener("click", viewAvailability);
 copyShareLinkButton.addEventListener("click", copyShareLink);
+createPlannerButton.addEventListener("click", createGroupPlanner);
 copyProbeSummaryButton.addEventListener("click", copyProbeSummary);
 
 init().catch((error) => {

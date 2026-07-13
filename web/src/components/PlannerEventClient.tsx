@@ -14,7 +14,13 @@ type SavedPlannerIdentity = {
   editToken: string;
 };
 
+type ParticipantResponse = {
+  participant: SavedPlannerIdentity;
+  view: PublicPlannerEventView;
+};
+
 const SLOT_MINUTES = 30;
+const MIN_EDIT_PASSWORD_LENGTH = 8;
 
 export function PlannerEventClient({ initialView }: Readonly<{ initialView: PublicPlannerEventView }>) {
   const [view, setView] = useState(initialView);
@@ -22,14 +28,21 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   const [displayName, setDisplayName] = useState("");
   const [selectedCells, setSelectedCells] = useState<Set<string>>(() => new Set());
   const [savedIdentity, setSavedIdentity] = useState<SavedPlannerIdentity | null>(null);
+  const [editPassword, setEditPassword] = useState("");
+  const [newEditPassword, setNewEditPassword] = useState("");
+  const [inspectedCell, setInspectedCell] = useState<string | null>(null);
   const [dragMode, setDragMode] = useState<boolean | null>(null);
   const [status, setStatus] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"save" | "recover" | "password" | null>(null);
   const dates = useMemo(() => dateRange(view.event.dateStart, view.event.dateEnd), [view.event]);
   const timeSlots = useMemo(
     () => timeRange(view.event.preferredStartTime, view.event.preferredEndTime),
     [view.event.preferredStartTime, view.event.preferredEndTime]
   );
+  const cellSummaries = useMemo(() => buildCellSummaries(view.participants), [view.participants]);
+  const participantCount = view.participants.length;
+  const isBusy = pendingAction !== null;
+  const statusIsSuccess = /^(Saved|Cleared|Recovered|Recovery password updated)/.test(status);
 
   useEffect(() => {
     if (savedIdentity) return;
@@ -61,9 +74,15 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
   }
 
   function handlePointerDown(cellKey: string) {
+    setInspectedCell(cellKey);
     const shouldSelect = !selectedCells.has(cellKey);
     setDragMode(shouldSelect);
     setCell(cellKey, shouldSelect);
+  }
+
+  function handleToggle(cellKey: string) {
+    setInspectedCell(cellKey);
+    setCell(cellKey, !selectedCells.has(cellKey));
   }
 
   function handlePointerEnter(cellKey: string) {
@@ -71,32 +90,92 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
     setCell(cellKey, dragMode);
   }
 
+  async function submitParticipant(payload: Record<string, unknown>) {
+    const response = await fetch(`/api/planner/events/${encodeURIComponent(view.event.eventToken)}/participants`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = (await response.json()) as ParticipantResponse & { error?: string };
+    if (!response.ok) throw new Error(body.error || "Could not save availability.");
+    return body;
+  }
+
+  function rememberParticipant(body: ParticipantResponse) {
+    window.localStorage.setItem(storageKey, JSON.stringify(body.participant));
+    setSavedIdentity(body.participant);
+    setDisplayName(body.participant.displayName);
+    setSelectedCells(initialSelectedCells(body.participant, body.view.participants));
+    setEditPassword("");
+    setView(body.view);
+  }
+
   async function handleSave() {
-    setIsSaving(true);
+    setPendingAction("save");
     setStatus("");
     try {
-      const response = await fetch(`/api/planner/events/${encodeURIComponent(view.event.eventToken)}/participants`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          displayName,
-          editToken: savedIdentity?.editToken,
-          availabilityBlocks: blocksFromCells(selectedCells),
-        }),
+      const body = await submitParticipant({
+        displayName,
+        editToken: savedIdentity?.editToken,
+        editPassword: editPassword.trim() || undefined,
+        availabilityBlocks: blocksFromCells(selectedCells),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "Could not save availability.");
-      const identity = body.participant as SavedPlannerIdentity;
-      window.localStorage.setItem(storageKey, JSON.stringify(identity));
-      setSavedIdentity(identity);
-      setDisplayName(identity.displayName);
-      setView(body.view);
-      setStatus("Saved. The recommendations below are updated.");
+      rememberParticipant(body);
+      setStatus("Saved. The heatmap and venue matches are updated.");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Could not save availability.");
     } finally {
-      setIsSaving(false);
+      setPendingAction(null);
     }
+  }
+
+  async function handleRecover() {
+    setPendingAction("recover");
+    setStatus("");
+    try {
+      const body = await submitParticipant({
+        displayName,
+        editPassword: editPassword.trim(),
+        recoverOnly: true,
+      });
+      rememberParticipant(body);
+      setStatus("Recovered your saved times on this device.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not recover saved times.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handlePasswordChange() {
+    if (!savedIdentity) return;
+    setPendingAction("password");
+    setStatus("");
+    try {
+      const body = await submitParticipant({
+        displayName: savedIdentity.displayName,
+        editToken: savedIdentity.editToken,
+        editPassword: newEditPassword.trim(),
+        updatePasswordOnly: true,
+      });
+      rememberParticipant(body);
+      setNewEditPassword("");
+      setStatus("Recovery password updated.");
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not update recovery password.");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  function handleForgetDevice() {
+    window.localStorage.removeItem(storageKey);
+    setSavedIdentity(null);
+    setDisplayName("");
+    setEditPassword("");
+    setNewEditPassword("");
+    setSelectedCells(new Set());
+    setStatus("Cleared local edit access on this device.");
   }
 
   return (
@@ -116,33 +195,120 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
         <div className="planner-panel planner-panel--grid" aria-labelledby="planner-grid-title">
           <div className="planner-panel__header">
             <div>
-              <h2 id="planner-grid-title">Your availability</h2>
-              <p>Mark the times you could play. This only updates your own response.</p>
+              <h2 id="planner-grid-title">Availability heatmap</h2>
+              <p>Brighter cells have more people available. Your current selection gets the bright outline.</p>
             </div>
-            <label className="planner-name">
-              <span>Name</span>
-              <input
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Your name"
-                maxLength={60}
-              />
-            </label>
+            <div className="planner-identity-fields">
+              <label className="planner-name">
+                <span>{savedIdentity ? "Editing as" : "Name"}</span>
+                <input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder="Your name"
+                  maxLength={60}
+                  readOnly={Boolean(savedIdentity)}
+                />
+              </label>
+              {!savedIdentity ? (
+                <>
+                  <label className="planner-name">
+                    <span>Edit password (optional)</span>
+                    <input
+                      value={editPassword}
+                      onChange={(event) => setEditPassword(event.target.value)}
+                      placeholder="For editing on another device"
+                      maxLength={80}
+                      minLength={MIN_EDIT_PASSWORD_LENGTH}
+                      type="password"
+                    />
+                  </label>
+                  <p className="planner-password-note">
+                    Use 8+ characters only if you want to edit from another browser. This device can edit without one.
+                  </p>
+                </>
+              ) : null}
+            </div>
           </div>
 
           <AvailabilityGrid
             dates={dates}
             selectedCells={selectedCells}
+            cellSummaries={cellSummaries}
+            participantCount={participantCount}
             timeSlots={timeSlots}
             onPointerDown={handlePointerDown}
             onPointerEnter={handlePointerEnter}
+            onToggle={handleToggle}
           />
 
+          <p className="planner-cell-summary" aria-live="polite">
+            {inspectedCell
+              ? describeCell(inspectedCell, cellSummaries.get(inspectedCell))
+              : "Hover or tap a time to see who is available."}
+          </p>
+
           <div className="planner-actions">
-            <button className="planner-primary" disabled={isSaving || !displayName.trim()} onClick={handleSave}>
-              {isSaving ? "Saving..." : savedIdentity ? "Update my times" : "Save my times"}
+            <button
+              className="planner-primary"
+              disabled={
+                isBusy ||
+                !displayName.trim() ||
+                (editPassword.trim().length > 0 && editPassword.trim().length < MIN_EDIT_PASSWORD_LENGTH)
+              }
+              onClick={handleSave}
+            >
+              {pendingAction === "save" ? "Saving..." : savedIdentity ? "Update my times" : "Save my times"}
             </button>
-            {status ? <p className={status.startsWith("Saved") ? "planner-success" : "planner-error"}>{status}</p> : null}
+            {!savedIdentity ? (
+              <button
+                className="planner-secondary"
+                disabled={
+                  isBusy || !displayName.trim() || editPassword.trim().length < MIN_EDIT_PASSWORD_LENGTH
+                }
+                onClick={handleRecover}
+                type="button"
+              >
+                {pendingAction === "recover" ? "Loading..." : "Load saved times"}
+              </button>
+            ) : null}
+            {savedIdentity ? (
+              <button className="planner-secondary" disabled={isBusy} onClick={handleForgetDevice} type="button">
+                Forget this device
+              </button>
+            ) : null}
+            {savedIdentity ? (
+              <details className="planner-password-settings">
+                <summary>Change recovery password</summary>
+                <div>
+                  <label className="planner-name">
+                    <span>New recovery password</span>
+                    <input
+                      value={newEditPassword}
+                      onChange={(event) => setNewEditPassword(event.target.value)}
+                      maxLength={80}
+                      minLength={MIN_EDIT_PASSWORD_LENGTH}
+                      type="password"
+                    />
+                  </label>
+                  <button
+                    className="planner-secondary"
+                    disabled={isBusy || newEditPassword.trim().length < MIN_EDIT_PASSWORD_LENGTH}
+                    onClick={handlePasswordChange}
+                    type="button"
+                  >
+                    {pendingAction === "password" ? "Updating..." : "Update password"}
+                  </button>
+                </div>
+              </details>
+            ) : null}
+            {status ? (
+              <p
+                className={statusIsSuccess ? "planner-success" : "planner-error"}
+                role={statusIsSuccess ? "status" : "alert"}
+              >
+                {status}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -152,26 +318,21 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
         </aside>
       </section>
 
-      <section className="planner-panel planner-recommendations" aria-labelledby="planner-results-title">
-        <div className="planner-panel__header">
-          <div>
-            <h2 id="planner-results-title">Best matches</h2>
-            <p>Ranked from cached venue availability. Use the extension to refresh venues when the cache is stale.</p>
+      {view.recommendations.length ? (
+        <section className="planner-panel planner-recommendations" aria-labelledby="planner-venue-results-title">
+          <div className="planner-panel__header">
+            <div>
+              <h2 id="planner-venue-results-title">Venue Matches</h2>
+              <p>Venues that fit the group time using cached availability. Refresh from the extension when stale.</p>
+            </div>
           </div>
-        </div>
-        {view.recommendations.length ? (
           <div className="planner-recommendation-list">
             {view.recommendations.map((recommendation) => (
               <RecommendationCard recommendation={recommendation} key={recommendation.id} />
             ))}
           </div>
-        ) : (
-          <div className="planner-empty">
-            <h3>No matching slots yet.</h3>
-            <p>Add participant availability, refresh venue caches from the extension, or loosen the minimum session length.</p>
-          </div>
-        )}
-      </section>
+        </section>
+      ) : null}
     </main>
   );
 }
@@ -179,15 +340,21 @@ export function PlannerEventClient({ initialView }: Readonly<{ initialView: Publ
 function AvailabilityGrid({
   dates,
   selectedCells,
+  cellSummaries,
+  participantCount,
   timeSlots,
   onPointerDown,
   onPointerEnter,
+  onToggle,
 }: Readonly<{
   dates: string[];
   timeSlots: number[];
   selectedCells: Set<string>;
+  cellSummaries: Map<string, CellSummary>;
+  participantCount: number;
   onPointerDown: (cellKey: string) => void;
   onPointerEnter: (cellKey: string) => void;
+  onToggle: (cellKey: string) => void;
 }>) {
   return (
     <div className="planner-grid-wrap">
@@ -209,7 +376,10 @@ function AvailabilityGrid({
             minute={minute}
             onPointerDown={onPointerDown}
             onPointerEnter={onPointerEnter}
+            onToggle={onToggle}
             selectedCells={selectedCells}
+            cellSummaries={cellSummaries}
+            participantCount={participantCount}
           />
         ))}
       </div>
@@ -222,13 +392,19 @@ function Row({
   minute,
   onPointerDown,
   onPointerEnter,
+  onToggle,
   selectedCells,
+  cellSummaries,
+  participantCount,
 }: Readonly<{
   dates: string[];
   minute: number;
   selectedCells: Set<string>;
+  cellSummaries: Map<string, CellSummary>;
+  participantCount: number;
   onPointerDown: (cellKey: string) => void;
   onPointerEnter: (cellKey: string) => void;
+  onToggle: (cellKey: string) => void;
 }>) {
   return (
     <>
@@ -236,9 +412,16 @@ function Row({
       {dates.map((date) => {
         const cellKey = keyForCell(date, minute);
         const selected = selectedCells.has(cellKey);
+        const summary = cellSummaries.get(cellKey) || { count: 0, names: [] };
+        const availabilityText = summary.count
+          ? `Available: ${summary.names.join(", ")}`
+          : "No saved availability";
+        const heat = heatForCell(summary.count, participantCount);
         return (
           <button
-            aria-label={`${selected ? "Remove" : "Add"} ${formatShortDate(date)} ${formatMinutes(minute)}`}
+            aria-label={`${selected ? "Remove" : "Add"} ${formatShortDate(date)} ${formatMinutes(
+              minute
+            )}. ${availabilityText}.`}
             aria-pressed={selected}
             className="planner-grid__cell"
             key={cellKey}
@@ -247,6 +430,13 @@ function Row({
               onPointerDown(cellKey);
             }}
             onPointerEnter={() => onPointerEnter(cellKey)}
+            onKeyDown={(event) => {
+              if (event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
+              event.preventDefault();
+              onToggle(cellKey);
+            }}
+            style={{ backgroundColor: heat ? heatColor(heat) : undefined }}
+            title={availabilityText}
             type="button"
           />
         );
@@ -308,10 +498,10 @@ function RecommendationCard({ recommendation }: Readonly<{ recommendation: Plann
       <div>
         <strong>{recommendation.venueName}</strong>
         <span>
-          {recommendation.availableParticipantCount} available -{" "}
+          {peopleAvailableLabel(recommendation.availableParticipantCount)} -{" "}
           {recommendation.confidence === "same-court"
-            ? `same court${recommendation.courtName ? ` (${recommendation.courtName})` : ""}`
-            : "any court"}
+            ? `same-court confirmed${recommendation.courtName ? ` (${recommendation.courtName})` : ""}`
+            : "venue available; a court switch may be needed"}
         </span>
         <small>
           {recommendation.availableParticipantNames.join(", ")}
@@ -337,6 +527,47 @@ function readSavedIdentity(storageKey: string) {
 function initialSelectedCells(saved: SavedPlannerIdentity, participants: PublicPlannerParticipant[]) {
   const participant = saved ? participants.find((item) => item.participantId === saved.participantId) : null;
   return participant ? cellsFromBlocks(participant.availabilityBlocks) : new Set<string>();
+}
+
+type CellSummary = {
+  count: number;
+  names: string[];
+};
+
+function buildCellSummaries(participants: PublicPlannerParticipant[]) {
+  const summaries = new Map<string, CellSummary>();
+  for (const participant of participants) {
+    for (const block of participant.availabilityBlocks) {
+      for (let minute = block.startMinute; minute < block.endMinute; minute += SLOT_MINUTES) {
+        const cellKey = keyForCell(block.date, minute);
+        const summary = summaries.get(cellKey) || { count: 0, names: [] };
+        summary.count += 1;
+        summary.names.push(participant.displayName);
+        summaries.set(cellKey, summary);
+      }
+    }
+  }
+  return summaries;
+}
+
+function describeCell(cellKey: string, summary: CellSummary | undefined) {
+  const [date, minuteText] = cellKey.split(":");
+  const count = summary?.count || 0;
+  const availability = count
+    ? `${peopleAvailableLabel(count)}: ${summary?.names.join(", ")}`
+    : "No one has saved availability";
+  return `${formatDate(date)} at ${formatMinutes(Number(minuteText))}. ${availability}.`;
+}
+
+function heatForCell(count: number, participantCount: number) {
+  if (!count || !participantCount) return 0;
+  return Math.max(0, Math.min(1, count / participantCount));
+}
+
+function heatColor(heat: number) {
+  const saturation = Math.round(34 + heat * 52);
+  const lightness = Math.round(15 + heat * 43);
+  return `hsl(82 ${saturation}% ${lightness}%)`;
 }
 
 function parseTime(value: string) {
@@ -440,4 +671,8 @@ function formatWeekday(date: string) {
 
 function formatShortDate(date: string) {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-AU", { day: "2-digit", month: "short" });
+}
+
+function peopleAvailableLabel(count: number) {
+  return `${count} ${count === 1 ? "person" : "people"} available`;
 }
