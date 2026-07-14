@@ -2,71 +2,65 @@
 
 ## What This Is
 
-Pickleball Availability Buddy is a read-only availability helper for Playbypoint-powered pickleball venues. Today it uses a Chrome extension to read ProPickle availability from the user's normal logged-in browser session, syncs the latest result to a full-stack Next.js app, and renders a secret-link availability page for easy sharing.
-
-The product direction is to become a small multi-venue availability companion: ProPickle first, then Broadway Pickleball and North Ryde, with a more polished venue-themed viewing experience and a future bot layer that replies from the cached data.
+Pickleball Availability Buddy is a read-only availability companion for Sydney pickleball venues. A Chrome extension reads guest-visible or user-authenticated booking pages in the user's normal browser session, syncs the latest successful result to a Next.js app, and publishes venue-themed secret availability links. The web app also includes an anonymous When2Meet-style planner that combines group availability with cached venue results.
 
 ## Core Value
 
-Show trustworthy open booking intervals quickly without manually clicking every booking day.
+Show trustworthy court availability quickly, then help a group find a time and venue that work without automating booking.
 
-## Requirements
+## Validated Product
 
-### Validated
+- Six configured venues: ProPickle, Broadway Pickleball, North Ryde, Sydney Racquet Club, House of Pickle Darling Harbour, and WOTSO Pyrmont.
+- Provider-specific extension readers normalize venue schedules into one cached payload shape.
+- Selected/stale venue refreshes run in a separate unfocused reader window; deep scans remain explicit.
+- Saved extension results persist until a user-triggered refresh and survive individual refresh failures.
+- One Next.js App Router deployment owns share pages, API routes, cache access, planner pages, and webhook routes.
+- Supabase stores durable venue cache and planner data for Vercel.
+- Secret availability pages show freshness, any-court and same-court confidence, venue-specific styling, and read-only booking links.
+- Anonymous planner events provide a 30-minute overlap heatmap, optional participant recovery passwords, and cached venue recommendations.
+- Messenger text formatting reuses the same cache payload and formatter rather than introducing a bot-specific model.
 
-- Extension can read visible ProPickle Playbypoint BookBox day tabs and time slots from the user's normal Chrome session.
-- Extension merges adjacent open time slots into useful intervals per day.
-- Extension stores the latest successful payload per venue in Chrome local storage.
-- Next API routes accept token-protected availability syncs and store one latest payload per venue.
-- Next API routes can use Supabase for durable cache storage across Vercel deployments and serverless restarts.
-- Secret share page renders cached availability and never triggers scraping itself.
-- Per-day "Open booking" links can open the booking page with a date marker; the extension may select that day when the user is already logged in.
-- Popup is a manual control panel: saved result, refresh, current-page read, view availability, and copy share link.
+## Current Release Gate
 
-### Active
+- [ ] Complete planner production QA across normal and private browser sessions.
+- [ ] Verify create, save, reload, forget-device, wrong-password throttling, correct recovery, heatmap, and ProPickle matching on a Vercel preview.
+- [ ] Review the feature branch before merging to `main`.
 
-- [ ] Create a modern venue-themed availability page that gives each venue its own visual identity.
-- [ ] Keep venue/provider logic modular so more Playbypoint venues can be added without rewriting the scraper.
-- [x] Use one full-stack Next.js TypeScript app for share UI, API routes, cache access, and future bot webhooks.
-- [ ] Add Broadway Pickleball and North Ryde after the themed ProPickle path is proven.
-- [ ] Preserve a shared formatter/cache layer so future Messenger or Telegram bots reuse the same data model.
+## Next Product Layers
 
-### Out of Scope
+1. Improve shared-cache freshness and clearly preserve the last successful venue read.
+2. Consider scheduled low-frequency refresh only for public guest-visible venues.
+3. Add a chat delivery layer after cache reliability is proven; Telegram is simpler than relying on Messenger group chats.
+4. Consider accounts only when recurring planner users need saved venue and preferred-hour profiles.
 
-- Booking, checkout, payment, player selection, or reservation automation - this project stays read-only.
-- Login, waiver, Cloudflare, CAPTCHA, or access-control bypassing - the user handles setup manually in normal Chrome.
-- High-frequency polling - requests should stay low-frequency and user-directed unless a later feature explicitly designs a polite schedule.
-- Public raw slot JSON exposure - public links should render summaries, not leak implementation payloads.
-- Putting Supabase secret keys or backend sync secrets in the extension - secrets stay backend-only.
+## Out Of Scope
 
-## Context
+- Booking, checkout, payment, player selection, or reservation automation.
+- Login, waiver, Cloudflare, CAPTCHA, or access-control bypassing.
+- Storing booking-site credentials.
+- High-frequency polling or hidden server-side browser automation for authenticated venues.
+- Public raw slot JSON or planner edit credentials.
 
-- The first target venue is ProPickle at `https://book.propickle.com.au/book/ProPickle?skip_waivers=true`.
-- ProPickle booking appears to run on Playbypoint, not a custom ProPickle system.
-- Some logged-out Playbypoint pages render date buttons but hide available times behind login; the reader treats those as setup-required instead of syncing false empty results.
-- The current extension is intentionally plain Chrome MV3 JavaScript with no build step.
-- The share/API app lives in `web/` using Next.js, TypeScript, and venue theme tokens, while keeping the extension boring and reliable.
-- Supabase remains the deployment cache so the public share page and future bots can read the latest payload without running a scraper.
+## Architecture Boundary
 
-## Constraints
-
-- **Safety**: Read-only only - prevents accidental bookings or account/security issues.
-- **Authentication**: Uses the user's existing browser session - avoids credential handling and server-side login automation.
-- **Architecture**: Extension reads, Next API stores, share page renders, future bots format cached data - keeps responsibilities separated inside one deployment.
-- **Deployment**: Vercel Next app plus Supabase cache - simple HTTPS hosting and durable latest-payload storage.
-- **UX**: Popup should not surprise-refresh on open - saved results persist until the user manually refreshes or reads.
-- **Scalability**: Add venues through venue/provider configuration first - avoid framework migration before the current provider shape is proven with more than one venue.
+- **Extension reads:** venue pages in a normal Chrome session and performs user-directed refreshes.
+- **Next stores and presents:** APIs, availability pages, planner, text summaries, and webhook delivery.
+- **Supabase persists:** latest venue payloads and anonymous planner records.
+- **Planner consumes cache only:** planner pages never trigger scraping.
+- **Booking remains manual:** links may open the relevant venue/date but never choose a time or submit a reservation.
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Use a Chrome extension for scraping | The user is already authenticated and past waiver/security checks in normal Chrome | Good |
-| Keep extension plain JavaScript | No build step, easy unpacked install, less moving parts for MV3 | Good |
-| Use backend cache instead of live public scraping | Share links and future bots should read from cached user-approved snapshots | Good |
-| Use Supabase REST cache for deploy persistence | Avoids direct Postgres dependency and survives Vercel serverless restarts | Good |
-| Keep booking actions read-only | Opening/selecting a day is useful without automating booking/payment | Good |
-| Use Next.js TypeScript as the single deployed app | The extension should stay simple while the web app owns UI, APIs, cache, and webhook routes | Good |
+| Chrome extension for scraping | Reuses the user's normal guest/authenticated browser state without credential handling | Good |
+| Plain JavaScript MV3 extension | Easy unpacked install and no extension build pipeline | Good |
+| Provider interface per booking platform | Keeps DOM/API quirks isolated while preserving one payload shape | Good |
+| Next.js TypeScript as one web deployment | Co-locates pages, APIs, planner, cache access, and bot delivery | Good |
+| Supabase REST instead of direct Postgres | Fits Vercel serverless deployment and keeps persistence durable | Good |
+| Secret-link availability and planner pages | Useful sharing without requiring accounts in V1 | Good |
+| Optional participant recovery password | Same-device edits stay simple while another browser can recover safely | Good |
+| Cached-only planner recommendations | Keeps planning fast and prevents planner pages from initiating scraping | Good |
 
 ---
-*Last updated: 2026-06-30 after GSD initialization from current repo state*
+*Last updated: 2026-07-13 during planner release QA*

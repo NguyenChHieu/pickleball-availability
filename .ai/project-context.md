@@ -3,8 +3,8 @@
 ## Current Snapshot
 
 - Path: `C:\Users\nguye\Downloads\propickle-buddy`
-- Git branch: `main`
-- Git status: single full-stack Next.js deployment is in place; current work is extension refresh UX, provider polish, and future venue additions.
+- Git branch: `codex/planner-release-qa`
+- Git status: planner release QA passed locally and on Vercel preview; do not merge before user preview review.
 - Local instructions: `AGENTS.md` plus `.ai/agent-router.md`.
 
 ## Stack
@@ -13,7 +13,7 @@
 - Framework: Chrome Manifest V3 extension; Next.js App Router full-stack web app.
 - Package manager: `npm` for `web/`.
 - Database/storage: Chrome local extension storage, local Next file cache for dev, Supabase REST cache via `availability_cache` for deployment.
-- Test framework: TypeScript/ESLint/Next build for web; syntax checks for extension scripts.
+- Test framework: Node TypeScript fixtures plus TypeScript/ESLint/Next build for web; Node unit/syntax checks for extension scripts.
 - Deployment/runtime: one Vercel deployment for `web/`; Supabase for durable cache; extension loaded unpacked in Chrome.
 
 ## Directory Map
@@ -21,9 +21,9 @@
 - `extension/`: MV3 popup/options/background/content scripts, venue config, refresh orchestration, booking deep-link helper.
 - `extension/providers/`: Playbypoint, ClubSpark, Mindbody, Playtomic, PodPlay, and Hamlet readers.
 - `web/app/`: Next.js routes, share page, API routes, webhook routes, and global styles.
-- `web/src/components/`: availability page/card UI components.
+- `web/src/components/`: homepage, availability, and planner UI components.
 - `web/src/lib/`: public availability loader and venue themes.
-- `web/src/server/`: cache store, Supabase REST access, public availability normalizer, formatter, booking links, Messenger helpers.
+- `web/src/server/`: cache store, Supabase REST access, public availability normalizer, planner store/matching, formatter, booking links, Messenger helpers.
 - `docs/`: project learning notes and Messenger bot research.
 - `.planning/`: GSD project, requirements, roadmap, and phase notes.
 - `.ai/`: local agent router, project context, worklog, playbooks, and workflow notes.
@@ -106,11 +106,16 @@ python -m json.tool extension\manifest.json
 
 ## Current Validation Baseline
 
-Last checked during the July 7 refresh UX work:
+Planner release branch checked on July 13 before preview publication:
 
 - Web typecheck: `npm.cmd --prefix web run typecheck -- --incremental false` passed.
 - Web lint: `npm.cmd --prefix web run lint` passed.
 - Web build: `npm.cmd --prefix web run build` passed.
+- Web fixtures: 32 tests passed, including planner recovery throttling, secret-field exclusion, and venue matching.
+- Local planner smoke: create, save, reload, forget-device, wrong/correct recovery, mobile layout, and `429` throttling passed.
+- Code review: no remaining required findings after adding the same-court recommendation tie-breaker.
+- Simplicity review: no new abstraction or dependency; the behavior fix is confined to the existing sorter and one regression test.
+- Vercel preview: event create/save/reload/recovery, ProPickle cached matching, durable `429`, valid-token bypass, and public secret-field checks passed.
 - Extension syntax checks passed for background, content, popup, options, venues, booking deep-link, and all providers.
 - Manifest JSON validation passed.
 
@@ -124,4 +129,4 @@ Last checked during the July 7 refresh UX work:
 
 ## Next Exploration Step
 
-After refresh UX cleanup, discuss the next venue. Confirm its booking platform first, then add it through `extension/venues.js`, host permissions, the smallest compatible provider, a venue theme/logo in `web/src/lib/themes.ts`, and focused extension/web validation.
+Complete planner release QA: fixtures, typecheck, lint, build, normal/private browser recovery journeys, public-response secret inspection, and ProPickle venue matching. Publish a Vercel preview and wait for user review before merging. After that, explore shared-cache reliability and scheduled refresh only for public guest-visible venues.

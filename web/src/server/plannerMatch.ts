@@ -208,6 +208,8 @@ export function buildPlannerRecommendations(
   return recommendations.sort((left, right) => {
     const people = right.availableParticipantCount - left.availableParticipantCount;
     if (people) return people;
+    const confidence = Number(left.confidence !== "same-court") - Number(right.confidence !== "same-court");
+    if (confidence) return confidence;
     const freshness = Number(left.isStale) - Number(right.isStale);
     if (freshness) return freshness;
     const date = left.date.localeCompare(right.date);

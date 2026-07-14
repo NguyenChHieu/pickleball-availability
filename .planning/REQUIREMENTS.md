@@ -1,96 +1,77 @@
 # Requirements: Pickleball Availability Buddy
 
-**Defined:** 2026-06-30
-**Core Value:** Show trustworthy open booking intervals quickly without manually clicking every booking day.
+**Reviewed:** 2026-07-13
+**Core Value:** Show trustworthy court availability quickly, then help a group find a time and venue that work.
 
-## v1 Requirements
+## Delivered Requirements
 
-### Venue Viewing
+### Venue Availability
 
-- [x] **VIEW-01**: User can open a phone-friendly availability page for a venue from a secret share link.
-- [x] **VIEW-02**: User can see one section per available booking day with merged open intervals.
-- [x] **VIEW-03**: User can see when the cached availability was last read.
-- [x] **VIEW-04**: User can open the booking page for a specific day from that day's availability card.
+- [x] **VIEW-01**: User can open a phone-friendly venue page from a secret availability link.
+- [x] **VIEW-02**: User can inspect merged any-court intervals and same-court continuity where the provider exposes court labels.
+- [x] **VIEW-03**: User can see cache freshness and stale state without a share page triggering scraping.
+- [x] **VIEW-04**: User can open a read-only booking link for a venue or day.
+- [x] **THEME-01**: Each configured venue can supply its own theme and metadata.
+- [x] **THEME-02**: Venue switching scales from shared venue definitions rather than pair-specific controls.
 
-### Venue Theming
+### Multi-Venue Extension
 
-- [x] **THEME-01**: ProPickle availability page uses ProPickle-style brand cues without reducing readability.
-- [x] **THEME-02**: Venue styles are configured as theme data, not hard-coded per page.
-- [x] **THEME-03**: Page transitions and motion are smooth but non-essential, so availability remains usable if animation is unavailable.
+- [x] **VENUE-01**: Developer can add a venue through venue configuration plus a provider adapter.
+- [x] **VENUE-02**: Each venue keeps separate storage, cache, share link, booking URL, and display metadata.
+- [x] **VENUE-03**: User can choose venues and refresh selected, stale, or all venues without overwriting other results.
+- [x] **VENUE-04**: Individual failures preserve prior successful results and report per-venue status/timing.
+- [x] **VENUE-05**: Normal multi-venue reads run in an unfocused reader window; explicit deep scans may remain serial and visible.
 
-### Multi-Venue Support
+### Cache And Delivery
 
-- [ ] **VENUE-01**: Developer can add a Playbypoint-compatible venue through venue configuration.
-- [ ] **VENUE-02**: Each venue keeps separate extension storage, backend cache, share link, booking URL, and theme.
-- [ ] **VENUE-03**: User can switch venues in the extension popup without overwriting another venue's cached availability.
+- [x] **CACHE-01**: Popup loads saved results without refreshing on open.
+- [x] **CACHE-02**: Next API accepts token-protected extension syncs and stores latest results durably in Supabase.
+- [x] **CACHE-03**: Public pages expose normalized summaries rather than raw cache records or backend secrets.
+- [x] **CACHE-04**: Text summaries and Messenger delivery reuse the shared cache payload and formatter.
 
-### Refresh And Cache
+### Group Planner
 
-- [ ] **CACHE-01**: Extension popup shows saved availability without auto-refreshing on open.
-- [ ] **CACHE-02**: User can manually refresh a selected venue from the popup.
-- [ ] **CACHE-03**: User can manually read the current compatible page from the popup.
-- [ ] **CACHE-04**: Backend share pages render cached data only and do not initiate scraping.
+- [x] **PLAN-01**: Host can create a secret planner with dates, preferred hours, venues, and minimum duration.
+- [x] **PLAN-02**: Participant can mark availability in 30-minute cells and see a continuous group-overlap heatmap.
+- [x] **PLAN-03**: Same browser can edit through an opaque local edit token; participant may optionally add a recovery password.
+- [x] **PLAN-04**: Another browser can recover by normalized display name and password; failed recovery is durably rate-limited.
+- [x] **PLAN-05**: Public planner responses exclude edit tokens and password hashes.
+- [x] **PLAN-06**: Venue recommendations use cached any-court intervals and add same-court confidence when available.
+- [x] **PLAN-07**: Planner pages never trigger scraping, booking, login, checkout, or payment.
 
-### Bot Readiness
+## Current Release Requirements
 
-- [ ] **BOT-01**: Backend keeps availability formatting reusable across share page text, future bot replies, and tests.
-- [ ] **BOT-02**: Future bot integrations can answer from cached venue availability without introducing a bot-specific data model.
+- [x] **QA-01**: Vercel preview passes event creation, first save, reload edit, forget-device, wrong-password, correct recovery, heatmap, and venue matching smoke tests.
+- [x] **QA-02**: Fixtures, typecheck, lint, production build, code review, and simplicity review pass on the planner release branch.
+- [ ] **QA-03**: User reviews the preview before the planner release branch merges to `main`.
 
-## v2 Requirements
+## Later Requirements
 
-### Automation
+- **AUTO-01**: Public guest-visible venues may receive a polite scheduled refresh with explicit limits and observability.
+- **BOT-01**: Telegram or another supported chat channel can answer from cached venue data only.
+- **ACCOUNT-01**: Optional accounts can store recurring planner preferences, not booking-site credentials.
+- **PROFILE-01**: A user can save preferred venues and preferred playing hours after account value is proven.
 
-- **AUTO-01**: User can trigger a low-frequency "refresh all venues" flow from the extension.
-- **AUTO-02**: User can optionally schedule polite refreshes while Chrome is available and authenticated.
-
-### Bot Delivery
-
-- **MSG-01**: User can ask a Messenger or Telegram bot for latest cached availability by venue.
-- **MSG-02**: Bot responses include last-read freshness and venue-specific interval summaries.
-
-### Product Polish
-
-- **WEB-01**: Public availability UI can be deployed as a separate Next.js TypeScript app if server-rendered HTML becomes too limiting.
-- **WEB-02**: Portfolio can showcase/link to this project after the user-facing availability page feels polished.
-
-## Out of Scope
+## Out Of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Booking automation | Read-only safety boundary |
-| Payment or checkout automation | High-risk and outside the project's purpose |
-| Login or waiver automation | Would handle credentials/access controls; user must do this manually |
-| Cloudflare/CAPTCHA bypass | Not allowed and unnecessary for user-session based reads |
-| Public raw cache JSON | Share pages should summarize data, not expose implementation payloads |
-| High-frequency scraping | Availability should be refreshed politely and intentionally |
+| Booking/payment automation | Violates the project's read-only boundary |
+| Login/waiver/CAPTCHA bypass | Credentials and access controls remain user-managed |
+| Planner-triggered scraping | Planner must remain cache-only and fast |
+| Public raw cache data | Public views expose only normalized summaries |
+| Mandatory planner accounts | Secret events and optional recovery are sufficient for V1 |
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| VIEW-01 | Phase 1 | Complete |
-| VIEW-02 | Phase 1 | Complete |
-| VIEW-03 | Phase 1 | Complete |
-| VIEW-04 | Phase 1 | Complete |
-| THEME-01 | Phase 1 | Complete |
-| THEME-02 | Phase 1 | Complete |
-| THEME-03 | Phase 1 | Complete |
-| VENUE-01 | Phase 2 | Pending |
-| VENUE-02 | Phase 2 | Pending |
-| VENUE-03 | Phase 2 | Pending |
-| CACHE-01 | Phase 3 | Pending |
-| CACHE-02 | Phase 3 | Pending |
-| CACHE-03 | Phase 3 | Pending |
-| CACHE-04 | Phase 3 | Pending |
-| BOT-01 | Phase 4 | Pending |
-| BOT-02 | Phase 4 | Pending |
-
-**Coverage:**
-
-- v1 requirements: 16 total
-- Mapped to phases: 16
-- Unmapped: 0
+| Area | Primary implementation | Verification |
+|------|------------------------|--------------|
+| Venue refresh | `extension/background.js`, `extension/refreshOrchestrator.js`, providers | Extension unit tests and manual QA playbook |
+| Availability pages | `web/src/components/AvailabilityPage.tsx`, `web/src/server/publicAvailability.ts` | Fixtures, typecheck, build, browser QA |
+| Shared formatter | `web/src/server/formatAvailability.ts`, text and Messenger routes | `formatAvailability.test.ts` |
+| Planner persistence/security | `web/src/server/plannerStore.ts`, `web/supabase.sql` | Planner store fixtures and deployed recovery QA |
+| Planner matching | `web/src/server/plannerMatch.ts` | Planner matching/store fixtures |
+| Planner UI | `web/src/components/PlannerNewForm.tsx`, `PlannerEventClient.tsx` | Vercel preview smoke test |
 
 ---
-*Requirements defined: 2026-06-30*
-*Last updated: 2026-06-30 after GSD initialization from current repo state*
+*Last updated: 2026-07-13 during planner release QA*

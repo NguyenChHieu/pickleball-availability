@@ -1,71 +1,74 @@
 # Roadmap: Pickleball Availability Buddy
 
-## Milestone: Multi-Venue Polished Availability
+## Completed Foundation
 
-### Phase 1: Venue-Themed Availability UI
+### Multi-Venue Availability
 
-**Goal:** Build a more polished ProPickle availability page with venue-specific styling while preserving the current cached-read architecture.
-**Mode:** mvp
-**UI hint:** yes
+- Six venue configurations across Playbypoint, ClubSpark, Mindbody, Playtomic, PodPlay, and Hamlet.
+- Separate provider adapters with normalized any-court and same-court availability.
+- Venue-themed share pages, scalable venue navigation, freshness, and read-only booking links.
 
-**Requirements:** VIEW-01, VIEW-02, VIEW-03, VIEW-04, THEME-01, THEME-02, THEME-03
+### Refresh And Shared Cache
 
-**Success Criteria:**
+- Manual selected, stale, all, current-page, and deep refresh paths.
+- Unfocused reader-window orchestration for normal multi-venue refreshes.
+- Per-venue timing/status history and preservation of last successful payloads.
+- Token-protected Next sync API and durable Supabase latest-payload cache.
+- Reusable text formatter and Messenger webhook delivery from cached data.
 
-1. ProPickle share page clearly shows venue name, last-read freshness, days, interval chips, and open booking actions.
-2. ProPickle styling uses black, white, blue, and pickleball-green brand cues in a modern but readable way.
-3. Venue theme data is separated from the rendering logic so future venues can supply their own theme.
-4. Motion is tasteful and optional; the page remains usable without animation.
-5. The page still renders only cached backend availability and never triggers scraping.
+### Anonymous Group Planner V1
 
-### Phase 2: Second Venue Integration
+- Secret event creation with date range, preferred hours, selected venues, and minimum session length.
+- 30-minute participant grid with continuous overlap heatmap.
+- Optional recovery password plus same-device opaque edit token.
+- Durable recovery throttling and allowlisted public planner responses.
+- Cached venue recommendations with any-court and same-court confidence.
 
-**Goal:** Prove the venue/provider model by adding at least one more Playbypoint-compatible venue.
-**Mode:** mvp
+## Current Phase: Planner Release QA
 
-**Requirements:** VENUE-01, VENUE-02, VENUE-03
+**Goal:** Prove the anonymous planner in production-like storage and browser sessions before merging it to `main`.
 
-**Success Criteria:**
+**Release gate:**
 
-1. Broadway Pickleball or North Ryde can be added through venue configuration with minimal provider changes.
-2. Extension popup can switch between ProPickle and the new venue.
-3. Backend stores and serves separate cached payloads by venue ID.
-4. Share links for each venue render the correct venue name, theme, intervals, and booking URL.
+1. Run fixtures, typecheck, lint, and production build.
+2. Test create/save/reload in a normal browser session.
+3. Test forget-device and private-session recovery with wrong and correct passwords.
+4. Confirm repeated wrong recovery attempts return `429` without blocking a valid local edit token.
+5. Confirm public responses expose no edit token or password hash.
+6. Confirm ProPickle matches use normal open intervals and deep scan only improves same-court confidence.
+7. Publish and review a Vercel preview before merging.
 
-### Phase 3: Refresh Flow Polish
+## Next Phase: Shared Cache Reliability
 
-**Goal:** Make manual refresh and cache freshness obvious for multiple venues.
-**Mode:** mvp
+**Goal:** Make the latest cached result useful to multiple viewers without unnecessary scraping.
 
-**Requirements:** CACHE-01, CACHE-02, CACHE-03, CACHE-04
+- Surface last successful read clearly when a new refresh fails.
+- Keep short freshness guidance and avoid treating cached data as live.
+- Add lightweight operational visibility for venue sync failures.
+- Decide whether planner venue freshness needs a user-facing stale threshold control.
 
-**Success Criteria:**
+## Candidate Phase: Public-Venue Scheduled Refresh
 
-1. Popup never refreshes unexpectedly on open.
-2. Popup clearly distinguishes saved, refreshing, synced, failed, and setup-required states.
-3. Share page freshness is visible enough that stale data is not mistaken for live data.
-4. Refresh failures preserve the last saved result and explain what the user can do next.
+**Goal:** Explore one polite scheduled refresh path only for guest-visible providers.
 
-### Phase 4: Bot-Ready Formatter Layer
+- Start with a venue whose data can be read publicly without login or browser challenges.
+- Keep authenticated/session-bound venues extension-only.
+- Define frequency, rate limits, failure backoff, and provider terms before implementation.
+- Do not introduce general headless login automation.
 
-**Goal:** Keep future Messenger or Telegram replies aligned with the share page by sharing cache and formatting logic.
-**Mode:** mvp
+## Later Product Layers
 
-**Requirements:** BOT-01, BOT-02
+- Telegram or another supported bot channel backed by the existing formatter/cache.
+- Optional accounts with saved venue and preferred-hour profiles.
+- Group history or reusable planner templates once repeat usage justifies accounts.
+- More venues through the existing provider boundary.
 
-**Success Criteria:**
+## Explicitly Deferred
 
-1. Cached payload can produce both HTML cards and bot-style text summaries.
-2. Formatter output includes venue name, last-read freshness, day labels, and open intervals.
-3. Bot integration can remain delivery-only; it does not scrape or own a separate data model.
-4. Messenger/Telegram can be added later without changing extension payload shape.
-
-## Deferred Ideas
-
-- Add a separate `web/` Next.js TypeScript app if the themed share page outgrows server-rendered HTML.
-- Add GSAP for subtle page/card transitions after the page layout and theme model are stable.
-- Add Three.js or React Three Fiber only if it serves a real brand moment; avoid making availability harder to inspect.
-- Add low-frequency refresh-all only after at least two venues work.
+- Booking, checkout, payment, login, waiver, or CAPTCHA automation.
+- High-frequency polling.
+- Mandatory accounts for anonymous planner V1.
+- A second web deployment or a separate bot data model.
 
 ---
-*Roadmap created: 2026-06-30 after GSD initialization from current repo state*
+*Last updated: 2026-07-13 during planner release QA*
