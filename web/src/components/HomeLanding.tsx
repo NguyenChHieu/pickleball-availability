@@ -193,7 +193,7 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
         <section className="home-section home-section--split" id="venues" aria-labelledby="venues-title">
           <div className="home-section__intro">
             <p className="home-eyebrow">Venues</p>
-            <h2 id="venues-title">{venueCount} live venues across five booking platforms.</h2>
+            <h2 id="venues-title">{venueCount} live venues across six booking platforms.</h2>
           </div>
           <div className="home-venues">
             <p className="home-venue-group-label">Supported now</p>
