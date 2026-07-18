@@ -20,7 +20,12 @@
           <span id="savedSummary" class="summary-pill">Loading</span>
         </div>
         <p class="section-hint">Tick venues to refresh. Click a venue name to view its saved result.</p>
+        <label class="venue-search" for="venueSearch">
+          <span class="sr-only">Search venues</span>
+          <input id="venueSearch" type="search" placeholder="Search venues" autocomplete="off">
+        </label>
         <ul id="venueStatusList" class="venue-status-list"></ul>
+        <button id="toggleVenueListButton" type="button" class="tertiary venue-list-toggle" hidden></button>
         <div class="toolbar">
           <button id="refreshVenueButton" type="button">Refresh Selected</button>
           <button

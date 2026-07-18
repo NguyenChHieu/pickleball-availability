@@ -2,7 +2,7 @@ import { DayCard } from "@/components/DayCard";
 import { ShareRefreshButton } from "@/components/ShareRefreshButton";
 import { VenueMenu } from "@/components/VenueMenu";
 import type { PublicAvailability, PublicAvailabilityReady } from "@/lib/publicAvailability";
-import { getVenueTheme, shareVenueLinks, type ShareVenueLink } from "@/lib/venues";
+import { getVenueTheme, shareVenueLinks } from "@/lib/venues";
 import type { VenueTheme } from "@/lib/themes";
 import Image from "next/image";
 import type { CSSProperties } from "react";
@@ -87,27 +87,6 @@ function openDayCount(availability: PublicAvailabilityReady) {
   return availability.days.filter((day) => day.openIntervals.length > 0).length;
 }
 
-function VenueLinkList({ links }: Readonly<{ links: ShareVenueLink[] }>) {
-  return links.map((venue) => {
-    const content = (
-      <>
-        <span>{venue.name}</span>
-        <small>{venue.isCurrent ? "Current venue" : "View availability"}</small>
-      </>
-    );
-
-    return venue.isCurrent ? (
-      <span className="stitch-venue-link stitch-venue-link--current" aria-current="page" key={venue.id}>
-        {content}
-      </span>
-    ) : (
-      <a className="stitch-venue-link" href={venue.href} key={venue.id}>
-        {content}
-      </a>
-    );
-  });
-}
-
 export function AvailabilityPage({ availability, shareToken = "", venueId = "propickle" }: AvailabilityPageProps) {
   const themeId = availability.state === "ready" ? availability.themeId : venueId;
   const theme = getVenueTheme(themeId);
@@ -156,11 +135,10 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
               {venueLinks.length ? (
                 <VenueMenu
                   className="stitch-venue-menu"
+                  links={venueLinks}
                   panelClassName="stitch-venue-menu__panel"
                   summary={`Venues (${venueLinks.length})`}
-                >
-                  <VenueLinkList links={venueLinks} />
-                </VenueMenu>
+                />
               ) : (
                 <span>Venues</span>
               )}
@@ -275,16 +253,15 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
         {venueLinks.length ? (
           <VenueMenu
             className="stitch-mobile-venue-menu"
+            links={venueLinks}
             panelClassName="stitch-mobile-venue-menu__panel"
             summary={
               <>
-              <span className="stitch-nav-icon stitch-nav-icon--courts" aria-hidden="true" />
-              <span>Venues</span>
+                <span className="stitch-nav-icon stitch-nav-icon--courts" aria-hidden="true" />
+                <span>Venues</span>
               </>
             }
-          >
-            <VenueLinkList links={venueLinks} />
-          </VenueMenu>
+          />
         ) : null}
         <a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
           <span className="stitch-nav-icon stitch-nav-icon--booking" aria-hidden="true" />

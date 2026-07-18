@@ -16,6 +16,8 @@ type PlannerNewFormProps = Readonly<{
   venues: VenueOption[];
 }>;
 
+const DEFAULT_VISIBLE_VENUES = 3;
+
 export function PlannerNewForm({
   defaultName = "Weekend pickleball",
   defaultStartDate,
@@ -29,11 +31,24 @@ export function PlannerNewForm({
   const [preferredStartTime, setPreferredStartTime] = useState("18:00");
   const [preferredEndTime, setPreferredEndTime] = useState("23:00");
   const [minimumDurationMinutes, setMinimumDurationMinutes] = useState(60);
-  const [selectedVenueIdsState, setSelectedVenueIds] = useState(() =>
-    selectedVenueIds?.length ? selectedVenueIds : venues.map((venue) => venue.id)
-  );
+  const [selectedVenueIdsState, setSelectedVenueIds] = useState(() => selectedVenueIds || []);
+  const [venueQuery, setVenueQuery] = useState("");
+  const [venuesExpanded, setVenuesExpanded] = useState(false);
   const [status, setStatus] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const normalizedVenueQuery = venueQuery.trim().toLowerCase();
+  const matchingVenues = venues.filter((venue) =>
+    [venue.name, venue.summary, venue.id].some((value) =>
+      value.toLowerCase().includes(normalizedVenueQuery)
+    )
+  );
+  const availableVenues = matchingVenues.filter((venue) => !selectedVenueIdsState.includes(venue.id));
+  const selectedVenues = matchingVenues.filter((venue) => selectedVenueIdsState.includes(venue.id));
+  const visibleAvailableVenues =
+    normalizedVenueQuery || venuesExpanded
+      ? availableVenues
+      : availableVenues.slice(0, DEFAULT_VISIBLE_VENUES);
+  const hiddenAvailableVenueCount = availableVenues.length - visibleAvailableVenues.length;
 
   function toggleVenue(venueId: string) {
     setSelectedVenueIds((current) =>
@@ -129,19 +144,61 @@ export function PlannerNewForm({
 
         <fieldset className="planner-venues">
           <legend>Venues</legend>
-          {venues.map((venue) => (
-            <label className="planner-venue-choice" key={venue.id}>
-              <input
-                type="checkbox"
-                checked={selectedVenueIdsState.includes(venue.id)}
-                onChange={() => toggleVenue(venue.id)}
-              />
-              <span>
-                <strong>{venue.name}</strong>
-                <small>{venue.summary}</small>
-              </span>
-            </label>
-          ))}
+          <label className="planner-venue-search">
+            <span className="sr-only">Search venues</span>
+            <input
+              type="search"
+              value={venueQuery}
+              onChange={(event) => setVenueQuery(event.target.value)}
+              placeholder="Search venues"
+              autoComplete="off"
+            />
+          </label>
+
+          {visibleAvailableVenues.length ? (
+            <div className="planner-venue-group">
+              <p>Available venues</p>
+              {visibleAvailableVenues.map((venue) => (
+                <VenueChoice
+                  checked={false}
+                  key={venue.id}
+                  onChange={() => toggleVenue(venue.id)}
+                  venue={venue}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {!normalizedVenueQuery && availableVenues.length > DEFAULT_VISIBLE_VENUES ? (
+            <button
+              aria-expanded={venuesExpanded}
+              className="planner-venue-expand"
+              type="button"
+              onClick={() => setVenuesExpanded((current) => !current)}
+            >
+              {venuesExpanded
+                ? "Show fewer venues"
+                : `Show ${hiddenAvailableVenueCount} more venue${hiddenAvailableVenueCount === 1 ? "" : "s"}`}
+            </button>
+          ) : null}
+
+          {selectedVenues.length ? (
+            <div className="planner-venue-group">
+              <p>Selected ({selectedVenues.length})</p>
+              {selectedVenues.map((venue) => (
+                <VenueChoice
+                  checked
+                  key={venue.id}
+                  onChange={() => toggleVenue(venue.id)}
+                  venue={venue}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {!matchingVenues.length ? (
+            <p className="planner-venue-empty">No venues match &quot;{venueQuery.trim()}&quot;.</p>
+          ) : null}
         </fieldset>
 
         {status ? <p className="planner-error">{status}</p> : null}
@@ -151,5 +208,25 @@ export function PlannerNewForm({
         </button>
       </form>
     </main>
+  );
+}
+
+function VenueChoice({
+  checked,
+  onChange,
+  venue,
+}: Readonly<{
+  checked: boolean;
+  onChange: () => void;
+  venue: VenueOption;
+}>) {
+  return (
+    <label className="planner-venue-choice">
+      <input type="checkbox" checked={checked} onChange={onChange} />
+      <span>
+        <strong>{venue.name}</strong>
+        <small>{venue.summary}</small>
+      </span>
+    </label>
   );
 }

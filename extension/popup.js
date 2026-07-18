@@ -9,6 +9,8 @@ const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
 const createPlannerButton = document.querySelector("#createPlannerButton");
 const copyProbeSummaryButton = document.querySelector("#copyProbeSummaryButton");
 const venueStatusListElement = document.querySelector("#venueStatusList");
+const venueSearchElement = document.querySelector("#venueSearch");
+const toggleVenueListButton = document.querySelector("#toggleVenueListButton");
 const savedSummaryElement = document.querySelector("#savedSummary");
 const loaderElement = document.querySelector("#loader");
 const statusElement = document.querySelector("#status");
@@ -34,6 +36,7 @@ const DEFAULT_BACKEND_URL = "http://localhost:3007";
 const DEFAULT_SHARE_URL_BASE = "http://localhost:3007";
 const DEFAULT_SHARE_TOKEN = "dev-share";
 const DEFAULT_STALE_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_VISIBLE_VENUES = 3;
 
 let venues = [];
 let selectedVenueId = "";
@@ -46,6 +49,9 @@ let refreshAllConfirmTimer = null;
 let refreshHistory = [];
 let refreshSelection = new Set();
 let savedSummaryCounts = { saved: 0, total: 0 };
+let venueStatusSummaries = [];
+let venueSearchQuery = "";
+let venueListExpanded = false;
 
 function setStatus(message) {
   statusElement.textContent = message;
@@ -88,6 +94,8 @@ function setBusy(value) {
   readCurrentPageButton.disabled = nextBusy;
   createPlannerButton.disabled = nextBusy;
   venueSelect.disabled = nextBusy;
+  venueSearchElement.disabled = nextBusy;
+  toggleVenueListButton.disabled = nextBusy;
   syncLoader(nextBusy);
   syncActions();
   syncProbeSummaryButton();
@@ -363,56 +371,104 @@ async function refreshVenueStatusList() {
     return;
   }
 
-  const summaries = await Promise.all(venues.map((venue) => loadVenueSummary(venue)));
-  const savedCount = summaries.filter((summary) => summary.payload).length;
-  const staleCount = summaries.filter((summary) => isVenueStale(summary.payload, summary.venue)).length;
+  venueStatusSummaries = await Promise.all(venues.map((venue) => loadVenueSummary(venue)));
+  const savedCount = venueStatusSummaries.filter((summary) => summary.payload).length;
+  const staleCount = venueStatusSummaries.filter((summary) =>
+    isVenueStale(summary.payload, summary.venue)
+  ).length;
   normalizeRefreshSelection({ ensureDefault: true });
-  setSavedSummary(savedCount, summaries.length);
+  setSavedSummary(savedCount, venueStatusSummaries.length);
   refreshStaleButton.disabled = isBusy || staleCount === 0;
   refreshStaleButton.title =
     staleCount === 0
       ? "All saved results are fresh."
       : `Refresh ${staleCount} venue${staleCount === 1 ? "" : "s"} with missing or stale saved results.`;
-  venueStatusListElement.replaceChildren(
-    ...summaries.map(({ venue, payload, syncStatus }) => {
-      const lastRefresh = latestRefreshForVenue(venue.id);
-      const badge = venueBadge(payload, syncStatus, venue, lastRefresh);
-      const item = document.createElement("li");
-      item.className = `venue-status${venue.id === selectedVenueId ? " is-selected" : ""}`;
-
-      const checkbox = document.createElement("input");
-      checkbox.className = "venue-status-check";
-      checkbox.type = "checkbox";
-      checkbox.value = venue.id;
-      checkbox.checked = refreshSelection.has(venue.id);
-      checkbox.disabled = isBusy;
-      checkbox.title = `Include ${venueDisplayName(venue)} in Refresh selected.`;
-      checkbox.setAttribute("aria-label", `Include ${venueDisplayName(venue)} in Refresh selected`);
-
-      const body = document.createElement("div");
-      body.className = "venue-status-body";
-      const name = document.createElement("div");
-      name.className = "venue-status-name";
-      const nameButton = document.createElement("button");
-      nameButton.className = "venue-status-view";
-      nameButton.type = "button";
-      nameButton.dataset.venueId = venue.id;
-      nameButton.textContent = venueDisplayName(venue);
-      name.append(nameButton);
-      const meta = document.createElement("div");
-      meta.className = "venue-status-meta";
-      meta.textContent = savedVenueMeta(payload, venue, lastRefresh);
-      body.append(name, meta);
-
-      const badgeElement = document.createElement("span");
-      badgeElement.className = `venue-status-badge ${badge.className}`.trim();
-      badgeElement.textContent = badge.text;
-
-      item.append(checkbox, body, badgeElement);
-      return item;
-    })
-  );
+  renderVenueStatusList();
   syncRefreshSelectionUi();
+}
+
+function venueMatchesSearch(venue) {
+  if (!venueSearchQuery) return true;
+  return [venueDisplayName(venue), venue.id, venue.providerId]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(venueSearchQuery));
+}
+
+function venueStatusItem({ venue, payload, syncStatus }) {
+  const lastRefresh = latestRefreshForVenue(venue.id);
+  const badge = venueBadge(payload, syncStatus, venue, lastRefresh);
+  const item = document.createElement("li");
+  item.className = `venue-status${venue.id === selectedVenueId ? " is-selected" : ""}`;
+
+  const checkbox = document.createElement("input");
+  checkbox.className = "venue-status-check";
+  checkbox.type = "checkbox";
+  checkbox.value = venue.id;
+  checkbox.checked = refreshSelection.has(venue.id);
+  checkbox.disabled = isBusy;
+  checkbox.title = `Include ${venueDisplayName(venue)} in Refresh selected.`;
+  checkbox.setAttribute("aria-label", `Include ${venueDisplayName(venue)} in Refresh selected`);
+
+  const body = document.createElement("div");
+  body.className = "venue-status-body";
+  const name = document.createElement("div");
+  name.className = "venue-status-name";
+  const nameButton = document.createElement("button");
+  nameButton.className = "venue-status-view";
+  nameButton.type = "button";
+  nameButton.dataset.venueId = venue.id;
+  nameButton.textContent = venueDisplayName(venue);
+  name.append(nameButton);
+  const meta = document.createElement("div");
+  meta.className = "venue-status-meta";
+  meta.textContent = savedVenueMeta(payload, venue, lastRefresh);
+  body.append(name, meta);
+
+  const badgeElement = document.createElement("span");
+  badgeElement.className = `venue-status-badge ${badge.className}`.trim();
+  badgeElement.textContent = badge.text;
+
+  item.append(checkbox, body, badgeElement);
+  return item;
+}
+
+function venueGroupLabel(text) {
+  const item = document.createElement("li");
+  item.className = "venue-status-group";
+  item.textContent = text;
+  return item;
+}
+
+function renderVenueStatusList() {
+  const matching = venueStatusSummaries.filter(({ venue }) => venueMatchesSearch(venue));
+  const available = matching.filter(({ venue }) => !refreshSelection.has(venue.id));
+  const selected = matching.filter(({ venue }) => refreshSelection.has(venue.id));
+  const visibleAvailable =
+    venueSearchQuery || venueListExpanded ? available : available.slice(0, DEFAULT_VISIBLE_VENUES);
+  const children = [];
+
+  if (visibleAvailable.length) {
+    children.push(venueGroupLabel("Available venues"), ...visibleAvailable.map(venueStatusItem));
+  }
+  if (selected.length) {
+    children.push(venueGroupLabel(`Selected (${selected.length})`), ...selected.map(venueStatusItem));
+  }
+  if (!children.length) {
+    const empty = document.createElement("li");
+    empty.className = "venue-status-empty";
+    empty.textContent = venueSearchQuery ? "No venues match your search." : "No venues available.";
+    children.push(empty);
+  }
+
+  venueStatusListElement.replaceChildren(...children);
+
+  const hiddenCount = available.length - visibleAvailable.length;
+  toggleVenueListButton.hidden =
+    Boolean(venueSearchQuery) || available.length <= DEFAULT_VISIBLE_VENUES;
+  toggleVenueListButton.textContent = venueListExpanded
+    ? "Show fewer venues"
+    : `Show ${hiddenCount} more venue${hiddenCount === 1 ? "" : "s"}`;
+  toggleVenueListButton.setAttribute("aria-expanded", String(venueListExpanded));
 }
 
 async function loadSavedPayload() {
@@ -984,6 +1040,7 @@ venueStatusListElement.addEventListener("change", (event) => {
   } else {
     refreshSelection.delete(target.value);
   }
+  renderVenueStatusList();
   syncRefreshSelectionUi();
   setSavedSummary();
 });
@@ -991,6 +1048,16 @@ venueStatusListElement.addEventListener("click", (event) => {
   const button = event.target?.closest?.(".venue-status-view");
   if (!button?.dataset?.venueId || button.dataset.venueId === selectedVenueId) return;
   selectVenue(button.dataset.venueId).catch((error) => setStatus(error?.message || String(error)));
+});
+venueSearchElement.addEventListener("input", () => {
+  venueSearchQuery = venueSearchElement.value.trim().toLowerCase();
+  renderVenueStatusList();
+  syncRefreshSelectionUi();
+});
+toggleVenueListButton.addEventListener("click", () => {
+  venueListExpanded = !venueListExpanded;
+  renderVenueStatusList();
+  syncRefreshSelectionUi();
 });
 refreshVenueButton.addEventListener("click", () => refreshVenue());
 refreshStaleButton.addEventListener("click", () => refreshStaleVenues());

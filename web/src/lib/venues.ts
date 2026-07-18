@@ -61,7 +61,7 @@ export const venues = [
   },
 ] as const satisfies readonly VenueDefinition[];
 
-export type ShareVenueLink = VenueDefinition & {
+export type ShareVenueLink = Pick<VenueDefinition, "id" | "name" | "summary"> & {
   href: string;
   isCurrent: boolean;
 };
@@ -77,9 +77,11 @@ export function getVenueTheme(themeId = "") {
 export function shareVenueLinks(shareToken: string, currentVenueId: string): ShareVenueLink[] {
   if (!shareToken) return [];
   return venues.map((venue) => ({
-    ...venue,
     href: shareVenuePath(shareToken, venue.id),
+    id: venue.id,
     isCurrent: venue.id === currentVenueId,
+    name: venue.name,
+    summary: venue.summary,
   }));
 }
 
