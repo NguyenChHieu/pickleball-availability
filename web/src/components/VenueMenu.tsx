@@ -35,7 +35,7 @@ export function VenueMenu({
     )
   );
   const availableLinks = matchingLinks.filter((venue) => !venue.isCurrent);
-  const currentLinks = matchingLinks.filter((venue) => venue.isCurrent);
+  const currentLinks = links.filter((venue) => venue.isCurrent);
   const visibleAvailableLinks =
     normalizedQuery || expanded
       ? availableLinks
@@ -84,6 +84,12 @@ export function VenueMenu({
           <VenueLinkGroup label="Available venues" links={visibleAvailableLinks} />
         ) : null}
 
+        {normalizedQuery && !visibleAvailableLinks.length ? (
+          <p className="stitch-venue-empty">
+            No available venues match &quot;{query.trim()}&quot;.
+          </p>
+        ) : null}
+
         {!normalizedQuery && availableLinks.length > DEFAULT_VISIBLE_VENUES ? (
           <button
             aria-expanded={expanded}
@@ -101,11 +107,6 @@ export function VenueMenu({
           <VenueLinkGroup label="Current venue" links={currentLinks} />
         ) : null}
 
-        {!matchingLinks.length ? (
-          <p className="stitch-venue-empty">
-            No venues match &quot;{query.trim()}&quot;.
-          </p>
-        ) : null}
       </div>
     </details>
   );

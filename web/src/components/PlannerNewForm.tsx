@@ -43,7 +43,7 @@ export function PlannerNewForm({
     )
   );
   const availableVenues = matchingVenues.filter((venue) => !selectedVenueIdsState.includes(venue.id));
-  const selectedVenues = matchingVenues.filter((venue) => selectedVenueIdsState.includes(venue.id));
+  const selectedVenues = venues.filter((venue) => selectedVenueIdsState.includes(venue.id));
   const visibleAvailableVenues =
     normalizedVenueQuery || venuesExpanded
       ? availableVenues
@@ -169,6 +169,12 @@ export function PlannerNewForm({
             </div>
           ) : null}
 
+          {normalizedVenueQuery && !visibleAvailableVenues.length ? (
+            <p className="planner-venue-empty">
+              No available venues match &quot;{venueQuery.trim()}&quot;.
+            </p>
+          ) : null}
+
           {!normalizedVenueQuery && availableVenues.length > DEFAULT_VISIBLE_VENUES ? (
             <button
               aria-expanded={venuesExpanded}
@@ -196,9 +202,6 @@ export function PlannerNewForm({
             </div>
           ) : null}
 
-          {!matchingVenues.length ? (
-            <p className="planner-venue-empty">No venues match &quot;{venueQuery.trim()}&quot;.</p>
-          ) : null}
         </fieldset>
 
         {status ? <p className="planner-error">{status}</p> : null}

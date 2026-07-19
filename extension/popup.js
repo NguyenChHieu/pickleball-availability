@@ -442,13 +442,19 @@ function venueGroupLabel(text) {
 function renderVenueStatusList() {
   const matching = venueStatusSummaries.filter(({ venue }) => venueMatchesSearch(venue));
   const available = matching.filter(({ venue }) => !refreshSelection.has(venue.id));
-  const selected = matching.filter(({ venue }) => refreshSelection.has(venue.id));
+  const selected = venueStatusSummaries.filter(({ venue }) => refreshSelection.has(venue.id));
   const visibleAvailable =
     venueSearchQuery || venueListExpanded ? available : available.slice(0, DEFAULT_VISIBLE_VENUES);
   const children = [];
 
   if (visibleAvailable.length) {
     children.push(venueGroupLabel("Available venues"), ...visibleAvailable.map(venueStatusItem));
+  }
+  if (venueSearchQuery && !visibleAvailable.length) {
+    const empty = document.createElement("li");
+    empty.className = "venue-status-empty";
+    empty.textContent = "No available venues match your search.";
+    children.push(empty);
   }
   if (selected.length) {
     children.push(venueGroupLabel(`Selected (${selected.length})`), ...selected.map(venueStatusItem));
