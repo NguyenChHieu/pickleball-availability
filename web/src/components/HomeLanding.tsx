@@ -102,6 +102,7 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
         <nav className="home-links" aria-label="Homepage">
           <a href="#how-it-works">How it works</a>
           <a href="#venues">Venues</a>
+          <Link href="/app">Dashboard</Link>
           <Link href="/planner/new">Planner</Link>
         </nav>
         <button
@@ -128,12 +129,12 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
               availability pages, group planner links, refresh history, and venue-specific booking links.
             </p>
             <div className="home-actions">
-              <Link className="home-button home-button--primary" href="/planner/new">
+              <Link className="home-button home-button--primary" href="/app">
+                Open dashboard
+              </Link>
+              <Link className="home-button home-button--secondary" href="/planner/new">
                 Create group planner
               </Link>
-              <a className="home-button home-button--secondary" href="#how-it-works">
-                See how it works
-              </a>
               {hasFeaturedShare ? (
                 <a className="home-button home-button--secondary" href={featuredSharePath}>
                   View availability

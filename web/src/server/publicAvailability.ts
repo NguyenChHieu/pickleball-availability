@@ -1,7 +1,7 @@
-import { getVenueDefinition } from "@/lib/venues";
-import type { AvailabilityPayload, AvailabilityPayloadDay, AvailabilityRecord } from "./availabilityStore";
-import { bookingActionUrlForDay, bookingUrlForDay } from "./bookingLinks";
-import { formatDateTime } from "./formatAvailability";
+import { getVenueDefinition } from "../lib/venues.ts";
+import type { AvailabilityPayload, AvailabilityPayloadDay, AvailabilityRecord } from "./availabilityStore.ts";
+import { bookingActionUrlForDay, bookingUrlForDay } from "./bookingLinks.ts";
+import { formatDateTime } from "./formatAvailability.ts";
 
 export const STALE_THRESHOLD_MINUTES = 5;
 

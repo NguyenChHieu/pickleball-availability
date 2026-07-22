@@ -3,8 +3,8 @@
 ## Current Snapshot
 
 - Path: `C:\Users\nguye\Downloads\propickle-buddy`
-- Git branch: `codex/planner-release-qa`
-- Git status: planner release QA passed locally and on Vercel preview; do not merge before user preview review.
+- Git branch: `codex/web-dashboard`
+- Git status: web dashboard implementation and local QA passed; publish a Vercel preview and do not merge before user review.
 - Local instructions: `AGENTS.md` plus `.ai/agent-router.md`.
 
 ## Stack
@@ -20,7 +20,7 @@
 
 - `extension/`: MV3 popup/options/background/content scripts, venue config, refresh orchestration, booking deep-link helper.
 - `extension/providers/`: Playbypoint, ClubSpark, Mindbody, Playtomic, PodPlay, and Hamlet readers.
-- `web/app/`: Next.js routes, share page, API routes, webhook routes, and global styles.
+- `web/app/`: Next.js routes, `/app` dashboard, share page, API routes, webhook routes, and global styles.
 - `web/src/components/`: homepage, availability, and planner UI components.
 - `web/src/lib/`: public availability loader and venue themes.
 - `web/src/server/`: cache store, Supabase REST access, public availability normalizer, planner store/matching, formatter, booking links, Messenger helpers.
@@ -67,9 +67,9 @@ python -m json.tool extension\manifest.json
 
 ## Architecture Notes
 
-- Main execution path: user manually triggers extension read/refresh, extension reads visible venue availability, Next API route stores latest payload, Next share UI renders cached availability.
+- Main execution path: user manually triggers an extension popup or web-dashboard refresh, extension reads visible venue availability, Next API route stores the latest payload, and Next renders cached dashboard/share views.
 - Data flow: booking widget DOM -> content/provider scripts -> background persistence/sync -> `POST /api/availability/:venueId` on the Next app -> local dev cache or Supabase -> `/s/:shareToken/:venueId`, `/api/public/:shareToken/:venueId`, or `/s/:shareToken/:venueId/text`.
-- State management: Chrome local storage per venue in extension; one latest cached payload per venue in the Next/Supabase cache; small extension refresh-job history; share page reads cached display data server-side.
+- State management: Chrome local storage per venue in extension; one latest cached payload per venue in the Next/Supabase cache; small extension refresh-job history; dashboard and share pages read normalized cached display data server-side.
 - API boundaries: extension never owns server secrets; Next API protects sync with `AVAILABILITY_SYNC_TOKEN`; public share uses unguessable `SHARE_TOKEN`.
 - Error handling pattern: preserve last good cached result; distinguish setup-required/login-hidden states from true empty availability; invalid share tokens return 404.
 - Logging/observability pattern: Next server logs/dry-run Messenger replies; extension popup presents user-facing status.
@@ -106,16 +106,16 @@ python -m json.tool extension\manifest.json
 
 ## Current Validation Baseline
 
-Planner release branch checked on July 13 before preview publication:
+Web dashboard branch checked on July 23 before preview publication:
 
 - Web typecheck: `npm.cmd --prefix web run typecheck -- --incremental false` passed.
 - Web lint: `npm.cmd --prefix web run lint` passed.
 - Web build: `npm.cmd --prefix web run build` passed.
-- Web fixtures: 32 tests passed, including planner recovery throttling, secret-field exclusion, and venue matching.
-- Local planner smoke: create, save, reload, forget-device, wrong/correct recovery, mobile layout, and `429` throttling passed.
-- Code review: no remaining required findings after adding the same-court recommendation tie-breaker.
-- Simplicity review: no new abstraction or dependency; the behavior fix is confined to the existing sorter and one regression test.
-- Vercel preview: event create/save/reload/recovery, ProPickle cached matching, durable `429`, valid-token bypass, and public secret-field checks passed.
+- Web fixtures: 36 tests passed, including dashboard fresh/stale/empty normalization and the existing planner suite.
+- Dashboard browser smoke: real 390px viewport had no horizontal overflow; search, persisted selection, available-first ordering, and show-all behavior passed.
+- Dashboard server smoke: `/`, `/app`, and `/health` returned 200; dashboard HTML exposed no share token, Supabase secret, or raw slot fields.
+- Code review: no remaining required findings after treating undated legacy cache as stale.
+- Simplicity review: no new runtime dependency or duplicate refresh engine; the dashboard reuses the existing background refresh job API.
 - Extension syntax checks passed for background, content, popup, options, venues, booking deep-link, and all providers.
 - Manifest JSON validation passed.
 
@@ -129,4 +129,4 @@ Planner release branch checked on July 13 before preview publication:
 
 ## Next Exploration Step
 
-Complete planner release QA: fixtures, typecheck, lint, build, normal/private browser recovery journeys, public-response secret inspection, and ProPickle venue matching. Publish a Vercel preview and wait for user review before merging. After that, explore shared-cache reliability and scheduled refresh only for public guest-visible venues.
+Publish the web-dashboard branch to a Vercel preview, review `/app` on the preview, then reload the unpacked extension and smoke-test one local selected refresh before requesting merge approval.

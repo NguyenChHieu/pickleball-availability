@@ -1,4 +1,4 @@
-import type { AvailabilityPayload, AvailabilityPayloadDay } from "./availabilityStore";
+import type { AvailabilityPayload, AvailabilityPayloadDay } from "./availabilityStore.ts";
 
 type PayloadsByVenue = Record<string, AvailabilityPayload | null | undefined>;
 

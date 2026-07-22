@@ -62,6 +62,19 @@ On this Windows checkout, if `next build` fails only with `EPERM` writing `web\.
 6. Confirm the extension starts a venue refresh, not just a browser page reload.
 7. Confirm the share page updates or reloads only after the venue sync succeeds.
 
+## Web Dashboard QA
+
+1. Open `/app` and confirm cached venue summaries render before any refresh starts.
+2. Confirm the dashboard reports `Extension live` after reloading the unpacked extension and the page.
+3. Search by venue name and booking platform.
+4. Select two venues and confirm unselected venues sort before selected venues.
+5. Click `Refresh Selected` and confirm the existing background refresh job runs in parallel where supported.
+6. Confirm progress, per-venue duration, failures, and setup-required actions update without blocking the page.
+7. Confirm the cached summaries update after the refresh job finishes and sync succeeds.
+8. Click `Refresh Stale` and confirm only stale or missing results are requested.
+9. Confirm refresh history is collapsed by default and shows the latest five completed jobs when opened.
+10. Check `/app` at desktop, tablet, and mobile widths for horizontal clipping.
+
 ## Slow Venue QA
 
 North Ryde can be slow because it checks many courts/providers.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pickleball Availability Reader",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "Read pickleball booking availability by venue and show merged open intervals.",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": [
@@ -48,8 +48,13 @@
     {
       "matches": [
         "http://localhost:3007/s/*",
+        "http://localhost:3007/app*",
         "https://pickleball-availability.vercel.app/s/*",
-        "https://pickleball-availability-git-main-henryngs-projects.vercel.app/s/*"
+        "https://pickleball-availability.vercel.app/app*",
+        "https://pickleball-availability-tau.vercel.app/s/*",
+        "https://pickleball-availability-tau.vercel.app/app*",
+        "https://pickleball-availability-git-main-henryngs-projects.vercel.app/s/*",
+        "https://pickleball-availability-git-main-henryngs-projects.vercel.app/app*"
       ],
       "js": ["sharePageBridge.js"],
       "run_at": "document_idle"

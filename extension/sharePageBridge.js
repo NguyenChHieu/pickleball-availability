@@ -8,6 +8,11 @@
   const STATUS_TYPE = "PBB_REFRESH_VENUE_STATUS";
   const START_REFRESH_JOB = "AVAILABILITY_START_REFRESH_JOB";
   const GET_REFRESH_JOB = "AVAILABILITY_GET_REFRESH_JOB";
+  const GET_REFRESH_HISTORY = "AVAILABILITY_GET_REFRESH_HISTORY";
+  const OPEN_SETUP_WINDOW = "AVAILABILITY_OPEN_SETUP_WINDOW";
+  const DASHBOARD_PAGE_SOURCE = "pbb-dashboard";
+  const DASHBOARD_REQUEST_TYPE = "PBB_DASHBOARD_BRIDGE_REQUEST";
+  const DASHBOARD_RESPONSE_TYPE = "PBB_DASHBOARD_BRIDGE_RESPONSE";
   const ACTIVE_STATUSES = new Set(["queued", "running"]);
   const POLL_INTERVAL_MS = 1200;
   const POLL_TIMEOUT_MS = 8 * 60 * 1000;
@@ -24,6 +29,74 @@
       },
       window.location.origin
     );
+  }
+
+  function postDashboardResponse(requestId, payload) {
+    window.postMessage(
+      {
+        source: EXTENSION_SOURCE,
+        type: DASHBOARD_RESPONSE_TYPE,
+        requestId,
+        ...payload,
+      },
+      window.location.origin
+    );
+  }
+
+  async function runtimeMessage(message) {
+    const response = await chrome.runtime.sendMessage(message);
+    if (!response?.ok) throw new Error(response?.error || "The extension could not complete this request.");
+    return response;
+  }
+
+  function safeVenueIds(value) {
+    return Array.isArray(value)
+      ? value.filter(
+          (venueId, index) => typeof venueId === "string" && venueId && value.indexOf(venueId) === index
+        )
+      : [];
+  }
+
+  async function handleDashboardAction(action, payload = {}) {
+    if (action === "ping") return { installed: true };
+
+    if (action === "getState") {
+      const [jobResponse, historyResponse] = await Promise.all([
+        runtimeMessage({ type: GET_REFRESH_JOB }),
+        runtimeMessage({ type: GET_REFRESH_HISTORY }),
+      ]);
+      return {
+        job: jobResponse.job || null,
+        pendingSetupVenueIds: jobResponse.pendingSetupVenueIds || [],
+        history: historyResponse.history || [],
+      };
+    }
+
+    if (action === "startRefresh") {
+      const venueIds = safeVenueIds(payload.venueIds);
+      if (!venueIds.length) throw new Error("Select at least one venue to refresh.");
+      const scanMode = payload.scanMode === "cache-first" ? "cache-first" : "fast";
+      const label = typeof payload.label === "string" ? payload.label.slice(0, 80) : "Dashboard refresh";
+      const response = await runtimeMessage({
+        type: START_REFRESH_JOB,
+        venueIds,
+        scanMode,
+        label,
+      });
+      return {
+        job: response.job || null,
+        alreadyRunning: Boolean(response.alreadyRunning),
+      };
+    }
+
+    if (action === "openSetup") {
+      const venueId = typeof payload.venueId === "string" ? payload.venueId : "";
+      if (!venueId) throw new Error("Missing venue setup target.");
+      await runtimeMessage({ type: OPEN_SETUP_WINDOW, venueId });
+      return { opened: true };
+    }
+
+    throw new Error("Unknown dashboard extension action.");
   }
 
   function isActiveJob(job) {
@@ -123,5 +196,25 @@
         message: error?.message || String(error),
       });
     });
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== window || event.origin !== window.location.origin) return;
+
+    const message = event.data;
+    if (message?.source !== DASHBOARD_PAGE_SOURCE || message.type !== DASHBOARD_REQUEST_TYPE) return;
+
+    const requestId = typeof message.requestId === "string" ? message.requestId : "";
+    const action = typeof message.action === "string" ? message.action : "";
+    if (!requestId || !action) return;
+
+    handleDashboardAction(action, message.payload)
+      .then((payload) => postDashboardResponse(requestId, { ok: true, payload }))
+      .catch((error) => {
+        postDashboardResponse(requestId, {
+          ok: false,
+          error: error?.message || String(error),
+        });
+      });
   });
 })();

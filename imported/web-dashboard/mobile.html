@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pickleball Buddy - Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Inter:wght@400..700&amp;family=JetBrains+Mono:wght@400..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error": "#690005",
+                        "on-secondary": "#002388",
+                        "surface-container": "#0A0A0A",
+                        "error": "#ffb4ab",
+                        "surface-dim": "#131313",
+                        "error-container": "#93000a",
+                        "tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#454747",
+                        "on-tertiary-container": "#636565",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "outline": "#8e9192",
+                        "on-secondary-fixed": "#001356",
+                        "secondary-container": "#0043eb",
+                        "surface-container-highest": "#353535",
+                        "surface-container-lowest": "#0e0e0e",
+                        "secondary-fixed-dim": "#b8c3ff",
+                        "on-tertiary": "#2f3131",
+                        "outline-variant": "#444748",
+                        "surface": "#131313",
+                        "surface-container-high": "#2a2a2a",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "on-surface-variant": "#c4c7c8",
+                        "tertiary-container": "#e2e2e2",
+                        "on-primary-container": "#636565",
+                        "surface-high": "#141414",
+                        "surface-variant": "#353535",
+                        "background": "#131313",
+                        "primary-fixed-dim": "#c6c6c7",
+                        "pickle-green": "#BDFF00",
+                        "primary-container": "#e2e2e2",
+                        "surface-tint": "#c6c6c7",
+                        "on-primary": "#2f3131",
+                        "inverse-on-surface": "#303030",
+                        "inverse-primary": "#5d5f5f",
+                        "on-surface": "#e2e2e2",
+                        "inverse-surface": "#e2e2e2",
+                        "tertiary-fixed": "#e2e2e2",
+                        "on-error-container": "#ffdad6",
+                        "alert-red": "#E11D48",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "on-background": "#e2e2e2",
+                        "on-secondary-fixed-variant": "#0035be",
+                        "on-primary-fixed": "#1a1c1c",
+                        "on-secondary-container": "#c6ceff",
+                        "surface-bright": "#393939",
+                        "secondary": "#b8c3ff",
+                        "primary-fixed": "#e2e2e2",
+                        "primary": "#ffffff",
+                        "secondary-fixed": "#dde1ff",
+                        "surface-container-low": "#1b1b1b"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "md": "16px",
+                        "margin-desktop": "40px",
+                        "gutter": "12px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-sm": ["Geist"],
+                        "data-label": ["JetBrains Mono"],
+                        "headline-md": ["Geist"],
+                        "button-text": ["JetBrains Mono"],
+                        "data-value-md": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "data-value-lg": ["JetBrains Mono"],
+                        "headline-lg": ["Geist"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-sm": ["20px", { "lineHeight": "24px", "letterSpacing": "0.02em", "fontWeight": "700" }],
+                        "headline-sm-mobile": ["18px", { "lineHeight": "22px", "letterSpacing": "0.02em", "fontWeight": "700" }],
+                        "data-label": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.02em", "fontWeight": "900" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "24px", "letterSpacing": "-0.02em", "fontWeight": "900" }],
+                        "button-text": ["12px", { "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "data-value-md": ["18px", { "lineHeight": "22px", "fontWeight": "700" }],
+                        "body-md": ["15px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "data-value-lg": ["24px", { "lineHeight": "28px", "fontWeight": "700" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.04em", "fontWeight": "900" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.04em", "fontWeight": "900" }],
+                        "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .court-corner {
+            position: relative;
+        }
+        .court-corner::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 16px;
+            height: 16px;
+            border-bottom: 2px solid theme('colors.secondary-container');
+            border-right: 2px solid theme('colors.secondary-container');
+            pointer-events: none;
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(189, 255, 0, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(189, 255, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(189, 255, 0, 0); }
+        }
+        
+        input[type="checkbox"] {
+            appearance: none;
+            background-color: transparent;
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 20px;
+            height: 20px;
+            border: 1px solid theme('colors.outline');
+            border-radius: 0;
+            display: grid;
+            place-content: center;
+        }
+        
+        input[type="checkbox"]::before {
+            content: "";
+            width: 10px;
+            height: 10px;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em theme('colors.pickle-green');
+            background-color: theme('colors.pickle-green');
+        }
+        
+        input[type="checkbox"]:checked::before {
+            transform: scale(1);
+        }
+        
+        input[type="checkbox"]:checked {
+            border-color: theme('colors.pickle-green');
+        }
+        
+        .progress-bar-fill {
+            transition: width 0.3s ease;
+            background-image: repeating-linear-gradient(
+                -45deg,
+                transparent,
+                transparent 10px,
+                rgba(0,0,0,0.1) 10px,
+                rgba(0,0,0,0.1) 20px
+            );
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased pb-24 md:pb-0">
+<!-- TopAppBar -->
+<header class="bg-background/90 text-primary font-headline-sm text-headline-sm-mobile fixed top-0 w-full z-50 backdrop-blur-md border-b border-surface-variant flat no shadows md:hidden">
+<div class="flex justify-between items-center px-margin-mobile h-14 max-w-[700px] mx-auto">
+<button class="text-on-surface-variant hover:border-pickle-green transition-all duration-200 active:scale-95 transition-transform">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<div class="font-headline-md text-headline-md-mobile text-pickle-green uppercase tracking-tighter">PAB</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-pickle-green pulse-dot"></span>
+<span class="material-symbols-outlined text-pickle-green" style="font-variation-settings: 'FILL' 1;">sensors</span>
+</div>
+</div>
+</header>
+<!-- Desktop TopAppBar Nav Cluster -->
+<header class="bg-background/90 text-primary font-headline-sm fixed top-0 w-full z-50 backdrop-blur-md border-b border-surface-variant flat no shadows hidden md:block">
+<div class="flex justify-between items-center px-margin-desktop h-14 max-w-[700px] mx-auto">
+<div class="font-headline-md text-headline-md text-pickle-green uppercase tracking-tighter">PAB</div>
+<nav class="flex gap-lg">
+<a class="text-pickle-green hover:text-primary transition-colors font-button-text text-button-text" href="#">DASHBOARD</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-button-text text-button-text" href="#">VENUES</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors font-button-text text-button-text" href="#">PLANNER</a>
+</nav>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-pickle-green pulse-dot"></span>
+<span class="material-symbols-outlined text-pickle-green" style="font-variation-settings: 'FILL' 1;">sensors</span>
+</div>
+</div>
+</header>
+<main class="max-w-[700px] mx-auto px-margin-mobile md:px-margin-desktop pt-20 md:pt-24 pb-8 space-y-xl">
+<!-- Header -->
+<section class="flex flex-col gap-unit">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary uppercase tracking-tighter">Your court dashboard</h1>
+<div class="flex items-center gap-unit text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+<span class="font-data-label text-data-label uppercase">Last synced 2m ago</span>
+</div>
+</section>
+<!-- Active Sync Module (Collapsible) -->
+<details class="group bg-surface-container border border-surface-variant rounded-DEFAULT" open="">
+<summary class="flex justify-between items-center p-md cursor-pointer select-none">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-pickle-green animate-spin">sync</span>
+<span class="font-button-text text-button-text uppercase tracking-wider text-primary">Active Sync</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-open:-rotate-180 transition-transform duration-300">expand_more</span>
+</summary>
+<div class="p-md pt-0 border-t border-surface-variant mt-sm"><div class="flex justify-between"><span>North Ryde Pickleball</span> <span>10:42 AM</span></div>
+<div class="flex justify-between"><span>ProPickle</span> <span>09:15 AM</span></div></div>
+</details>
+<!-- Venue Selection -->
+<section class="space-y-md">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container border border-surface-variant text-primary font-body-md py-3 pl-12 pr-md focus:border-pickle-green focus:ring-0 transition-colors placeholder:text-on-surface-variant/50 h-[44px]" placeholder="SEARCH VENUES..." type="text"/>
+</div>
+<div class="flex flex-col gap-unit"><!-- ProPickle -->
+<label class="flex items-center gap-md p-md bg-surface-container border border-surface-variant hover:border-secondary-container transition-all cursor-pointer h-auto min-h-[72px]">
+<div class="w-8 h-8 bg-surface border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">sports_tennis</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<div class="font-data-value-md text-data-value-md text-primary uppercase tracking-tight">ProPickle</div>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-data-label text-data-label px-unit border border-pickle-green text-pickle-green bg-pickle-green/10">FRESH 2M AGO</span>
+<span class="font-data-label text-data-label text-on-surface-variant">PLAYBYPOINT</span>
+</div>
+</div>
+<input checked="" class="shrink-0" type="checkbox"/>
+</label>
+<!-- Broadway Pickleball -->
+<label class="flex items-center gap-md p-md bg-surface-container border border-surface-variant hover:border-secondary-container transition-all cursor-pointer h-auto min-h-[72px]">
+<div class="w-8 h-8 bg-surface border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">sports_tennis</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<div class="font-data-value-md text-data-value-md text-primary uppercase tracking-tight">Broadway Pickleball</div>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-data-label text-data-label px-unit border border-outline-variant text-on-surface-variant">STALE 18M AGO</span>
+<span class="font-data-label text-data-label text-on-surface-variant">CLUBSPARK</span>
+</div>
+</div>
+<input class="shrink-0" type="checkbox"/>
+</label>
+<!-- North Ryde Pickleball -->
+<label class="flex items-center gap-md p-md bg-surface-container border border-surface-variant hover:border-secondary-container transition-all cursor-pointer h-auto min-h-[72px]">
+<div class="w-8 h-8 bg-surface border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">sports_tennis</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<div class="font-data-value-md text-data-value-md text-primary uppercase tracking-tight">North Ryde Pickleball</div>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-data-label text-data-label px-unit border border-pickle-green text-pickle-green bg-pickle-green/10">FRESH 2M AGO</span>
+<span class="font-data-label text-data-label text-on-surface-variant">MINDBODY</span>
+</div>
+</div>
+<input checked="" class="shrink-0" type="checkbox"/>
+</label>
+<!-- Sydney Racquet Club -->
+<label class="flex items-center gap-md p-md bg-surface-container border border-surface-variant hover:border-secondary-container transition-all cursor-pointer h-auto min-h-[72px]">
+<div class="w-8 h-8 bg-surface border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">sports_tennis</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<div class="font-data-value-md text-data-value-md text-primary uppercase tracking-tight">Sydney Racquet Club</div>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-data-label text-data-label px-unit border border-outline-variant text-on-surface-variant">SETUP NEEDED</span>
+<span class="font-data-label text-data-label text-on-surface-variant">PLAYTOMIC</span>
+</div>
+</div>
+<input class="shrink-0" type="checkbox"/>
+</label>
+<!-- House of Pickle DH -->
+<label class="flex items-center gap-md p-md bg-surface-container border border-surface-variant hover:border-secondary-container transition-all cursor-pointer h-auto min-h-[72px]">
+<div class="w-8 h-8 bg-surface border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">sports_tennis</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<div class="font-data-value-md text-data-value-md text-primary uppercase tracking-tight">House of Pickle DH</div>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-data-label text-data-label px-unit border border-outline-variant text-on-surface-variant">NO CACHE</span>
+<span class="font-data-label text-data-label text-on-surface-variant">PODPLAY</span>
+</div>
+</div>
+<input class="shrink-0" type="checkbox"/>
+</label>
+<!-- WOTSO Pickleball Pyrmont -->
+<label class="flex items-center gap-md p-md bg-surface-container border border-surface-variant hover:border-secondary-container transition-all cursor-pointer h-auto min-h-[72px]">
+<div class="w-8 h-8 bg-surface border border-outline-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-surface-variant">sports_tennis</span>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center">
+<div class="font-data-value-md text-data-value-md text-primary uppercase tracking-tight">WOTSO Pickleball Pyrmont</div>
+<div class="flex items-center gap-sm mt-1">
+<span class="font-data-label text-data-label px-unit border border-pickle-green text-pickle-green bg-pickle-green/10">FRESH 2M AGO</span>
+<span class="font-data-label text-data-label text-on-surface-variant">HAMLET</span>
+</div>
+</div>
+<input checked="" class="shrink-0" type="checkbox"/>
+</label></div>
+<button class="font-button-text text-button-text text-on-surface-variant hover:text-primary uppercase tracking-wider text-center w-full py-2">Show all venues</button>
+</section>
+<!-- Action Area -->
+<section class="space-y-sm">
+<button class="w-full h-[44px] bg-secondary-container text-primary font-button-text text-button-text uppercase tracking-wider hover:bg-secondary-container/90 active:scale-[0.98] transition-all flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined text-[18px]">bolt</span>
+                REFRESH SELECTED
+            </button>
+<button class="w-full h-[44px] border border-surface-variant text-on-surface hover:border-secondary hover:text-secondary font-button-text text-button-text uppercase tracking-wider active:scale-[0.98] transition-all bg-transparent">
+                Refresh stale
+            </button>
+</section>
+<!-- Availability Feed -->
+<section class="space-y-md pt-lg">
+<div class="flex items-center justify-between border-b border-surface-variant pb-sm">
+<h2 class="font-headline-sm-mobile md:font-headline-sm text-headline-sm-mobile md:text-headline-sm text-primary uppercase">Live Availability</h2>
+</div>
+<div class="space-y-sm">
+<!-- Day Group -->
+<div class="bg-surface-container border border-surface-variant p-md court-corner">
+<div class="flex items-baseline gap-sm mb-md">
+<span class="font-data-value-lg text-data-value-lg text-primary">TODAY</span>
+<span class="font-data-label text-data-label text-on-surface-variant">North Ryde Pickleball</span>
+</div>
+<div class="flex flex-wrap gap-unit">
+<div class="px-sm py-1 bg-surface border border-pickle-green text-pickle-green font-data-label text-data-label">09:00 - 10:30</div>
+<div class="px-sm py-1 bg-surface border border-pickle-green text-pickle-green font-data-label text-data-label">13:00 - 14:00</div>
+<div class="px-sm py-1 bg-surface border border-surface-variant text-on-surface-variant font-data-label text-data-label opacity-50 line-through">18:00 - 19:30</div>
+</div>
+</div>
+<!-- Day Group -->
+<div class="bg-surface-container border border-surface-variant p-md">
+<div class="flex items-baseline gap-sm mb-md">
+<span class="font-data-value-lg text-data-value-lg text-primary">TOMORROW</span>
+<span class="font-data-label text-data-label text-on-surface-variant">WOTSO Pickleball Pyrmont</span>
+</div>
+<div class="flex flex-wrap gap-unit">
+<div class="px-sm py-1 bg-surface border border-pickle-green text-pickle-green font-data-label text-data-label">07:00 - 08:30</div>
+<div class="px-sm py-1 bg-surface border border-pickle-green text-pickle-green font-data-label text-data-label">08:30 - 10:00</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Secondary Actions -->
+<section class="grid grid-cols-1 gap-md">
+<div class="bg-surface border border-surface-variant p-md flex items-center justify-between cursor-pointer hover:border-secondary transition-colors group">
+<div class="flex items-center gap-md">
+<div class="w-10 h-10 bg-surface-container flex items-center justify-center border border-surface-variant group-hover:bg-secondary-container/10 transition-colors">
+<span class="material-symbols-outlined text-primary group-hover:text-secondary-container transition-colors">group_add</span>
+</div>
+<div>
+<div class="font-button-text text-button-text text-primary uppercase">Create group planner</div>
+<div class="font-data-label text-data-label text-on-surface-variant">Coordinate with 4+ players</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">arrow_forward</span>
+</div>
+<details class="bg-surface-container border border-surface-variant">
+<summary class="flex justify-between items-center p-md cursor-pointer select-none font-button-text text-button-text text-on-surface-variant uppercase hover:text-primary transition-colors">
+                    Recent Refreshes
+                    <span class="material-symbols-outlined text-sm">expand_more</span>
+</summary>
+<div class="p-md pt-0 border-t border-surface-variant mt-xs font-data-label text-data-label text-on-surface-variant space-y-sm"><div class="flex justify-between"><span>North Ryde Pickleball</span> <span>10:42 AM</span></div>
+<div class="flex justify-between"><span>ProPickle</span> <span>09:15 AM</span></div></div>
+</details>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="bg-surface-container text-pickle-green font-button-text text-button-text fixed bottom-0 w-full z-50 border-t border-surface-variant flat no shadows md:hidden">
+<div class="flex justify-around items-center w-full h-16 pb-safe max-w-[700px] mx-auto">
+<a class="flex flex-col items-center justify-center text-pickle-green border-t-2 border-pickle-green pt-2 w-1/3" href="#">
+<span class="material-symbols-outlined mb-1">dashboard</span>
+                DASHBOARD
+            </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-2 w-1/3 hover:text-primary transition-colors active:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined mb-1">location_on</span>
+                VENUES
+            </a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-2 w-1/3 hover:text-primary transition-colors active:bg-surface-container-highest transition-all" href="#">
+<span class="material-symbols-outlined mb-1">calendar_today</span>
+                PLANNER
+            </a>
+</div>
+</nav>
+</body></html>

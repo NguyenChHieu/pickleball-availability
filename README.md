@@ -75,7 +75,7 @@ This matters for future venues: ProPickle, Broadway Pickleball, North Ryde, Sydn
 
 ## Share Link And Web App
 
-The extension can optionally sync successful reads to the Next.js app under `web/`. That one app stores the latest availability, exposes API routes, renders the public share page, and keeps the future Messenger webhook path in the same deployment.
+The extension can optionally sync successful reads to the Next.js app under `web/`. That one app stores the latest availability, exposes API routes, renders the public share page and `/app` dashboard, and keeps the future Messenger webhook path in the same deployment.
 
 The intended product flow is:
 
@@ -93,7 +93,9 @@ Share URL base: http://localhost:3007
 Share token: dev-share
 ```
 
-After a successful read, click **Copy Share Link** in the popup.
+After a successful read, click **Copy Availability Link** in the popup. Open `/app` to browse cached venue summaries and run **Refresh Selected** or **Refresh Stale** from the web dashboard.
+
+The dashboard does not scrape on page load. Refresh buttons use the unpacked extension as a bridge to the same background refresh jobs used by the popup, so login-aware reads still happen in your normal Chrome session.
 
 Run the share UI locally with:
 
@@ -155,6 +157,7 @@ The project uses a small adapter/registry shape:
 - `background.js`: venue refresh orchestration and persistence.
 - `popup.js`: venue selector, rendering, exports, and current-page actions.
 - `web/app/api/availability/[venueId]`: token-protected sync/cache API for the extension.
+- `web/app/app`: cached availability dashboard and extension refresh controls.
 - `web/app/s/[shareToken]/[venueId]`: secret-link availability page.
 - `web/src/server/`: shared cache, formatter, public availability, and webhook helpers.
 

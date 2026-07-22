@@ -11,6 +11,7 @@ import {
 export type VenueDefinition = Readonly<{
   id: string;
   name: string;
+  platform: string;
   summary: string;
   fallbackUrl: string;
   theme: VenueTheme;
@@ -20,6 +21,7 @@ export const venues = [
   {
     id: "propickle",
     name: "ProPickle",
+    platform: "Playbypoint",
     summary: "Playbypoint reader with login-aware setup handling and day booking shortcuts.",
     fallbackUrl: "https://book.propickle.com.au/book/ProPickle?skip_waivers=true",
     theme: propickleTheme,
@@ -27,6 +29,7 @@ export const venues = [
   {
     id: "broadway",
     name: "Broadway Pickleball",
+    platform: "ClubSpark",
     summary: "ClubSpark guest availability reader with venue-specific share page styling.",
     fallbackUrl: "https://clubspark.au/Broadway/Booking/BookByDate#?role=guest",
     theme: broadwayTheme,
@@ -34,6 +37,7 @@ export const venues = [
   {
     id: "northryde",
     name: "North Ryde Pickleball",
+    platform: "Mindbody",
     summary: "Mindbody reader with fast refresh by default and optional same-court deep scan.",
     fallbackUrl: "https://www.tennisworldonline.com.au/bookacourt/#bookacourt",
     theme: northRydeTheme,
@@ -41,6 +45,7 @@ export const venues = [
   {
     id: "sydneyracquet",
     name: "Sydney Racquet Club",
+    platform: "Playtomic",
     summary: "Mixed padel/pickleball Playtomic venue; this reader uses the pickleball sport feed only.",
     fallbackUrl: "https://playtomic.com/clubs/sydney-racquet-club?sport_id=PICKLEBALL",
     theme: sydneyRacquetTheme,
@@ -48,6 +53,7 @@ export const venues = [
   {
     id: "houseofpickle-darlingharbour",
     name: "House of Pickle DH",
+    platform: "PodPlay",
     summary: "PodPlay DOM reader for visible guest booking rows, preserving exposed court labels where available.",
     fallbackUrl: "https://houseofpickle.podplay.app/book/darling-harbour?pod=darling-harbour-pickleball-courts",
     theme: houseOfPickleTheme,
@@ -55,6 +61,7 @@ export const venues = [
   {
     id: "wotso-pyrmont",
     name: "WOTSO Pickleball Pyrmont",
+    platform: "Hamlet",
     summary: "Hamlet reader uses the page guest session, then subtracts bookings from court open hours.",
     fallbackUrl: "https://wotso.hamletapp.co/shop/experience/pyrmont",
     theme: wotsoTheme,
