@@ -83,7 +83,7 @@
   text-transform: uppercase;
 }
 
-.connection > span {
+.connection > span:first-child {
   background: #8b928e;
   border-radius: 50%;
   height: 9px;
@@ -94,12 +94,12 @@
   color: var(--dash-lime);
 }
 
-.connection[data-state="connected"] > span {
+.connection[data-state="connected"] > span:first-child {
   background: var(--dash-lime);
   box-shadow: 0 0 0 4px rgb(183 242 29 / 15%);
 }
 
-.connection[data-state="checking"] > span {
+.connection[data-state="checking"] > span:first-child {
   animation: pulse 1s ease-in-out infinite;
   background: var(--dash-blue);
 }
