@@ -49,7 +49,7 @@ export default async function NewPlannerPage({ searchParams }: NewPlannerPagePro
       venues={venues.map((venue) => ({
         id: venue.id,
         name: venue.name,
-        summary: venue.summary,
+        platform: venue.platform,
       }))}
     />
   );

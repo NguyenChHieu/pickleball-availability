@@ -191,8 +191,18 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
             <p className="home-eyebrow">Venues</p>
             <h2 id="venues-title">{venueCount} live venues across six booking platforms.</h2>
           </div>
-          <div className="home-venues">
-            <p className="home-venue-group-label">Supported now</p>
+          <div
+            aria-label={`${venueCount} supported venues. Scroll to explore the list.`}
+            className="home-venues"
+            role="region"
+            tabIndex={0}
+          >
+            <div className="home-venue-group-label">
+              <p>Supported now</p>
+              <span>
+                {venueCount} venues <span aria-hidden="true">↓</span>
+              </span>
+            </div>
             {homeVenues.map((venue) => (
               <article className="home-venue" key={venue.id}>
                 <div>

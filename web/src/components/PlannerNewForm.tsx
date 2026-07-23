@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 type VenueOption = {
   id: string;
   name: string;
-  summary: string;
+  platform: string;
 };
 
 type PlannerNewFormProps = Readonly<{
@@ -16,8 +16,6 @@ type PlannerNewFormProps = Readonly<{
   selectedVenueIds?: string[];
   venues: VenueOption[];
 }>;
-
-const DEFAULT_VISIBLE_VENUES = 3;
 
 export function PlannerNewForm({
   defaultName = "Weekend pickleball",
@@ -34,22 +32,20 @@ export function PlannerNewForm({
   const [minimumDurationMinutes, setMinimumDurationMinutes] = useState(60);
   const [selectedVenueIdsState, setSelectedVenueIds] = useState(() => selectedVenueIds || []);
   const [venueQuery, setVenueQuery] = useState("");
-  const [venuesExpanded, setVenuesExpanded] = useState(false);
   const [status, setStatus] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const normalizedVenueQuery = venueQuery.trim().toLowerCase();
   const matchingVenues = venues.filter((venue) =>
-    [venue.name, venue.summary, venue.id].some((value) =>
+    [venue.name, venue.platform, venue.id].some((value) =>
       value.toLowerCase().includes(normalizedVenueQuery)
     )
   );
   const availableVenues = matchingVenues.filter((venue) => !selectedVenueIdsState.includes(venue.id));
-  const selectedVenues = venues.filter((venue) => selectedVenueIdsState.includes(venue.id));
-  const visibleAvailableVenues =
-    normalizedVenueQuery || venuesExpanded
-      ? availableVenues
-      : availableVenues.slice(0, DEFAULT_VISIBLE_VENUES);
-  const hiddenAvailableVenueCount = availableVenues.length - visibleAvailableVenues.length;
+  const selectedVenues = matchingVenues.filter((venue) => selectedVenueIdsState.includes(venue.id));
+  const selectedVenueLabel =
+    normalizedVenueQuery && selectedVenues.length !== selectedVenueIdsState.length
+      ? `Selected (${selectedVenues.length} of ${selectedVenueIdsState.length})`
+      : `Selected (${selectedVenueIdsState.length})`;
 
   function toggleVenue(venueId: string) {
     setSelectedVenueIds((current) =>
@@ -159,50 +155,47 @@ export function PlannerNewForm({
             />
           </label>
 
-          {visibleAvailableVenues.length ? (
+          {availableVenues.length ? (
             <div className="planner-venue-group">
-              <p>Available venues</p>
-              {visibleAvailableVenues.map((venue) => (
-                <VenueChoice
-                  checked={false}
-                  key={venue.id}
-                  onChange={() => toggleVenue(venue.id)}
-                  venue={venue}
-                />
-              ))}
+              <div className="planner-venue-group__heading">
+                <p>Available venues</p>
+                {availableVenues.length > 3 ? <span>Scroll list</span> : null}
+              </div>
+              <div className="planner-venue-options" role="group" aria-label="Available venue choices">
+                {availableVenues.map((venue) => (
+                  <VenueChoice
+                    checked={false}
+                    key={venue.id}
+                    onChange={() => toggleVenue(venue.id)}
+                    venue={venue}
+                  />
+                ))}
+              </div>
             </div>
           ) : null}
 
-          {normalizedVenueQuery && !visibleAvailableVenues.length ? (
+          {normalizedVenueQuery && !matchingVenues.length ? (
             <p className="planner-venue-empty">
-              No available venues match &quot;{venueQuery.trim()}&quot;.
+              No venues match &quot;{venueQuery.trim()}&quot;.
             </p>
-          ) : null}
-
-          {!normalizedVenueQuery && availableVenues.length > DEFAULT_VISIBLE_VENUES ? (
-            <button
-              aria-expanded={venuesExpanded}
-              className="planner-venue-expand"
-              type="button"
-              onClick={() => setVenuesExpanded((current) => !current)}
-            >
-              {venuesExpanded
-                ? "Show fewer venues"
-                : `Show ${hiddenAvailableVenueCount} more venue${hiddenAvailableVenueCount === 1 ? "" : "s"}`}
-            </button>
           ) : null}
 
           {selectedVenues.length ? (
             <div className="planner-venue-group">
-              <p>Selected ({selectedVenues.length})</p>
-              {selectedVenues.map((venue) => (
-                <VenueChoice
-                  checked
-                  key={venue.id}
-                  onChange={() => toggleVenue(venue.id)}
-                  venue={venue}
-                />
-              ))}
+              <div className="planner-venue-group__heading">
+                <p>{selectedVenueLabel}</p>
+                {selectedVenues.length > 3 ? <span>Scroll list</span> : null}
+              </div>
+              <div className="planner-venue-options" role="group" aria-label="Selected venue choices">
+                {selectedVenues.map((venue) => (
+                  <VenueChoice
+                    checked
+                    key={venue.id}
+                    onChange={() => toggleVenue(venue.id)}
+                    venue={venue}
+                  />
+                ))}
+              </div>
             </div>
           ) : null}
 
@@ -232,7 +225,7 @@ function VenueChoice({
       <input type="checkbox" checked={checked} onChange={onChange} />
       <span>
         <strong>{venue.name}</strong>
-        <small>{venue.summary}</small>
+        <small>{venue.platform}</small>
       </span>
     </label>
   );
