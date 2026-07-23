@@ -315,8 +315,33 @@
 }
 
 .venueList {
+  --venue-list-gap: 10px;
   display: grid;
-  gap: 10px;
+  gap: var(--venue-list-gap);
+  max-height: calc((104px * 3) + (var(--venue-list-gap) * 2) + 2px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1px 8px 1px 0;
+  scrollbar-color: var(--dash-lime) #d9dedb;
+  scrollbar-width: thin;
+}
+
+.venueList:focus-visible {
+  outline: 3px solid rgb(57 116 255 / 45%);
+  outline-offset: 3px;
+}
+
+.venueList::-webkit-scrollbar {
+  width: 8px;
+}
+
+.venueList::-webkit-scrollbar-track {
+  background: #d9dedb;
+}
+
+.venueList::-webkit-scrollbar-thumb {
+  background: var(--dash-lime);
+  border: 2px solid #d9dedb;
 }
 
 .venueCard {
@@ -465,20 +490,6 @@
   margin: 10px 0 0;
   padding: 22px;
   text-align: center;
-}
-
-.showButton {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid #676e69;
-  color: #333935;
-  cursor: pointer;
-  display: block;
-  font-size: 12px;
-  font-weight: 800;
-  margin: 16px auto 0;
-  padding: 4px 0;
-  text-transform: uppercase;
 }
 
 .activity {
@@ -885,6 +896,10 @@
     gap: 12px;
     grid-template-columns: 26px minmax(0, 1fr) auto;
     padding: 14px 13px 14px 10px;
+  }
+
+  .venueList {
+    max-height: calc((198px * 3) + (var(--venue-list-gap) * 2) + 2px);
   }
 
   .venueIdentity {

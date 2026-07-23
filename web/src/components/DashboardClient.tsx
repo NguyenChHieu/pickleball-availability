@@ -162,7 +162,6 @@ export function DashboardClient({ venues }: DashboardClientProps) {
   const router = useRouter();
   const [connection, setConnection] = useState<BridgeConnection>("checking");
   const [query, setQuery] = useState("");
-  const [showAll, setShowAll] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedIdsLoaded, setSelectedIdsLoaded] = useState(false);
   const [job, setJob] = useState<RefreshJob | null>(null);
@@ -172,6 +171,7 @@ export function DashboardClient({ venues }: DashboardClientProps) {
   const [notice, setNotice] = useState("");
   const [clock, setClock] = useState(0);
   const previousJobRef = useRef<{ id?: string; status?: string }>({});
+  const venueListRef = useRef<HTMLDivElement>(null);
 
   const active = isActiveJob(job);
   const staleIds = useMemo(
@@ -270,9 +270,11 @@ export function DashboardClient({ venues }: DashboardClientProps) {
       });
   }, [query, selectedIds, venues]);
 
-  const visibleVenues = query || showAll ? orderedVenues : orderedVenues.slice(0, DEFAULT_VISIBLE_COUNT);
-  const hiddenCount = Math.max(0, orderedVenues.length - visibleVenues.length);
   const selectedVenueIds = [...selectedIds];
+
+  useEffect(() => {
+    if (venueListRef.current) venueListRef.current.scrollTop = 0;
+  }, [query]);
 
   function toggleVenue(venueId: string) {
     setSelectedIds((current) => {
@@ -396,8 +398,13 @@ export function DashboardClient({ venues }: DashboardClientProps) {
               <span>{selectedIds.size} selected</span>
             </div>
 
-            <div className={styles.venueList}>
-              {visibleVenues.map((venue) => {
+            <div
+              className={styles.venueList}
+              ref={venueListRef}
+              tabIndex={orderedVenues.length > DEFAULT_VISIBLE_COUNT ? 0 : undefined}
+              aria-label="Venue results"
+            >
+              {orderedVenues.map((venue) => {
                 const selected = selectedIds.has(venue.id);
                 return (
                   <article
@@ -436,14 +443,8 @@ export function DashboardClient({ venues }: DashboardClientProps) {
               })}
             </div>
 
-            {!visibleVenues.length ? (
+            {!orderedVenues.length ? (
               <p className={styles.emptyState}>No venue or platform matches “{query}”.</p>
-            ) : null}
-
-            {!query && (hiddenCount > 0 || showAll) ? (
-              <button className={styles.showButton} type="button" onClick={() => setShowAll((value) => !value)}>
-                {showAll ? "Show fewer venues" : `Show ${hiddenCount} more venues`}
-              </button>
             ) : null}
           </section>
 
