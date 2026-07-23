@@ -2,15 +2,15 @@
 
 ## Review Gate
 
-This folder is desktop previz only. It does not change the homepage, dashboard, extension,
-scrapers, or booking links. Do not generate paid video or a mobile portrait chain until the
-storyboard and real-footage plan are approved.
+This folder documents the desktop previz now used by the homepage's still-frame cinematic.
+The dashboard, extension, scrapers, and booking links remain unchanged. Do not generate paid
+video or a mobile portrait chain until the real-footage plan and render budget are approved.
 
 ## Visual Sources
 
-- `desktop-concept-board.png`: generated composition previz. It is not the real ProPickle
+- `../../web/public/cinematic/desktop-concept-board.png`: generated composition previz. It is not the real ProPickle
   building or court and must never be presented as documentary venue footage.
-- `interface-dashboard-desktop.png`: real browser capture of the deployed ProPickle Buddy
+- `../../web/public/cinematic/interface-dashboard-desktop.png`: real browser capture of the deployed ProPickle Buddy
   dashboard. The final transition must use the live interface or an exact browser capture,
   never generated UI.
 - Real venue footage: not supplied yet. Exterior, gate, court, equipment, rally, and lighting

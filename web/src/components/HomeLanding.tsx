@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { ThreeHero } from "@/components/ThreeHero";
+import { CinematicIntro } from "@/components/CinematicIntro";
 import { venues } from "@/lib/venues";
 
 type HomeLandingProps = Readonly<{
@@ -20,15 +20,6 @@ type VenueFreshness = Readonly<{
 }>;
 
 const THEME_STORAGE_KEY = "pbb-home-theme-v2";
-
-const slots = [
-  { day: "Pro", times: ["Playbypoint", "Login-aware", "9 days"] },
-  { day: "Bwy", times: ["ClubSpark", "Guest-visible", "9 days"] },
-  { day: "NR", times: ["Mindbody", "Fast refresh", "Deep scan"] },
-  { day: "SRC", times: ["Playtomic", "Guest JSON", "5 courts"] },
-  { day: "HOP", times: ["PodPlay", "Visible rows", "Court labels"] },
-  { day: "WOT", times: ["Hamlet", "Guest session", "2 courts"] },
-];
 
 const steps = [
   {
@@ -61,7 +52,6 @@ function getInitialTheme(): ThemeMode {
 
 export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLandingProps) {
   const [theme, setTheme] = useState<ThemeMode>("dark");
-  const hasFeaturedShare = Boolean(featuredSharePath);
   const freshnessById = new Map(venueFreshness.map((item) => [item.id, item]));
   const homeVenues = venues.map((venue) => ({
     id: venue.id,
@@ -112,57 +102,7 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
       </header>
 
       <main>
-        <section className="home-hero" aria-labelledby="home-title">
-          <div className="home-hero__copy">
-            <p className="home-kicker">
-              <span aria-hidden="true" />
-              Public read-only availability
-            </p>
-            <h1 id="home-title">Stop clicking through every day just to find open court time.</h1>
-            <p className="home-lede">
-              Pickleball Buddy tracks {venueCount} Sydney pickleball venues with a small browser extension, cached
-              availability pages, group planner links, refresh history, and venue-specific booking links.
-            </p>
-            <div className="home-actions">
-              <Link className="home-button home-button--primary" href="/app">
-                Open dashboard
-              </Link>
-              <Link className="home-button home-button--secondary" href="/planner/new">
-                Create group planner
-              </Link>
-              {hasFeaturedShare ? (
-                <a className="home-button home-button--secondary" href={featuredSharePath}>
-                  View availability
-                </a>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="home-hero__visual" aria-label="Animated pickleball court preview">
-            <ThreeHero />
-            <div className="home-preview" id="preview">
-              <div className="home-preview__header">
-                <div>
-                  <p>Current support snapshot</p>
-                  <h2>{venueCount} venues live</h2>
-                </div>
-                <span>Read-only</span>
-              </div>
-              <div className="home-slot-list">
-                {slots.map((day) => (
-                  <div className="home-slot-row" key={day.day}>
-                    <span>{day.day}</span>
-                    <div>
-                      {day.times.map((time) => (
-                        <span key={time}>{time}</span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
+        <CinematicIntro featuredSharePath={featuredSharePath} />
 
         <section className="home-band" aria-label="Project guardrails">
           <span>{venueCount} venues supported</span>
