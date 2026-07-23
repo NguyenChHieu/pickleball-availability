@@ -33,12 +33,23 @@ function compactAge(value: string | null, now: Date | number | string) {
 }
 
 function shortDayLabel(value: string) {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value || "Upcoming";
+  const raw = value.trim();
+  const labelledDate = raw.match(/^([a-z]+),\s+([a-z]+)\s+(\d{1,2})$/i);
+  if (labelledDate) {
+    const [, weekday, month, day] = labelledDate;
+    return `${weekday.slice(0, 3)}, ${Number(day)} ${month.slice(0, 3)}`;
+  }
+
+  const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(raw);
+  if (!isIsoDate && !/\b\d{4}\b/.test(raw)) return raw || "Upcoming";
+
+  const parsed = new Date(isIsoDate ? `${raw}T12:00:00Z` : raw);
+  if (Number.isNaN(parsed.getTime())) return raw || "Upcoming";
   return new Intl.DateTimeFormat("en-AU", {
     weekday: "short",
     day: "numeric",
     month: "short",
+    timeZone: "UTC",
   }).format(parsed);
 }
 

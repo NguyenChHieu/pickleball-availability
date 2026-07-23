@@ -134,7 +134,7 @@
             70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(189, 255, 0, 0); }
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(189, 255, 0, 0); }
         }
-        
+
         input[type="checkbox"] {
             appearance: none;
             background-color: transparent;
@@ -148,7 +148,7 @@
             display: grid;
             place-content: center;
         }
-        
+
         input[type="checkbox"]::before {
             content: "";
             width: 10px;
@@ -158,15 +158,15 @@
             box-shadow: inset 1em 1em theme('colors.pickle-green');
             background-color: theme('colors.pickle-green');
         }
-        
+
         input[type="checkbox"]:checked::before {
             transform: scale(1);
         }
-        
+
         input[type="checkbox"]:checked {
             border-color: theme('colors.pickle-green');
         }
-        
+
         .progress-bar-fill {
             transition: width 0.3s ease;
             background-image: repeating-linear-gradient(

@@ -51,6 +51,25 @@ test("dashboard venue marks old results stale", () => {
   assert.equal(result.nextOpening, "No open intervals");
 });
 
+test("dashboard venue preserves the weekday from yearless provider labels", () => {
+  const result = buildDashboardVenue(
+    venue,
+    {
+      exported_at: "2026-07-23T09:58:00.000Z",
+      days: [
+        {
+          date: "Thursday, July 23",
+          remaining_hours: 1,
+          open_intervals: [{ start_time: "18:00", end_time: "19:00" }],
+        },
+      ],
+    },
+    "2026-07-23T10:00:00.000Z"
+  );
+
+  assert.equal(result.nextOpeningDetail, "Thu, 23 Jul");
+});
+
 test("dashboard venue does not present legacy undated cache as fresh", () => {
   const result = buildDashboardVenue(
     venue,

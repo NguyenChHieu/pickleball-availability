@@ -295,8 +295,8 @@ export function DashboardClient({ venues }: DashboardClientProps) {
       setNotice(response?.alreadyRunning ? "A refresh is already running." : `${label} started.`);
       await syncBridgeState();
     } catch (error) {
-      setConnection("disconnected");
       setNotice(error instanceof Error ? error.message : String(error));
+      await syncBridgeState();
     }
   }
 
