@@ -4,7 +4,7 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-function loadBackground() {
+function loadBackground(fetchImpl = fetch) {
   let nextWindowId = 1;
   let nextTabId = 10;
   const storage = {};
@@ -111,13 +111,15 @@ function loadBackground() {
   };
 
   const context = vm.createContext({
+    AbortController,
     AvailabilityRegistry: {},
+    Response,
     URL,
     chrome,
     clearInterval,
     clearTimeout,
     console,
-    fetch,
+    fetch: fetchImpl,
     importScripts() {},
     setInterval,
     setTimeout,
@@ -126,6 +128,65 @@ function loadBackground() {
   vm.runInContext(source, context, { filename: "background.js" });
   return { calls, context, storage, tabs, windows };
 }
+
+test("refresh status reports use allowlisted source fallbacks", () => {
+  const { context } = loadBackground();
+
+  assert.equal(context.normalizeRefreshSource("stale", "fast"), "stale");
+  assert.equal(context.normalizeRefreshSource("unknown", "deep"), "deep");
+  assert.equal(context.normalizeRefreshSource("", "cache-first", "Refresh all"), "all");
+  assert.equal(context.normalizeRefreshSource("", "fast", "Refresh selected"), "selected");
+});
+
+test("refresh status keeps sync failures above cache reuse", () => {
+  const { context } = loadBackground();
+
+  assert.equal(context.refreshReportStatus({ status: "success", cacheHit: true, syncOk: false }), "failed");
+  assert.equal(context.refreshReportStatus({ status: "success", cacheHit: true, syncOk: true }), "cache_reused");
+  assert.equal(context.refreshReportStatus({ status: "setup_required" }), "setup_required");
+});
+
+test("refresh status reporting is best effort and does not throw", async () => {
+  const requests = [];
+  const { context, storage } = loadBackground(async (url, options) => {
+    requests.push({ url, options });
+    return new Response(JSON.stringify({ ok: true, persisted: false }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  storage.backendSyncConfig = {
+    enabled: true,
+    backendUrl: "https://pickleball-availability.vercel.app",
+    syncToken: "test-token",
+  };
+
+  const result = await context.reportRefreshStatus("propickle", {
+    status: "failed",
+    duration_ms: 1234,
+    source: "selected",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.persisted, false);
+  assert.match(requests[0].url, /api\/availability\/propickle\/refresh-status$/);
+  assert.deepEqual(JSON.parse(requests[0].options.body), {
+    status: "failed",
+    duration_ms: 1234,
+    source: "selected",
+  });
+
+  const failed = loadBackground(async () => {
+    throw new Error("offline");
+  });
+  failed.storage.backendSyncConfig = storage.backendSyncConfig;
+  const failedResult = await failed.context.reportRefreshStatus("propickle", {
+    status: "failed",
+    duration_ms: 1234,
+    source: "selected",
+  });
+  assert.equal(failedResult.ok, false);
+});
 
 test("fast refresh tabs share one unfocused reader window and clean it up", async () => {
   const { calls, context, windows } = loadBackground();

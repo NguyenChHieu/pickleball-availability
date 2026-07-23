@@ -5,10 +5,12 @@ import { promisify } from "node:util";
 import { getVenueDefinition, venues } from "../lib/venues.ts";
 import {
   getAvailabilityRecord,
+  getAvailabilityRefreshState,
   type AvailabilityPayload,
   type AvailabilityPayloadDay,
   type AvailabilityRecord,
 } from "./availabilityStore.ts";
+import { buildPublicRefreshHealth, type AvailabilityRefreshState } from "./availabilityRefresh.ts";
 import { bookingUrlForDay } from "./bookingLinks.ts";
 import { formatDateTime } from "./formatAvailability.ts";
 import { buildPlannerRecommendations, mergeBlocks, parseTimeToMinutes } from "./plannerMatch.ts";
@@ -486,9 +488,21 @@ export async function getPlannerEventView(eventToken: string): Promise<PublicPla
   const record = USE_SUPABASE ? await readPlannerEventSupabase(eventToken) : await readLocalPlannerFile(eventToken);
   if (!record) return null;
 
-  const venueRecords = await Promise.all(record.event.venueIds.map((venueId) => getAvailabilityRecord(venueId)));
+  const venueSnapshots = await Promise.all(
+    record.event.venueIds.map(async (venueId) => {
+      const [availabilityRecord, refreshState] = await Promise.all([
+        getAvailabilityRecord(venueId),
+        getAvailabilityRefreshState(venueId).catch(() => null),
+      ]);
+      return { record: availabilityRecord, refreshState };
+    })
+  );
   const plannerVenues = record.event.venueIds.map((venueId, index) =>
-    venueAvailabilityForPlanner(venueId, venueRecords[index])
+    venueAvailabilityForPlanner(
+      venueId,
+      venueSnapshots[index].record,
+      venueSnapshots[index].refreshState
+    )
   );
 
   return {
@@ -832,12 +846,18 @@ async function upsertPlannerParticipantSupabase(
   return participant;
 }
 
-function venueAvailabilityForPlanner(venueId: string, record: AvailabilityRecord | null): PlannerVenueAvailability {
+function venueAvailabilityForPlanner(
+  venueId: string,
+  record: AvailabilityRecord | null,
+  refreshState: AvailabilityRefreshState | null
+): PlannerVenueAvailability {
   const definition = getVenueDefinition(venueId);
   const payload = record?.payload || null;
   const venueName = payload?.venue_name || definition?.name || venueId;
   const fallbackUrl = payload ? bookingUrlForDay({}, payload as Record<string, unknown>) : definition?.fallbackUrl || "";
   const lastReadAt = payload?.exported_at || record?.received_at || null;
+  const lastSuccessfulAt = record?.received_at || payload?.exported_at || null;
+  const refreshHealth = buildPublicRefreshHealth(refreshState, lastSuccessfulAt);
 
   if (!payload?.days?.length) {
     return {
@@ -848,6 +868,7 @@ function venueAvailabilityForPlanner(venueId: string, record: AvailabilityRecord
       freshnessLabel: formatDateTime(lastReadAt),
       isStale: false,
       staleThresholdMinutes: STALE_THRESHOLD_MINUTES,
+      refreshHealth,
       state: "empty",
       days: [],
     };
@@ -861,6 +882,7 @@ function venueAvailabilityForPlanner(venueId: string, record: AvailabilityRecord
     freshnessLabel: formatDateTime(lastReadAt),
     isStale: isStaleTimestamp(lastReadAt),
     staleThresholdMinutes: STALE_THRESHOLD_MINUTES,
+    refreshHealth,
     state: "ready",
     days: payload.days
       .map((day) => normalizeVenueDay(day, payload))

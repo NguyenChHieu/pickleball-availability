@@ -77,11 +77,13 @@
       if (!venueIds.length) throw new Error("Select at least one venue to refresh.");
       const scanMode = payload.scanMode === "cache-first" ? "cache-first" : "fast";
       const label = typeof payload.label === "string" ? payload.label.slice(0, 80) : "Dashboard refresh";
+      const source = payload.source === "stale" ? "stale" : "selected";
       const response = await runtimeMessage({
         type: START_REFRESH_JOB,
         venueIds,
         scanMode,
         label,
+        source,
       });
       return {
         job: response.job || null,
@@ -175,6 +177,7 @@
         venueIds: [venueId],
         scanMode: "fast",
         label: "Refresh selected",
+        source: "selected",
       });
 
       if (!response?.ok) throw new Error(response?.error || "Could not start venue refresh.");

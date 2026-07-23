@@ -173,6 +173,9 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
           </div>
 
           {isReady && availability.isStale ? <p className="stitch-warning">{theme.copy.staleWarning}</p> : null}
+          {isReady && availability.refreshHealth.message ? (
+            <p className="stitch-warning">{availability.refreshHealth.message}</p>
+          ) : null}
           {theme.copy.bookingNote ? <p className="stitch-note">{theme.copy.bookingNote}</p> : null}
 
           <dl className="stitch-metrics" aria-label="Availability summary">
@@ -284,6 +287,7 @@ function renderAvailabilityContent(availability: PublicAvailability, copy: Retur
       <section className="stitch-state" aria-labelledby="empty-title">
         <h2 id="empty-title">{copy.emptyHeading}</h2>
         <p>{copy.emptyBody}</p>
+        {availability.refreshHealth.message ? <p className="stitch-warning">{availability.refreshHealth.message}</p> : null}
         {availability.fallbackUrl ? (
           <a href={availability.fallbackUrl} target="_blank" rel="noopener noreferrer">
             Open booking

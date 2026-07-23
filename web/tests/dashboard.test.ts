@@ -51,6 +51,48 @@ test("dashboard venue marks old results stale", () => {
   assert.equal(result.nextOpening, "No open intervals");
 });
 
+test("dashboard venue shows a newer failed refresh without dropping cached totals", () => {
+  const result = buildDashboardVenue(
+    venue,
+    {
+      exported_at: "2026-07-23T09:50:00.000Z",
+      days: [{ date: "2026-07-24", remaining_hours: 2, open_intervals: [] }],
+    },
+    "2026-07-23T10:10:00.000Z",
+    {
+      venue_id: "propickle",
+      attempted_at: "2026-07-23T10:08:00.000Z",
+      status: "failed",
+      duration_ms: 5000,
+      source: "selected",
+    }
+  );
+
+  assert.equal(result.totalOpenHours, 2);
+  assert.equal(result.refreshMessage, "Refresh failed 2m ago; cached result kept");
+});
+
+test("dashboard compares refresh attempts with the server-received cache time", () => {
+  const result = buildDashboardVenue(
+    venue,
+    {
+      exported_at: "2026-07-23T09:00:00.000Z",
+      days: [{ date: "2026-07-24", remaining_hours: 2, open_intervals: [] }],
+    },
+    "2026-07-23T10:10:00.000Z",
+    {
+      venue_id: "propickle",
+      attempted_at: "2026-07-23T10:08:00.000Z",
+      status: "failed",
+      duration_ms: 5000,
+      source: "selected",
+    },
+    "2026-07-23T10:09:00.000Z"
+  );
+
+  assert.equal(result.refreshMessage, "");
+});
+
 test("dashboard venue preserves the weekday from yearless provider labels", () => {
   const result = buildDashboardVenue(
     venue,

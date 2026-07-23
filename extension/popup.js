@@ -732,7 +732,7 @@ async function openSetupWindow() {
   setStatus("Opened the setup window. Finish setup there; the read will retry automatically.");
 }
 
-async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh" }) {
+async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh", source = "selected" }) {
   if (isBusy || !selectedVenueId) return;
 
   const isDeepScan = scanMode === "deep";
@@ -751,6 +751,7 @@ async function startRefreshJob({ venueIds, scanMode = "fast", label = "Refresh" 
       venueIds,
       scanMode,
       label,
+      source,
     });
     if (!response?.ok) throw new Error(response?.error || "Refresh job failed to start.");
 
@@ -780,6 +781,7 @@ async function refreshStaleVenues() {
     venueIds: staleVenueIds,
     scanMode: "cache-first",
     label: "Refresh stale",
+    source: "stale",
   });
 }
 
@@ -794,6 +796,7 @@ async function refreshVenue() {
     venueIds,
     scanMode: "fast",
     label: venueIds.length > 1 ? `Refresh ${venueIds.length} selected` : "Refresh selected",
+    source: "selected",
   });
 }
 
@@ -804,6 +807,7 @@ async function refreshAllVenues() {
     venueIds: venues.map((venue) => venue.id),
     scanMode: "cache-first",
     label: "Refresh all",
+    source: "all",
   });
 }
 
@@ -812,6 +816,7 @@ async function deepScanVenue() {
     venueIds: [selectedVenueId],
     scanMode: "deep",
     label: "Deep scan",
+    source: "deep",
   });
 }
 

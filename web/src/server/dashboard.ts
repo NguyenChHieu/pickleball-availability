@@ -1,4 +1,5 @@
 import type { VenueDefinition } from "../lib/venues.ts";
+import type { AvailabilityRefreshState } from "./availabilityRefresh.ts";
 import type { AvailabilityPayload } from "./availabilityStore.ts";
 import { buildPublicAvailabilityResponse } from "./publicAvailability.ts";
 
@@ -8,6 +9,7 @@ export type DashboardVenue = Readonly<{
   platform: string;
   state: "fresh" | "stale" | "empty";
   freshnessLabel: string;
+  refreshMessage: string;
   lastReadAt: string | null;
   dayCount: number;
   totalOpenHours: number;
@@ -57,19 +59,35 @@ function venueAccent(venue: VenueDefinition) {
   return venue.theme.colors.accent || "#aeea2f";
 }
 
+function compactRefreshMessage(
+  status: string,
+  attemptedAt: string | null,
+  hasCache: boolean,
+  now: Date | number | string
+) {
+  const age = compactAge(attemptedAt, now).toLowerCase();
+  if (status === "setup_required") {
+    return hasCache ? `Setup required ${age}; cached result kept` : `Setup required ${age}; no cache yet`;
+  }
+  if (status === "failed") return hasCache ? `Refresh failed ${age}; cached result kept` : `Refresh failed ${age}; no cache yet`;
+  return "";
+}
+
 export function buildDashboardVenue(
   venue: VenueDefinition,
   payload: AvailabilityPayload | null | undefined,
-  now: Date | number | string = Date.now()
+  now: Date | number | string = Date.now(),
+  refreshState: AvailabilityRefreshState | null = null,
+  receivedAt: string | null = null
 ): DashboardVenue {
   const record = payload
     ? {
         venue_id: venue.id,
-        received_at: payload.exported_at || new Date(0).toISOString(),
+        received_at: receivedAt || payload.exported_at || new Date(0).toISOString(),
         payload,
       }
     : null;
-  const response = buildPublicAvailabilityResponse(record, { venueId: venue.id, now });
+  const response = buildPublicAvailabilityResponse(record, { venueId: venue.id, now, refreshState });
 
   if (response.status !== 200) {
     return {
@@ -78,6 +96,12 @@ export function buildDashboardVenue(
       platform: venue.platform,
       state: "empty",
       freshnessLabel: "No cache",
+      refreshMessage: compactRefreshMessage(
+        response.body.refreshHealth.status,
+        response.body.refreshHealth.attemptedAt,
+        false,
+        now
+      ),
       lastReadAt: null,
       dayCount: 0,
       totalOpenHours: 0,
@@ -98,6 +122,9 @@ export function buildDashboardVenue(
     platform: venue.platform,
     state: body.isStale ? "stale" : "fresh",
     freshnessLabel: body.isStale ? `Stale ${compactAge(body.lastReadAt, now)}` : `Fresh ${compactAge(body.lastReadAt, now)}`,
+    refreshMessage: body.refreshHealth.hasNewerIssue
+      ? compactRefreshMessage(body.refreshHealth.status, body.refreshHealth.attemptedAt, true, now)
+      : "",
     lastReadAt: body.lastReadAt,
     dayCount: body.summary.dayCount,
     totalOpenHours: body.summary.totalOpenHours,

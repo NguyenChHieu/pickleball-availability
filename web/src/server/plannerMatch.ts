@@ -199,6 +199,7 @@ export function buildPlannerRecommendations(
             courtName: sameCourtRun?.courtName,
             freshnessLabel: venue.freshnessLabel,
             isStale: venue.isStale,
+            refreshMessage: venue.refreshHealth.message,
           });
         }
       }

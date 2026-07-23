@@ -6,6 +6,17 @@ create table if not exists public.availability_cache (
 
 alter table public.availability_cache enable row level security;
 
+create table if not exists public.availability_refresh_state (
+  venue_id text primary key,
+  attempted_at timestamptz not null default now(),
+  status text not null check (status in ('success', 'failed', 'setup_required', 'cache_reused')),
+  duration_ms integer not null default 0 check (duration_ms >= 0 and duration_ms <= 1800000),
+  source text not null check (source in ('selected', 'stale', 'all', 'deep', 'current_page'))
+);
+
+alter table public.availability_refresh_state enable row level security;
+revoke all on table public.availability_refresh_state from anon, authenticated;
+
 create table if not exists public.planner_events (
   event_token text primary key,
   name text not null,

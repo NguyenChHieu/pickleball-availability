@@ -1,3 +1,5 @@
+import type { PublicRefreshHealth } from "./availabilityRefresh";
+
 export type PlannerAvailabilityBlock = {
   date: string;
   startMinute: number;
@@ -52,6 +54,7 @@ export type PlannerVenueAvailability = {
   freshnessLabel: string;
   isStale: boolean;
   staleThresholdMinutes: number;
+  refreshHealth: PublicRefreshHealth;
   state: "ready" | "empty";
   days: PlannerVenueDay[];
 };
@@ -69,6 +72,7 @@ export type PlannerRecommendation = {
   courtName?: string;
   freshnessLabel: string;
   isStale: boolean;
+  refreshMessage: string;
 };
 
 export type PublicPlannerEventView = {

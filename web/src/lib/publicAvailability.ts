@@ -1,4 +1,5 @@
-import { getAvailabilityRecord } from "@/server/availabilityStore";
+import type { PublicRefreshHealth } from "@/server/availabilityRefresh";
+import { getAvailabilityRecord, getAvailabilityRefreshState } from "@/server/availabilityStore";
 import { buildPublicAvailabilityResponse } from "@/server/publicAvailability";
 import { validShareToken } from "@/server/security";
 
@@ -44,6 +45,7 @@ export type PublicAvailabilityReady = {
   freshnessLabel: string;
   isStale: boolean;
   staleThresholdMinutes: number;
+  refreshHealth: PublicRefreshHealth;
   summary: {
     dayCount: number;
     totalOpenHours: number;
@@ -56,6 +58,7 @@ export type PublicAvailabilityEmpty = {
   state: "empty";
   message: string;
   fallbackUrl: string;
+  refreshHealth: PublicRefreshHealth;
 };
 
 export type PublicAvailabilityError = {
@@ -105,8 +108,11 @@ export async function fetchPublicAvailability(
       };
     }
 
-    const record = await getAvailabilityRecord(venueId);
-    const result = buildPublicAvailabilityResponse(record, { venueId });
+    const [record, refreshState] = await Promise.all([
+      getAvailabilityRecord(venueId),
+      getAvailabilityRefreshState(venueId).catch(() => null),
+    ]);
+    const result = buildPublicAvailabilityResponse(record, { venueId, refreshState });
     const body: unknown = result.body;
 
     if (result.status === 200 && isReadyAvailability(body)) return body;

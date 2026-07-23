@@ -1,4 +1,4 @@
-import { getAvailabilityRecord } from "@/server/availabilityStore";
+import { getAvailabilityRecord, getAvailabilityRefreshState } from "@/server/availabilityStore";
 import { buildPublicAvailabilityResponse } from "@/server/publicAvailability";
 import { API_CORS_HEADERS, apiPreflight, notFoundJson, validShareToken } from "@/server/security";
 
@@ -21,8 +21,11 @@ export async function GET(_request: Request, { params }: PublicAvailabilityRoute
     const { shareToken, venueId } = await params;
     if (!validShareToken(shareToken)) return notFoundJson(API_CORS_HEADERS);
 
-    const record = await getAvailabilityRecord(venueId);
-    const result = buildPublicAvailabilityResponse(record, { venueId });
+    const [record, refreshState] = await Promise.all([
+      getAvailabilityRecord(venueId),
+      getAvailabilityRefreshState(venueId).catch(() => null),
+    ]);
+    const result = buildPublicAvailabilityResponse(record, { venueId, refreshState });
     return Response.json(result.body, {
       status: result.status,
       headers: API_CORS_HEADERS,

@@ -477,6 +477,7 @@ function VenueFreshness({ view }: Readonly<{ view: PublicPlannerEventView }>) {
               {venue.state === "ready"
                 ? `${venue.isStale ? "stale" : "fresh"} - ${venue.freshnessLabel || "unknown read"}`
                 : "no cached read"}
+              {venue.refreshHealth.message ? ` - ${venue.refreshHealth.message}` : ""}
             </small>
           </li>
         ))}
@@ -508,6 +509,7 @@ function RecommendationCard({ recommendation }: Readonly<{ recommendation: Plann
           {recommendation.freshnessLabel
             ? ` - ${recommendation.isStale ? "stale cache" : "last read"} ${recommendation.freshnessLabel}`
             : ""}
+          {recommendation.refreshMessage ? ` - ${recommendation.refreshMessage}` : ""}
         </small>
       </div>
     </article>

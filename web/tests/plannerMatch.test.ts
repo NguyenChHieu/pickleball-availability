@@ -44,6 +44,12 @@ function venue(
     freshnessLabel: "10 Jul 2026, 6:00 pm",
     isStale: false,
     staleThresholdMinutes: 5,
+    refreshHealth: {
+      status: "unknown",
+      attemptedAt: null,
+      hasNewerIssue: false,
+      message: "",
+    },
     state: "ready",
     days: [{ date: "2026-07-10", intervals }],
     ...overrides,
@@ -134,6 +140,26 @@ test("planner recommendations prefer fresh venue cache over stale cache when ove
   );
 
   assert.equal(recommendations[0].venueId, "fresh");
+});
+
+test("planner recommendations carry refresh warnings without changing matches", () => {
+  const recommendations = buildPlannerRecommendations(
+    event,
+    [participant("p1", "Hieu", 18 * 60, 20 * 60)],
+    [
+      venue([{ startMinute: 18 * 60, endMinute: 19 * 60, confidence: "any-court" }], {
+        refreshHealth: {
+          status: "failed",
+          attemptedAt: "2026-07-10T09:00:00.000Z",
+          hasNewerIssue: true,
+          message: "Refresh failed. Showing the last successful read.",
+        },
+      }),
+    ]
+  );
+
+  assert.equal(recommendations.length, 1);
+  assert.match(recommendations[0].refreshMessage, /Refresh failed/);
 });
 
 test("planner recommendations prefer same-court confidence when people and freshness are tied", () => {

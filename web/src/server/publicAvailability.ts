@@ -1,4 +1,5 @@
 import { getVenueDefinition } from "../lib/venues.ts";
+import { buildPublicRefreshHealth, type AvailabilityRefreshState } from "./availabilityRefresh.ts";
 import type { AvailabilityPayload, AvailabilityPayloadDay, AvailabilityRecord } from "./availabilityStore.ts";
 import { bookingActionUrlForDay, bookingUrlForDay } from "./bookingLinks.ts";
 import { formatDateTime } from "./formatAvailability.ts";
@@ -95,7 +96,15 @@ function isStaleTimestamp(lastReadAt: string | null, now?: Date | number | strin
 
 export function buildPublicAvailabilityResponse(
   record: AvailabilityRecord | null,
-  { venueId = "venue", now }: { venueId?: string; now?: Date | number | string } = {}
+  {
+    venueId = "venue",
+    now,
+    refreshState,
+  }: {
+    venueId?: string;
+    now?: Date | number | string;
+    refreshState?: AvailabilityRefreshState | null;
+  } = {}
 ) {
   if (!record?.payload || !Array.isArray(record.payload.days)) {
     const metadata = metadataForVenue(venueId);
@@ -105,6 +114,7 @@ export function buildPublicAvailabilityResponse(
         state: "empty",
         message: "No cached availability yet.",
         fallbackUrl: metadata.fallbackUrl,
+        refreshHealth: buildPublicRefreshHealth(refreshState, null, now),
       },
     } as const;
   }
@@ -112,8 +122,10 @@ export function buildPublicAvailabilityResponse(
   const payload = record.payload;
   const metadata = metadataForVenue(venueId, payload);
   const lastReadAt = payload.exported_at || record.received_at || null;
+  const lastSuccessfulAt = record.received_at || payload.exported_at || null;
   const payloadDays = payload.days || [];
   const days = payloadDays.map((day) => normalizeDay(day, payload));
+  const refreshHealth = buildPublicRefreshHealth(refreshState, lastSuccessfulAt, now);
 
   return {
     status: 200,
@@ -126,6 +138,7 @@ export function buildPublicAvailabilityResponse(
       freshnessLabel: formatDateTime(lastReadAt),
       isStale: isStaleTimestamp(lastReadAt, now),
       staleThresholdMinutes: STALE_THRESHOLD_MINUTES,
+      refreshHealth,
       summary: {
         dayCount: days.length,
         totalOpenHours: days.reduce((total, day) => total + day.totalOpenHours, 0),

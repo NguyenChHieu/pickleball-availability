@@ -285,11 +285,16 @@ export function DashboardClient({ venues }: DashboardClientProps) {
     });
   }
 
-  async function startRefresh(venueIds: string[], scanMode: "fast" | "cache-first", label: string) {
+  async function startRefresh(
+    venueIds: string[],
+    scanMode: "fast" | "cache-first",
+    label: string,
+    source: "selected" | "stale"
+  ) {
     if (!venueIds.length || active) return;
     setNotice("");
     try {
-      const response = await bridgeRequest("startRefresh", { venueIds, scanMode, label }, 4000);
+      const response = await bridgeRequest("startRefresh", { venueIds, scanMode, label, source }, 4000);
       setConnection("connected");
       setJob(response?.job || null);
       setNotice(response?.alreadyRunning ? "A refresh is already running." : `${label} started.`);
@@ -366,7 +371,7 @@ export function DashboardClient({ venues }: DashboardClientProps) {
             type="button"
             className={styles.secondaryButton}
             disabled={active || !staleIds.length || connection !== "connected"}
-            onClick={() => startRefresh(staleIds, "cache-first", "Refresh stale")}
+            onClick={() => startRefresh(staleIds, "cache-first", "Refresh stale", "stale")}
           >
             Refresh stale <span>{staleIds.length}</span>
           </button>
@@ -374,7 +379,7 @@ export function DashboardClient({ venues }: DashboardClientProps) {
             type="button"
             className={styles.primaryButton}
             disabled={active || !selectedVenueIds.length || connection !== "connected"}
-            onClick={() => startRefresh(selectedVenueIds, "fast", "Refresh selected")}
+            onClick={() => startRefresh(selectedVenueIds, "fast", "Refresh selected", "selected")}
           >
             {active ? "Refresh running" : `Refresh selected${selectedVenueIds.length ? ` (${selectedVenueIds.length})` : ""}`}
           </button>
@@ -430,6 +435,7 @@ export function DashboardClient({ venues }: DashboardClientProps) {
                     </div>
                     <div className={styles.venueStatus}>
                       <strong>{venue.freshnessLabel}</strong>
+                      {venue.refreshMessage ? <span>{venue.refreshMessage}</span> : null}
                       <span>{venue.dayCount ? `${venue.dayCount} days · ${venue.totalOpenHours.toFixed(1)} open hrs` : "Refresh required"}</span>
                     </div>
                     <div className={styles.nextOpening}>
