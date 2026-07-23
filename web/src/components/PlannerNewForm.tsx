@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 type VenueOption = {
@@ -86,6 +87,9 @@ export function PlannerNewForm({
   return (
     <main className="planner-shell planner-shell--new">
       <section className="planner-hero" aria-labelledby="planner-new-title">
+        <Link className="planner-back-link" href="/app">
+          Back to dashboard
+        </Link>
         <p className="planner-kicker">Group planner</p>
         <h1 id="planner-new-title">Find the court time everyone can actually make.</h1>
         <p>

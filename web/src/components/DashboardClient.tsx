@@ -315,20 +315,21 @@ export function DashboardClient({ venues }: DashboardClientProps) {
   return (
     <div className={styles.shell}>
       <header className={styles.header}>
-        <Link className={styles.brand} href="/" aria-label="Pickleball Availability Buddy home">
+        <Link className={styles.brand} href="/">
           <span>Availability</span>
           <strong>Buddy</strong>
         </Link>
         <nav className={styles.nav} aria-label="Application">
           <Link className={styles.activeNav} href="/app" aria-current="page">Dashboard</Link>
           <a href="#venues">Venues</a>
-          <Link href="/planner/new">Planners</Link>
+          <Link href="/planner/new">Planner</Link>
           <Link href="/">Home</Link>
         </nav>
         <div
           className={styles.connection}
           data-state={connection}
-          aria-label={connection === "connected" ? "Extension connected" : "Extension bridge not connected"}
+          role="status"
+          aria-live="polite"
           title={connection === "connected" ? "Extension connected" : "Cached results remain available without the extension bridge"}
         >
           <span aria-hidden="true" />

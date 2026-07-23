@@ -140,9 +140,12 @@
 }
 
 .intro > div a {
+  align-items: center;
   border-bottom: 2px solid var(--dash-ink);
+  display: inline-flex;
   font-size: 14px;
   font-weight: 800;
+  min-height: 44px;
   padding-bottom: 3px;
   text-decoration: none;
 }
@@ -189,6 +192,7 @@
   background: transparent;
   border: 0;
   color: #ffffff;
+  min-height: 44px;
   min-width: 0;
   outline: none;
   width: 100%;
@@ -372,9 +376,9 @@
 .venueCheck {
   cursor: pointer;
   display: grid;
-  height: 26px;
+  height: 44px;
   place-items: center;
-  width: 26px;
+  width: 44px;
 }
 
 .venueCheck input {
@@ -469,11 +473,13 @@
 }
 
 .bookingLink {
+  align-items: center;
   border-bottom: 1px solid #656c67;
   color: #cbd1cd;
+  display: inline-flex;
   font-size: 11px;
   font-weight: 750;
-  padding-bottom: 3px;
+  min-height: 44px;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -725,6 +731,7 @@
   font-weight: 800;
   gap: 8px;
   grid-template-columns: 1fr auto auto;
+  min-height: 44px;
   padding: 8px 0;
   text-align: left;
   text-transform: uppercase;
@@ -894,7 +901,7 @@
 
   .venueCard {
     gap: 12px;
-    grid-template-columns: 26px minmax(0, 1fr) auto;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
     padding: 14px 13px 14px 10px;
   }
 

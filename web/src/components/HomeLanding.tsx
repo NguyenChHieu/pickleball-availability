@@ -90,14 +90,9 @@ export function HomeLanding({ featuredSharePath, venueFreshness = [] }: HomeLand
   return (
     <div className="home-shell" data-theme={theme}>
       <header className="home-nav">
-        <Link className="home-brand" href="/" aria-label="Pickleball Buddy home">
+        <Link className="home-brand" href="/">
           <span className="home-brand__mark" aria-hidden="true" />
-          <span className="home-brand__full" aria-hidden="true">
-            Pickleball Buddy
-          </span>
-          <span className="home-brand__short" aria-hidden="true">
-            PB Buddy
-          </span>
+          <span>Pickleball Buddy</span>
         </Link>
         <nav className="home-links" aria-label="Homepage">
           <a href="#how-it-works">How it works</a>

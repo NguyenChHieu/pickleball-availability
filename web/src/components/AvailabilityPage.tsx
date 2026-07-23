@@ -129,7 +129,7 @@ export function AvailabilityPage({ availability, shareToken = "", venueId = "pro
               <span className="stitch-brand__product">{theme.identity.productLabel}</span>
             </span>
           </a>
-          <div className="stitch-topbar__actions" aria-label="Share page status">
+          <div className="stitch-topbar__actions">
             <nav className="stitch-nav" aria-label="Primary">
               <ShareRefreshButton venueId={currentVenueId} />
               {venueLinks.length ? (
