@@ -8,11 +8,20 @@ video or a mobile portrait chain until the real-footage plan and render budget a
 
 ## Visual Sources
 
-- `../../web/public/cinematic/desktop-concept-board.png`: generated composition previz. It is not the real ProPickle
+- `desktop-concept-board.png`: generated composition board retained as storyboard reference only. It is not the real ProPickle
   building or court and must never be presented as documentary venue footage.
 - `../../web/public/cinematic/interface-dashboard-desktop.png`: real browser capture of the deployed ProPickle Buddy
   dashboard. The final transition must use the live interface or an exact browser capture,
   never generated UI.
+- The five desktop stills in `../../web/public/cinematic/scene-*.jpg` are high-resolution
+  real photographs used for the free previz. They show generic courts rather than ProPickle.
+  Sources: [Patrick Nguyen](https://unsplash.com/@pokiepatt) via the
+  [Unsplash pickleball-courts search](https://unsplash.com/s/photos/pickleball-courts),
+  [Tim Chow](https://unsplash.com/photos/a-tennis-court-with-a-net-on-it-0PRyJ8acqbw),
+  [eedgar ivann](https://unsplash.com/photos/pickleball-paddle-and-ball-rest-on-the-court-zpy9Lh5aRgg),
+  [eedgar ivann](https://unsplash.com/photos/man-playing-pickleball-on-a-court-tn98VMfWXEs), and
+  [Sebastian Qin](https://unsplash.com/photos/a-tennis-court-lit-up-at-night-with-lights-_FLyMtBmaas).
+  Each source is marked free to use under the Unsplash License on its source page.
 - Real venue footage: not supplied yet. Exterior, gate, court, equipment, rally, and lighting
   shots remain replacement requirements before production.
 

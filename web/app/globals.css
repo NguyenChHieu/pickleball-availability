@@ -1914,33 +1914,29 @@ dd {
   opacity: 1;
 }
 
-.cinematic-sprite {
-  height: 300%;
-  left: 50%;
-  max-width: none;
-  position: absolute;
-  top: 50%;
-  width: auto;
+.cinematic-photo {
+  filter: brightness(0.76) saturate(0.88);
+  object-fit: cover;
 }
 
-.cinematic-sprite--1 {
-  transform: translate(-25%, -16.666%);
+.cinematic-photo--1 {
+  object-position: center 58%;
 }
 
-.cinematic-sprite--2 {
-  transform: translate(-75%, -16.666%);
+.cinematic-photo--2 {
+  object-position: center;
 }
 
-.cinematic-sprite--3 {
-  transform: translate(-25%, -50%);
+.cinematic-photo--3 {
+  object-position: center 66%;
 }
 
-.cinematic-sprite--4 {
-  transform: translate(-75%, -50%);
+.cinematic-photo--4 {
+  object-position: center 48%;
 }
 
-.cinematic-sprite--5 {
-  transform: translate(-25%, -83.333%);
+.cinematic-photo--5 {
+  object-position: center 34%;
 }
 
 .cinematic-interface {

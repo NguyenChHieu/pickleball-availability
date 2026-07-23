@@ -49,6 +49,14 @@ const beats = [
 
 const totalWeight = beats.reduce((sum, beat) => sum + beat.weight, 0);
 
+const frameSources = [
+  "/cinematic/scene-01-courts-at-dawn.jpg",
+  "/cinematic/scene-02-enter-court.jpg",
+  "/cinematic/scene-03-paddle-ball.jpg",
+  "/cinematic/scene-04-rally.jpg",
+  "/cinematic/scene-05-court-lights.jpg",
+] as const;
+
 function beatForProgress(progress: number) {
   let cursor = 0;
   for (let index = 0; index < beats.length; index += 1) {
@@ -110,20 +118,19 @@ export function CinematicIntro({ featuredSharePath }: CinematicIntroProps) {
       </h1>
       <div className="cinematic-stage">
         <div className="cinematic-media" aria-hidden="true">
-          {beats.slice(0, 5).map((beat, index) => (
+          {frameSources.map((src, index) => (
             <div
               className={`cinematic-frame${activeIndex === index ? " cinematic-frame--active" : ""}`}
-              key={beat.eyebrow}
+              key={src}
             >
               <Image
                 alt=""
-                className={`cinematic-sprite cinematic-sprite--${index + 1}`}
-                height={1024}
+                className={`cinematic-photo cinematic-photo--${index + 1}`}
+                fill
                 priority={index === 0}
-                quality={84}
+                quality={86}
                 sizes="100vw"
-                src="/cinematic/desktop-concept-board.png"
-                width={1536}
+                src={src}
               />
             </div>
           ))}
