@@ -154,9 +154,9 @@ The project uses a small adapter/registry shape:
 - `providers/playtomicAvailability.js`: Playtomic public availability reader.
 - `providers/podplayDom.js`: PodPlay rendered booking-row reader.
 - `contentScript.js`: message bridge injected into readable pages.
-- `background.js`: venue refresh orchestration and persistence.
+- `background.js`: venue refresh orchestration, server-issued attempts, and persistence.
 - `popup.js`: venue selector, rendering, exports, and current-page actions.
-- `web/app/api/availability/[venueId]`: token-protected sync/cache API for the extension.
+- `web/app/api/availability/[venueId]`: token-protected, attempt-guarded cache API for the extension.
 - `web/app/app`: cached availability dashboard and extension refresh controls.
 - `web/app/s/[shareToken]/[venueId]`: secret-link availability page.
 - `web/src/server/`: shared cache, formatter, public availability, and webhook helpers.

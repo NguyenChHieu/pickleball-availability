@@ -34,6 +34,7 @@ const PENDING_REFRESH_RETRY_MS = 8000;
 const READER_WINDOW_WIDTH = 760;
 const READER_WINDOW_HEIGHT = 900;
 const REFRESH_STATUS_REPORT_TIMEOUT_MS = 2500;
+const REFRESH_ATTEMPT_REQUEST_TIMEOUT_MS = 5000;
 const REFRESH_SOURCES = new Set(["selected", "stale", "all", "deep", "current_page"]);
 
 const pendingRefreshAttempts = new Set();
@@ -136,9 +137,9 @@ function venueForScanMode(venue, scanMode = "fast") {
   return readVenue;
 }
 
-async function saveVenuePayload(venueId, payload) {
+async function saveVenuePayload(venueId, payload, refreshAttempt = null) {
   await chrome.storage.local.set({ [AvailabilityRegistry.venuePayloadKey(venueId)]: payload });
-  return syncVenuePayload(venueId, payload);
+  return syncVenuePayload(venueId, payload, refreshAttempt);
 }
 
 async function storedVenuePayload(venueId) {
@@ -183,6 +184,15 @@ function refreshStatusEndpoint(backendUrl, venueId) {
   return base.toString();
 }
 
+function refreshAttemptEndpoint(backendUrl, venueId) {
+  const base = new URL(backendUrl);
+  const prefix = base.pathname.replace(/\/+$/, "");
+  base.pathname = `${prefix}/api/availability/${encodeURIComponent(venueId)}/refresh-attempt`;
+  base.search = "";
+  base.hash = "";
+  return base.toString();
+}
+
 function normalizeStoredBackendUrl(backendUrl) {
   return backendUrl === OLD_LOCAL_BACKEND_URL ? DEFAULT_BACKEND_URL : backendUrl;
 }
@@ -196,7 +206,32 @@ async function storedBackendSyncConfig() {
   };
 }
 
-async function syncVenuePayload(venueId, payload) {
+async function beginRefreshAttempt(venueId) {
+  const config = await storedBackendSyncConfig();
+  if (!config.enabled || !config.backendUrl || !venueId) return null;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REFRESH_ATTEMPT_REQUEST_TIMEOUT_MS);
+  try {
+    const headers = {};
+    if (config.syncToken) headers["x-sync-token"] = config.syncToken;
+    const response = await fetch(refreshAttemptEndpoint(config.backendUrl, venueId), {
+      method: "POST",
+      headers,
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    const body = await response.json();
+    if (!body?.attempt_id || !body?.started_at) return null;
+    return { attempt_id: body.attempt_id, started_at: body.started_at };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
   const config = await storedBackendSyncConfig();
   const backendUrl = config.backendUrl;
   if (!config.enabled || !backendUrl) {
@@ -212,6 +247,10 @@ async function syncVenuePayload(venueId, payload) {
   try {
     const headers = { "content-type": "application/json" };
     if (config.syncToken) headers["x-sync-token"] = config.syncToken;
+    if (refreshAttempt?.attempt_id && refreshAttempt?.started_at) {
+      headers["x-refresh-attempt-id"] = refreshAttempt.attempt_id;
+      headers["x-refresh-started-at"] = refreshAttempt.started_at;
+    }
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -224,8 +263,12 @@ async function syncVenuePayload(venueId, payload) {
       throw new Error(`Web app sync failed: ${response.status} ${body}`);
     }
 
+    const body = await response.json().catch(() => ({}));
     const status = {
       ok: true,
+      accepted: body.accepted !== false,
+      superseded: body.superseded === true,
+      reason: body.superseded ? "A newer shared result was already saved." : "",
       synced_at: new Date().toISOString(),
     };
     await chrome.storage.local.set({ [syncStatusKey(venueId)]: status });
@@ -264,6 +307,12 @@ async function reportRefreshStatus(venueId, report) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+function refreshStatusForSync(syncStatus) {
+  if (syncStatus?.ok === false && !syncStatus?.skipped) return "failed";
+  if (syncStatus?.superseded) return "cache_reused";
+  return "success";
 }
 
 function syncErrorMessage(error, endpoint) {
@@ -447,7 +496,7 @@ async function savePendingRefresh(session) {
   schedulePendingRefresh(session.tabId);
 }
 
-function pendingRefreshSession(tabId, venue, closeWhenDone, error) {
+function pendingRefreshSession(tabId, venue, closeWhenDone, error, refreshAttempt = null) {
   const now = Date.now();
   return {
     tabId: Number(tabId),
@@ -459,6 +508,7 @@ function pendingRefreshSession(tabId, venue, closeWhenDone, error) {
     expiresAt: now + (venue.pendingRefreshTimeoutMs || PENDING_REFRESH_TTL_MS),
     lastAttemptAt: now,
     lastError: error?.message || String(error || ""),
+    refreshAttempt,
   };
 }
 
@@ -576,9 +626,9 @@ async function continuePendingRefresh(tabId, _reason) {
     if (session.scanMode === "deep") await focusTab(Number(tabId));
     await wait(300);
     const payload = await readTab(Number(tabId), readVenue);
-    const syncStatus = await saveVenuePayload(venue.id, payload);
+    const syncStatus = await saveVenuePayload(venue.id, payload, session.refreshAttempt);
     await reportRefreshStatus(venue.id, {
-      status: syncStatus?.ok === false && !syncStatus?.skipped ? "failed" : "success",
+      status: refreshStatusForSync(syncStatus),
       duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Date.now() - Number(session.startedAt || Date.now()))),
       source: normalizeRefreshSource(session.source, session.scanMode),
     });
@@ -619,11 +669,13 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
     return {
       venue,
       payload: cachedPayload,
-      syncStatus: await syncVenuePayload(venue.id, cachedPayload),
+      syncStatus: { ok: true, skipped: true, reason: "Reused recent local cache." },
       manualSetupRequired: false,
       cacheHit: true,
     };
   }
+
+  const refreshAttempt = await beginRefreshAttempt(venue.id);
 
   const readVenue = venueForScanMode(venue, scanMode);
   readVenue.scanMode = scanMode;
@@ -635,7 +687,7 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
     await waitForTabComplete(tab.id);
     await wait(1200);
     const payload = await readTab(tab.id, readVenue);
-    const syncStatus = await saveVenuePayload(venue.id, payload);
+    const syncStatus = await saveVenuePayload(venue.id, payload, refreshAttempt);
     if (closeWhenDone) await closeTab(tab.id);
     return { venue, payload, syncStatus, manualSetupRequired: false };
   } catch (error) {
@@ -649,7 +701,7 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
         }
         await wait(1800);
         const payload = await readTab(tab.id, readVenue);
-        const syncStatus = await saveVenuePayload(venue.id, payload);
+        const syncStatus = await saveVenuePayload(venue.id, payload, refreshAttempt);
         if (closeWhenDone) await closeTab(tab.id);
         return { venue, payload, syncStatus, manualSetupRequired: false };
       } catch (retryError) {
@@ -674,7 +726,9 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
       };
     }
 
-    await savePendingRefresh(pendingRefreshSession(tab.id, readVenue, closeWhenDone, readError));
+    await savePendingRefresh(
+      pendingRefreshSession(tab.id, readVenue, closeWhenDone, readError, refreshAttempt)
+    );
     return {
       venue,
       payload: null,
@@ -798,7 +852,7 @@ function normalizeRefreshSource(source, scanMode = "fast", label = "") {
 
 function refreshReportStatus(result) {
   if (result.status === "success" && result.syncOk === false) return "failed";
-  if (result.cacheHit) return "cache_reused";
+  if (result.cacheHit || result.superseded) return "cache_reused";
   return result.status;
 }
 
@@ -856,7 +910,8 @@ async function refreshVenueForJob(venueId, scanMode, source) {
         dayCount: Array.isArray(result.payload?.days) ? result.payload.days.length : 0,
         syncOk: Boolean(result.syncStatus?.ok),
         syncMessage: result.syncStatus?.error || result.syncStatus?.reason || "",
-        cacheHit: Boolean(result.cacheHit),
+        cacheHit: Boolean(result.cacheHit || result.syncStatus?.superseded),
+        superseded: Boolean(result.syncStatus?.superseded),
         durationMs: durationMs(),
       };
     }
@@ -1003,13 +1058,14 @@ async function readActiveTab() {
   const tab = await activeTab();
   const venue = AvailabilityRegistry.findVenueForUrl(tab.url) || fallbackVenueForTab(tab);
   try {
+    const refreshAttempt = venue.id ? await beginRefreshAttempt(venue.id) : null;
     const payload = await readTab(tab.id, venue);
     const syncStatus = venue.id
-      ? await saveVenuePayload(venue.id, payload)
+      ? await saveVenuePayload(venue.id, payload, refreshAttempt)
       : { ok: false, skipped: true, reason: "Current page is not mapped to a saved venue." };
     if (venue.id) {
       await reportRefreshStatus(venue.id, {
-        status: syncStatus?.ok === false && !syncStatus?.skipped ? "failed" : "success",
+        status: refreshStatusForSync(syncStatus),
         duration_ms: Math.min(30 * 60 * 1000, Date.now() - startedAt),
         source: "current_page",
       });

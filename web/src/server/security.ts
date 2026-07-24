@@ -1,7 +1,8 @@
 export const API_CORS_HEADERS = Object.freeze({
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
-  "access-control-allow-headers": "content-type, x-sync-token",
+  "access-control-allow-headers":
+    "content-type, x-sync-token, x-refresh-attempt-id, x-refresh-started-at",
   "access-control-max-age": "86400",
 });
 

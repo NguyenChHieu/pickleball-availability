@@ -143,7 +143,65 @@ test("refresh status keeps sync failures above cache reuse", () => {
 
   assert.equal(context.refreshReportStatus({ status: "success", cacheHit: true, syncOk: false }), "failed");
   assert.equal(context.refreshReportStatus({ status: "success", cacheHit: true, syncOk: true }), "cache_reused");
+  assert.equal(context.refreshReportStatus({ status: "success", superseded: true, syncOk: true }), "cache_reused");
   assert.equal(context.refreshReportStatus({ status: "setup_required" }), "setup_required");
+});
+
+test("server-issued refresh attempts are attached to guarded cache writes", async () => {
+  const requests = [];
+  const { context, storage } = loadBackground(async (url, options) => {
+    requests.push({ url, options });
+    if (url.endsWith("/refresh-attempt")) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          attempt_id: "attempt_12345678",
+          started_at: "2026-07-24T10:00:00.000Z",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    }
+    return new Response(JSON.stringify({ ok: true, accepted: false, superseded: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  storage.backendSyncConfig = {
+    enabled: true,
+    backendUrl: "https://pickleball-availability.vercel.app",
+    syncToken: "test-token",
+  };
+
+  const attempt = await context.beginRefreshAttempt("propickle");
+  const result = await context.syncVenuePayload("propickle", { venue_id: "propickle", days: [] }, attempt);
+
+  assert.deepEqual({ ...attempt }, {
+    attempt_id: "attempt_12345678",
+    started_at: "2026-07-24T10:00:00.000Z",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.superseded, true);
+  assert.match(requests[0].url, /api\/availability\/propickle\/refresh-attempt$/);
+  assert.match(requests[1].url, /api\/availability\/propickle$/);
+  assert.equal(requests[1].options.headers["x-refresh-attempt-id"], attempt.attempt_id);
+  assert.equal(requests[1].options.headers["x-refresh-started-at"], attempt.started_at);
+});
+
+test("pending setup sessions retain their original refresh attempt", () => {
+  const { context } = loadBackground();
+  const attempt = {
+    attempt_id: "attempt_12345678",
+    started_at: "2026-07-24T10:00:00.000Z",
+  };
+  const session = context.pendingRefreshSession(
+    10,
+    { id: "propickle", scanMode: "fast" },
+    true,
+    new Error("setup"),
+    attempt
+  );
+
+  assert.deepEqual({ ...session.refreshAttempt }, attempt);
 });
 
 test("refresh status reporting is best effort and does not throw", async () => {

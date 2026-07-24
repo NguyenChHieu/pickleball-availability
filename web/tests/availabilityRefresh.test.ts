@@ -141,6 +141,8 @@ test("public availability exposes safe health without internal duration or sourc
     {
       venue_id: "propickle",
       received_at: "2026-07-24T09:50:00.000Z",
+      refresh_attempt_id: "attempt_internal_123",
+      refresh_started_at: "2026-07-24T09:49:00.000Z",
       payload: {
         venue_id: "propickle",
         exported_at: "2026-07-24T09:50:00.000Z",
@@ -156,5 +158,8 @@ test("public availability exposes safe health without internal duration or sourc
 
   const serialized = JSON.stringify(response.body);
   assert.match(serialized, /refreshHealth/);
-  assert.doesNotMatch(serialized, /duration_ms|durationMs|source|deep/);
+  assert.doesNotMatch(
+    serialized,
+    /duration_ms|durationMs|source|deep|refresh_attempt_id|refresh_started_at|attempt_internal/
+  );
 });

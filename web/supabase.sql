@@ -6,6 +6,86 @@ create table if not exists public.availability_cache (
 
 alter table public.availability_cache enable row level security;
 
+alter table public.availability_cache
+  add column if not exists refresh_attempt_id text;
+
+alter table public.availability_cache
+  add column if not exists refresh_started_at timestamptz;
+
+create or replace function public.commit_availability_refresh(
+  p_venue_id text,
+  p_payload jsonb,
+  p_refresh_attempt_id text,
+  p_refresh_started_at timestamptz
+)
+returns table (
+  accepted boolean,
+  venue_id text,
+  received_at timestamptz,
+  payload jsonb,
+  refresh_attempt_id text,
+  refresh_started_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with committed as (
+    insert into public.availability_cache as cache (
+      venue_id,
+      received_at,
+      payload,
+      refresh_attempt_id,
+      refresh_started_at
+    )
+    values (
+      p_venue_id,
+      now(),
+      p_payload,
+      p_refresh_attempt_id,
+      p_refresh_started_at
+    )
+    on conflict (venue_id) do update
+    set received_at = excluded.received_at,
+        payload = excluded.payload,
+        refresh_attempt_id = excluded.refresh_attempt_id,
+        refresh_started_at = excluded.refresh_started_at
+    where cache.refresh_started_at is null
+       or cache.refresh_started_at <= excluded.refresh_started_at
+    returning
+      cache.venue_id,
+      cache.received_at,
+      cache.payload,
+      cache.refresh_attempt_id,
+      cache.refresh_started_at
+  )
+  select
+    true,
+    committed.venue_id,
+    committed.received_at,
+    committed.payload,
+    committed.refresh_attempt_id,
+    committed.refresh_started_at
+  from committed
+  union all
+  select
+    false,
+    current_cache.venue_id,
+    current_cache.received_at,
+    current_cache.payload,
+    current_cache.refresh_attempt_id,
+    current_cache.refresh_started_at
+  from public.availability_cache as current_cache
+  where current_cache.venue_id = p_venue_id
+    and not exists (select 1 from committed)
+  limit 1;
+$$;
+
+revoke all on function public.commit_availability_refresh(text, jsonb, text, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.commit_availability_refresh(text, jsonb, text, timestamptz)
+  to service_role;
+
 create table if not exists public.availability_refresh_state (
   venue_id text primary key,
   attempted_at timestamptz not null default now(),

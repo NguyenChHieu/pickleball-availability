@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import type { AvailabilityRefreshAttempt } from "./availabilityAttempt.ts";
 import type { AvailabilityRefreshReport, AvailabilityRefreshState } from "./availabilityRefresh.ts";
 
 export type AvailabilityInterval = {
@@ -57,6 +58,13 @@ export type AvailabilityRecord = {
   received_at: string;
   venue_id: string;
   payload: AvailabilityPayload;
+  refresh_attempt_id?: string | null;
+  refresh_started_at?: string | null;
+};
+
+export type AvailabilitySaveResult = AvailabilityRecord & {
+  accepted: boolean;
+  superseded: boolean;
 };
 
 const DATA_DIR = process.env.AVAILABILITY_DATA_DIR
@@ -104,18 +112,32 @@ async function ensureDataDir() {
   await fs.mkdir(DATA_DIR, { recursive: true });
 }
 
-export async function saveAvailability(venueId: string, payload: AvailabilityPayload) {
-  if (USE_SUPABASE) return saveAvailabilityToSupabase(venueId, payload);
+export async function saveAvailability(
+  venueId: string,
+  payload: AvailabilityPayload,
+  attempt: AvailabilityRefreshAttempt | null = null
+) {
+  if (USE_SUPABASE) return saveAvailabilityToSupabase(venueId, payload, attempt);
 
   assertWritableLocalCache();
   await ensureDataDir();
+  const existing = attempt ? await getAvailabilityRecord(venueId) : null;
+  if (
+    existing?.refresh_started_at &&
+    Date.parse(existing.refresh_started_at) > Date.parse(attempt?.started_at || "")
+  ) {
+    return { ...existing, accepted: false, superseded: true } satisfies AvailabilitySaveResult;
+  }
+
   const record = {
     received_at: new Date().toISOString(),
     venue_id: safeVenueId(venueId),
     payload,
+    refresh_attempt_id: attempt?.attempt_id || null,
+    refresh_started_at: attempt?.started_at || null,
   } satisfies AvailabilityRecord;
   await fs.writeFile(venuePath(venueId), `${JSON.stringify(record, null, 2)}\n`, "utf8");
-  return record;
+  return { ...record, accepted: true, superseded: false } satisfies AvailabilitySaveResult;
 }
 
 export async function getAvailabilityRecord(venueId: string) {
@@ -213,6 +235,10 @@ function supabaseRefreshStateEndpoint(search = "") {
   return `${SUPABASE_URL}/rest/v1/${encodeURIComponent(SUPABASE_REFRESH_STATE_TABLE)}${search}`;
 }
 
+function supabaseRpcEndpoint(functionName: string) {
+  return `${SUPABASE_URL}/rest/v1/rpc/${encodeURIComponent(functionName)}`;
+}
+
 function supabaseHeaders(extra: Record<string, string> = {}) {
   const headers: Record<string, string> = {
     apikey: SUPABASE_SECRET_KEY,
@@ -241,8 +267,26 @@ function isMissingRefreshStateTable(error: unknown) {
   );
 }
 
-async function saveAvailabilityToSupabase(venueId: string, payload: AvailabilityPayload) {
-  const record = {
+function isMissingConcurrencyFunction(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return message.includes("PGRST202");
+}
+
+async function saveAvailabilityToSupabase(
+  venueId: string,
+  payload: AvailabilityPayload,
+  attempt: AvailabilityRefreshAttempt | null
+) {
+  if (attempt) {
+    try {
+      return await saveGuardedAvailabilityToSupabase(venueId, payload, attempt);
+    } catch (error) {
+      if (!isMissingConcurrencyFunction(error)) throw error;
+      return saveAvailabilityToSupabase(venueId, payload, null);
+    }
+  }
+
+  const legacyRecord = {
     received_at: new Date().toISOString(),
     venue_id: safeVenueId(venueId),
     payload,
@@ -253,10 +297,43 @@ async function saveAvailabilityToSupabase(venueId: string, payload: Availability
       "content-type": "application/json",
       prefer: "resolution=merge-duplicates,return=representation",
     }),
-    body: JSON.stringify(record),
+    body: JSON.stringify(legacyRecord),
   });
   const rows = await readSupabaseJson(response);
-  return rows?.[0] || record;
+  return {
+    ...(rows?.[0] || legacyRecord),
+    accepted: true,
+    superseded: false,
+  } satisfies AvailabilitySaveResult;
+}
+
+async function saveGuardedAvailabilityToSupabase(
+  venueId: string,
+  payload: AvailabilityPayload,
+  attempt: AvailabilityRefreshAttempt
+) {
+  const response = await fetch(supabaseRpcEndpoint("commit_availability_refresh"), {
+    method: "POST",
+    headers: supabaseHeaders({ "content-type": "application/json" }),
+    body: JSON.stringify({
+      p_venue_id: safeVenueId(venueId),
+      p_payload: payload,
+      p_refresh_attempt_id: attempt.attempt_id,
+      p_refresh_started_at: attempt.started_at,
+    }),
+  });
+  const rows = await readSupabaseJson(response);
+  const row = rows?.[0];
+  if (!row) throw new Error("Supabase guarded cache write returned no record.");
+  return {
+    venue_id: row.venue_id,
+    received_at: row.received_at,
+    payload: row.payload,
+    refresh_attempt_id: row.refresh_attempt_id,
+    refresh_started_at: row.refresh_started_at,
+    accepted: Boolean(row.accepted),
+    superseded: !row.accepted,
+  } satisfies AvailabilitySaveResult;
 }
 
 async function getAvailabilityRecordFromSupabase(venueId: string) {
