@@ -26,9 +26,24 @@ export async function POST(request: Request, { params }: RefreshStatusRouteConte
       return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_CORS_HEADERS });
     }
 
-    const report = parseAvailabilityRefreshReport(await request.json());
     const attempt = parseAvailabilityRefreshAttempt(request.headers);
+    if (!attempt) {
+      return Response.json(
+        { error: "Refresh attempt required. Reload the extension and try again." },
+        { status: 409, headers: API_CORS_HEADERS }
+      );
+    }
+    const report = parseAvailabilityRefreshReport(await request.json());
     const result = await saveAvailabilityRefreshState(normalizedVenueId, report, attempt);
+    console.info(
+      JSON.stringify({
+        event: "availability_refresh_status",
+        venue_id: result.state.venue_id,
+        status: report.status,
+        persisted: result.persisted,
+        accepted: result.accepted !== false,
+      })
+    );
     return Response.json(
       {
         ok: true,

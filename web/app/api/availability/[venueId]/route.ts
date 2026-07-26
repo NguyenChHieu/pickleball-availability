@@ -39,6 +39,14 @@ export async function POST(request: Request, { params }: AvailabilityRouteContex
     }
     const payload = await readAvailabilityPayload(request, normalizedVenueId);
     const record = await saveAvailability(normalizedVenueId, payload, attempt);
+    console.info(
+      JSON.stringify({
+        event: "availability_sync",
+        venue_id: record.venue_id,
+        accepted: record.accepted,
+        superseded: record.superseded,
+      })
+    );
     return Response.json(
       {
         ok: true,
