@@ -335,6 +335,7 @@ test("planner venue matches use normal ProPickle open intervals without a deep s
   });
 
   const view = await getPlannerEventView(event.eventToken);
+  assert.equal(view?.venues[0].isStale, false);
   assert.equal(view?.recommendations.length, 1);
   assert.equal(view?.recommendations[0].startMinute, 19 * 60);
   assert.equal(view?.recommendations[0].endMinute, 21 * 60);

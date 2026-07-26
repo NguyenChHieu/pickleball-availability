@@ -1,6 +1,6 @@
 import { HomeLanding } from "@/components/HomeLanding";
 import { venues } from "@/lib/venues";
-import { getAllPayloads } from "@/server/availabilityStore";
+import { getAllAvailabilityRecords } from "@/server/availabilityStore";
 import { STALE_THRESHOLD_MINUTES } from "@/server/publicAvailability";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +24,11 @@ function ageLabel(value: string) {
 
 async function venueFreshness() {
   try {
-    const payloads = await getAllPayloads();
+    const records = await getAllAvailabilityRecords();
     return venues.map((venue) => {
-      const payload = payloads[venue.id];
-      const readAt = payload?.exported_at || "";
+      const record = records[venue.id];
+      const payload = record?.payload;
+      const readAt = record?.received_at || payload?.exported_at || "";
       const readTime = new Date(readAt).getTime();
       const hasReadTime = Number.isFinite(readTime);
       const dayCount = Array.isArray(payload?.days) ? payload.days.length : 0;

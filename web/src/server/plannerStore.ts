@@ -855,7 +855,7 @@ function venueAvailabilityForPlanner(
   const payload = record?.payload || null;
   const venueName = payload?.venue_name || definition?.name || venueId;
   const fallbackUrl = payload ? bookingUrlForDay({}, payload as Record<string, unknown>) : definition?.fallbackUrl || "";
-  const lastReadAt = payload?.exported_at || record?.received_at || null;
+  const lastReadAt = record?.received_at || payload?.exported_at || null;
   const lastSuccessfulAt = record?.received_at || payload?.exported_at || null;
   const refreshHealth = buildPublicRefreshHealth(
     refreshState,

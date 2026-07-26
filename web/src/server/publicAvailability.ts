@@ -121,7 +121,7 @@ export function buildPublicAvailabilityResponse(
 
   const payload = record.payload;
   const metadata = metadataForVenue(venueId, payload);
-  const lastReadAt = payload.exported_at || record.received_at || null;
+  const lastReadAt = record.received_at || payload.exported_at || null;
   const lastSuccessfulAt = record.received_at || payload.exported_at || null;
   const payloadDays = payload.days || [];
   const days = payloadDays.map((day) => normalizeDay(day, payload));

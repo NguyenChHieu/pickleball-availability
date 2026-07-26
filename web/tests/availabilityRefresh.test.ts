@@ -133,6 +133,8 @@ test("warning comparison uses the server-received cache time", () => {
   );
 
   assert.equal(response.status, 200);
+  assert.equal(response.body.lastReadAt, "2026-07-24T10:09:00.000Z");
+  assert.equal(response.body.isStale, false);
   assert.equal(response.body.refreshHealth.hasNewerIssue, false);
 });
 

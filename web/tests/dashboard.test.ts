@@ -91,6 +91,8 @@ test("dashboard compares refresh attempts with the server-received cache time", 
   );
 
   assert.equal(result.refreshMessage, "");
+  assert.equal(result.state, "fresh");
+  assert.equal(result.freshnessLabel, "Fresh 1m ago");
 });
 
 test("dashboard venue preserves the weekday from yearless provider labels", () => {
