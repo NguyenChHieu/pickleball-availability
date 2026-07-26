@@ -147,6 +147,23 @@ test("refresh status keeps sync failures above cache reuse", () => {
   assert.equal(context.refreshReportStatus({ status: "setup_required" }), "setup_required");
 });
 
+test("refresh job summaries distinguish local reads from web sync failures", () => {
+  const { context } = loadBackground();
+
+  assert.deepEqual(
+    { ...context.refreshJobSummary({ results: [{ status: "success", syncOk: false }] }) },
+    { failed: 0, setupRequired: 0, succeeded: 1, syncFailed: 1 }
+  );
+  assert.deepEqual(
+    {
+      ...context.refreshJobSummary({
+        results: [{ status: "success", syncOk: false, syncSkipped: true }],
+      }),
+    },
+    { failed: 0, setupRequired: 0, succeeded: 1, syncFailed: 0 }
+  );
+});
+
 test("server-issued refresh attempts are attached to guarded cache writes", async () => {
   const requests = [];
   const { context, storage } = loadBackground(async (url, options) => {
@@ -228,39 +245,41 @@ test("refresh status reporting is best effort and does not throw", async () => {
     syncToken: "test-token",
   };
 
-  const result = await context.reportRefreshStatus("propickle", {
+  const skipped = await context.reportRefreshStatus("propickle", {
     status: "failed",
     duration_ms: 1234,
     source: "selected",
   });
 
-  assert.equal(result.ok, true);
-  assert.equal(result.persisted, false);
+  assert.equal(skipped.ok, false);
+  assert.equal(skipped.skipped, true);
+  assert.equal(requests.length, 0);
+
+  const attempted = await context.reportRefreshStatus(
+    "propickle",
+    { status: "failed", duration_ms: 1234, source: "selected" },
+    { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+  );
+  assert.equal(attempted.ok, true);
+  assert.equal(attempted.persisted, false);
   assert.match(requests[0].url, /api\/availability\/propickle\/refresh-status$/);
   assert.deepEqual(JSON.parse(requests[0].options.body), {
     status: "failed",
     duration_ms: 1234,
     source: "selected",
   });
-
-  const attempted = await context.reportRefreshStatus(
-    "propickle",
-    { status: "success", duration_ms: 1500, source: "selected" },
-    { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
-  );
-  assert.equal(attempted.ok, true);
-  assert.equal(requests[1].options.headers["x-refresh-attempt-id"], "attempt_12345678");
-  assert.equal(requests[1].options.headers["x-refresh-started-at"], "2026-07-24T10:00:00.000Z");
+  assert.equal(requests[0].options.headers["x-refresh-attempt-id"], "attempt_12345678");
+  assert.equal(requests[0].options.headers["x-refresh-started-at"], "2026-07-24T10:00:00.000Z");
 
   const failed = loadBackground(async () => {
     throw new Error("offline");
   });
   failed.storage.backendSyncConfig = storage.backendSyncConfig;
-  const failedResult = await failed.context.reportRefreshStatus("propickle", {
-    status: "failed",
-    duration_ms: 1234,
-    source: "selected",
-  });
+  const failedResult = await failed.context.reportRefreshStatus(
+    "propickle",
+    { status: "failed", duration_ms: 1234, source: "selected" },
+    { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+  );
   assert.equal(failedResult.ok, false);
 });
 
@@ -281,11 +300,68 @@ test("payload sync times out without discarding the locally saved result", async
   };
   context.setTimeout = (callback, delay) => setTimeout(callback, Math.min(delay, 5));
 
-  const result = await context.syncVenuePayload("propickle", { venue_id: "propickle", days: [] });
+  const result = await context.syncVenuePayload(
+    "propickle",
+    { venue_id: "propickle", days: [] },
+    { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+  );
 
   assert.equal(result.ok, false);
   assert.match(result.error, /Timed out while syncing/);
   assert.match(result.error, /still available locally/);
+});
+
+test("payload sync stays local when a secure refresh attempt could not be issued", async () => {
+  let fetchCount = 0;
+  const { context, storage } = loadBackground(async () => {
+    fetchCount += 1;
+    return new Response(JSON.stringify({ ok: true }), { status: 200 });
+  });
+  storage.backendSyncConfig = {
+    enabled: true,
+    backendUrl: "https://pickleball-availability.vercel.app",
+    syncToken: "test-token",
+  };
+
+  const result = await context.syncVenuePayload("propickle", {
+    venue_id: "propickle",
+    days: [{ date: "2026-07-24" }],
+  });
+
+  assert.equal(fetchCount, 0);
+  assert.equal(result.ok, false);
+  assert.match(result.error, /secure web sync/i);
+  assert.match(result.error, /saved in the extension/i);
+  assert.deepEqual(storage["backendSyncStatus:propickle"], result);
+});
+
+test("cache-first reuse belongs to the backend that received the payload", async () => {
+  const { context, storage } = loadBackground();
+  const venue = { id: "propickle", cacheFirstTtlMs: 5 * 60 * 1000 };
+  const payload = {
+    venue_id: "propickle",
+    exported_at: new Date().toISOString(),
+    days: [{ date: "2026-07-24" }],
+  };
+  context.AvailabilityRegistry.venuePayloadKey = (venueId) => `venuePayload:${venueId}`;
+  storage["venuePayload:propickle"] = payload;
+  storage.backendSyncConfig = {
+    enabled: true,
+    backendUrl: "https://preview.example.vercel.app/",
+  };
+  storage["backendSyncStatus:propickle"] = {
+    ok: true,
+    backend_url: "https://production.example.vercel.app",
+  };
+
+  assert.equal(await context.cacheFirstPayload(venue, "cache-first"), null);
+
+  storage["backendSyncStatus:propickle"].backend_url = "https://preview.example.vercel.app";
+  assert.equal(await context.cacheFirstPayload(venue, "cache-first"), payload);
+
+  storage.backendSyncConfig.enabled = false;
+  delete storage["backendSyncStatus:propickle"];
+  assert.equal(await context.cacheFirstPayload(venue, "cache-first"), payload);
 });
 
 test("simultaneous refresh requests start only one job", async () => {

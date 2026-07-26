@@ -170,6 +170,16 @@ async function cacheFirstPayload(venue, scanMode) {
   const payload = await storedVenuePayload(venue.id);
   if (!payload) return null;
 
+  const config = await storedBackendSyncConfig();
+  if (config.enabled && config.backendUrl) {
+    const key = syncStatusKey(venue.id);
+    const stored = await chrome.storage.local.get(key);
+    const syncStatus = stored[key];
+    if (!syncStatus?.ok || normalizeStoredBackendUrl(syncStatus.backend_url) !== config.backendUrl) {
+      return null;
+    }
+  }
+
   return payloadAgeMs(payload) <= Number(venue.cacheFirstTtlMs) ? payload : null;
 }
 
@@ -205,7 +215,8 @@ function refreshAttemptEndpoint(backendUrl, venueId) {
 }
 
 function normalizeStoredBackendUrl(backendUrl) {
-  return backendUrl === OLD_LOCAL_BACKEND_URL ? DEFAULT_BACKEND_URL : backendUrl;
+  const normalized = backendUrl === OLD_LOCAL_BACKEND_URL ? DEFAULT_BACKEND_URL : backendUrl;
+  return String(normalized || "").replace(/\/+$/, "");
 }
 
 async function storedBackendSyncConfig() {
@@ -253,6 +264,18 @@ async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
     };
   }
 
+  if (!refreshAttempt?.attempt_id || !refreshAttempt?.started_at) {
+    const status = {
+      ok: false,
+      backend_url: backendUrl,
+      failed_at: new Date().toISOString(),
+      error:
+        "Could not start a secure web sync. Availability was saved in the extension; check the App URL and sync token, then try again.",
+    };
+    await chrome.storage.local.set({ [syncStatusKey(venueId)]: status });
+    return status;
+  }
+
   const endpoint = availabilityEndpoint(backendUrl, venueId);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), SYNC_PAYLOAD_REQUEST_TIMEOUT_MS);
@@ -280,6 +303,7 @@ async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
     const body = await response.json().catch(() => ({}));
     const status = {
       ok: true,
+      backend_url: backendUrl,
       accepted: body.accepted !== false,
       superseded: body.superseded === true,
       reason: body.superseded ? "A newer shared result was already saved." : "",
@@ -290,6 +314,7 @@ async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
   } catch (error) {
     const status = {
       ok: false,
+      backend_url: backendUrl,
       failed_at: new Date().toISOString(),
       error: syncErrorMessage(error, endpoint),
     };
@@ -303,6 +328,9 @@ async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
 async function reportRefreshStatus(venueId, report, refreshAttempt = null) {
   const config = await storedBackendSyncConfig();
   if (!config.enabled || !config.backendUrl || !venueId) return { ok: false, skipped: true };
+  if (!refreshAttempt?.attempt_id || !refreshAttempt?.started_at) {
+    return { ok: false, skipped: true, reason: "No ordered refresh attempt was issued." };
+  }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REFRESH_STATUS_REPORT_TIMEOUT_MS);
@@ -818,7 +846,10 @@ function refreshJobSummary(job) {
   const failed = results.filter((result) => result.status === "failed").length;
   const setupRequired = results.filter((result) => result.status === "setup_required").length;
   const succeeded = results.filter((result) => result.status === "success").length;
-  return { failed, setupRequired, succeeded };
+  const syncFailed = results.filter(
+    (result) => result.status === "success" && result.syncOk === false && !result.syncSkipped
+  ).length;
+  return { failed, setupRequired, succeeded, syncFailed };
 }
 
 async function saveRefreshJob(job) {
@@ -952,6 +983,7 @@ async function refreshVenueForJob(venueId, scanMode, source) {
         status: "success",
         dayCount: Array.isArray(result.payload?.days) ? result.payload.days.length : 0,
         syncOk: Boolean(result.syncStatus?.ok),
+        syncSkipped: Boolean(result.syncStatus?.skipped),
         syncMessage: result.syncStatus?.error || result.syncStatus?.reason || "",
         cacheHit: Boolean(result.cacheHit || result.syncStatus?.superseded),
         superseded: Boolean(result.syncStatus?.superseded),
@@ -1050,7 +1082,10 @@ async function runRefreshJob(initialJob) {
 
   const summary = refreshJobSummary({ results });
   const finishedJob = await updateRefreshJob(job, {
-    status: summary.failed || summary.setupRequired ? "completed_with_issues" : "completed",
+    status:
+      summary.failed || summary.setupRequired || summary.syncFailed
+        ? "completed_with_issues"
+        : "completed",
     completed: results.length,
     currentVenueId: "",
     currentVenueName: "",

@@ -542,6 +542,9 @@ function jobStatusMessage(job) {
   const failed = results.filter((result) => result.status === "failed").length;
   const setupRequired = results.filter((result) => result.status === "setup_required").length;
   const succeeded = results.filter((result) => result.status === "success").length;
+  const syncFailed = results.filter(
+    (result) => result.status === "success" && result.syncOk === false && !result.syncSkipped
+  ).length;
   const cacheHits = results.filter((result) => result.status === "success" && result.cacheHit).length;
   const timings = results
     .map((result) => {
@@ -551,16 +554,25 @@ function jobStatusMessage(job) {
     .filter(Boolean)
     .join(", ");
   if (job.status === "failed") return `${prefix} failed. ${job.error || "Start it again when you are ready."}`;
-  if (failed || setupRequired) {
+  if (failed || setupRequired || syncFailed) {
+    const issueCounts = [`${succeeded} read`];
+    if (syncFailed) issueCounts.push(`${syncFailed} web sync failed`);
+    if (failed) issueCounts.push(`${failed} failed`);
+    if (setupRequired) issueCounts.push(`${setupRequired} need setup`);
     const details = results
-      .filter((result) => result.status === "failed" || result.status === "setup_required")
+      .filter(
+        (result) =>
+          result.status === "failed" ||
+          result.status === "setup_required" ||
+          (result.status === "success" && result.syncOk === false && !result.syncSkipped)
+      )
       .map((result) => {
         const reason = result.message || result.syncMessage || "No details available.";
         const duration = formatDuration(result.durationMs);
         return `${result.venueName || result.venueId}: ${reason}${duration ? ` (${duration})` : ""}`;
       })
       .join("\n");
-    return `${prefix} finished with issues: ${succeeded} succeeded, ${failed} failed, ${setupRequired} need setup.${
+    return `${prefix} finished with issues: ${issueCounts.join(", ")}.${
       details ? `\n${details}` : ""
     }${timings ? `\nTimings: ${timings}` : ""}`;
   }
@@ -575,6 +587,9 @@ function jobCounts(job) {
     failed: results.filter((result) => result.status === "failed").length,
     setupRequired: results.filter((result) => result.status === "setup_required").length,
     succeeded: results.filter((result) => result.status === "success").length,
+    syncFailed: results.filter(
+      (result) => result.status === "success" && result.syncOk === false && !result.syncSkipped
+    ).length,
     cacheHits: results.filter((result) => result.status === "success" && result.cacheHit).length,
   };
 }
@@ -621,7 +636,8 @@ function historyMeta(job) {
   const total = Number(job.total || 0);
   const parallelLimit = Number(job.parallelLimit || 1);
   const pieces = [];
-  if (counts.succeeded) pieces.push(`${counts.succeeded}/${total || counts.succeeded} ok`);
+  if (counts.succeeded) pieces.push(`${counts.succeeded}/${total || counts.succeeded} read`);
+  if (counts.syncFailed) pieces.push(`${counts.syncFailed} sync failed`);
   if (counts.failed) pieces.push(`${counts.failed} failed`);
   if (counts.setupRequired) pieces.push(`${counts.setupRequired} setup`);
   if (counts.cacheHits) pieces.push(`${counts.cacheHits} cached`);
