@@ -1,8 +1,13 @@
 import { AvailabilityPage } from "@/components/AvailabilityPage";
 import { fetchPublicAvailability } from "@/lib/publicAvailability";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  referrer: "no-referrer",
+  robots: { index: false, follow: false, nocache: true },
+};
 
 type AvailabilityRouteProps = Readonly<{
   params: Promise<{

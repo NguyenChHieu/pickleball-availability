@@ -6,6 +6,12 @@ export const API_CORS_HEADERS = Object.freeze({
   "access-control-max-age": "86400",
 });
 
+export const NO_STORE_HEADERS = Object.freeze({
+  "cache-control": "private, no-store, max-age=0",
+  "referrer-policy": "no-referrer",
+  "x-robots-tag": "noindex, nofollow, noarchive",
+});
+
 function isHostedRuntime() {
   return Boolean(process.env.VERCEL || process.env.RENDER);
 }

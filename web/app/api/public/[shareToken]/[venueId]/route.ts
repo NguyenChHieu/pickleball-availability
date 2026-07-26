@@ -1,6 +1,13 @@
+import { getVenueDefinition } from "@/lib/venues";
 import { getAvailabilityRecord, getAvailabilityRefreshState } from "@/server/availabilityStore";
 import { buildPublicAvailabilityResponse } from "@/server/publicAvailability";
-import { API_CORS_HEADERS, apiPreflight, notFoundJson, validShareToken } from "@/server/security";
+import {
+  API_CORS_HEADERS,
+  NO_STORE_HEADERS,
+  apiPreflight,
+  notFoundJson,
+  validShareToken,
+} from "@/server/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,10 +23,14 @@ export function OPTIONS() {
   return apiPreflight();
 }
 
+const RESPONSE_HEADERS = Object.freeze({ ...API_CORS_HEADERS, ...NO_STORE_HEADERS });
+
 export async function GET(_request: Request, { params }: PublicAvailabilityRouteContext) {
   try {
     const { shareToken, venueId } = await params;
-    if (!validShareToken(shareToken)) return notFoundJson(API_CORS_HEADERS);
+    if (!validShareToken(shareToken) || !getVenueDefinition(venueId)) {
+      return notFoundJson(RESPONSE_HEADERS);
+    }
 
     const [record, refreshState] = await Promise.all([
       getAvailabilityRecord(venueId),
@@ -28,7 +39,7 @@ export async function GET(_request: Request, { params }: PublicAvailabilityRoute
     const result = buildPublicAvailabilityResponse(record, { venueId, refreshState });
     return Response.json(result.body, {
       status: result.status,
-      headers: API_CORS_HEADERS,
+      headers: RESPONSE_HEADERS,
     });
   } catch {
     return Response.json(
@@ -36,7 +47,7 @@ export async function GET(_request: Request, { params }: PublicAvailabilityRoute
         state: "error",
         message: "We could not load this share page.",
       },
-      { status: 500, headers: API_CORS_HEADERS }
+      { status: 500, headers: RESPONSE_HEADERS }
     );
   }
 }
