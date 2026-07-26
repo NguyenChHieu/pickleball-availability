@@ -13,13 +13,15 @@ test("refresh attempts use a server timestamp and bounded opaque id", () => {
 });
 
 test("refresh attempt headers are optional but must be complete", () => {
+  const now = Date.parse("2026-07-24T10:10:00.000Z");
   assert.equal(parseAvailabilityRefreshAttempt(new Headers()), null);
   assert.deepEqual(
     parseAvailabilityRefreshAttempt(
       new Headers({
         "x-refresh-attempt-id": "attempt_12345678",
         "x-refresh-started-at": "2026-07-24T10:00:00.000Z",
-      })
+      }),
+      now
     ),
     {
       attempt_id: "attempt_12345678",
@@ -27,7 +29,11 @@ test("refresh attempt headers are optional but must be complete", () => {
     }
   );
   assert.throws(
-    () => parseAvailabilityRefreshAttempt(new Headers({ "x-refresh-attempt-id": "attempt_12345678" })),
+    () =>
+      parseAvailabilityRefreshAttempt(
+        new Headers({ "x-refresh-attempt-id": "attempt_12345678" }),
+        now
+      ),
     /start time/i
   );
   assert.throws(
@@ -36,8 +42,31 @@ test("refresh attempt headers are optional but must be complete", () => {
         new Headers({
           "x-refresh-attempt-id": "bad id",
           "x-refresh-started-at": "2026-07-24T10:00:00.000Z",
-        })
+        }),
+        now
       ),
     /attempt id/i
+  );
+});
+
+test("refresh attempt headers reject expired and future timestamps", () => {
+  const now = Date.parse("2026-07-24T11:40:00.000Z");
+  const headers = (startedAt: string) =>
+    new Headers({
+      "x-refresh-attempt-id": "attempt_12345678",
+      "x-refresh-started-at": startedAt,
+    });
+
+  assert.throws(
+    () => parseAvailabilityRefreshAttempt(headers("2026-07-24T10:09:59.000Z"), now),
+    /expired/i
+  );
+  assert.throws(
+    () => parseAvailabilityRefreshAttempt(headers("2026-07-24T11:41:01.000Z"), now),
+    /future/i
+  );
+  assert.equal(
+    parseAvailabilityRefreshAttempt(headers("2026-07-24T10:10:00.000Z"), now)?.started_at,
+    "2026-07-24T10:10:00.000Z"
   );
 });

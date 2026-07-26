@@ -136,6 +136,29 @@ test("warning comparison uses the server-received cache time", () => {
   assert.equal(response.body.refreshHealth.hasNewerIssue, false);
 });
 
+test("warning ordering uses refresh starts even when an older success finishes later", () => {
+  const response = buildPublicAvailabilityResponse(
+    {
+      venue_id: "propickle",
+      received_at: "2026-07-24T10:10:00.000Z",
+      refresh_started_at: "2026-07-24T09:50:00.000Z",
+      payload: {
+        venue_id: "propickle",
+        exported_at: "2026-07-24T10:09:00.000Z",
+        days: [{ date: "2026-07-25", open_intervals: [] }],
+      },
+    },
+    {
+      venueId: "propickle",
+      now: "2026-07-24T10:12:00.000Z",
+      refreshState: refreshState({ attempted_at: "2026-07-24T10:00:00.000Z" }),
+    }
+  );
+
+  assert.equal(response.status, 200);
+  assert.equal(response.body.refreshHealth.hasNewerIssue, true);
+});
+
 test("public availability exposes safe health without internal duration or source", () => {
   const response = buildPublicAvailabilityResponse(
     {
@@ -152,7 +175,11 @@ test("public availability exposes safe health without internal duration or sourc
     {
       venueId: "propickle",
       now: "2026-07-24T10:10:00.000Z",
-      refreshState: refreshState({ source: "deep", duration_ms: 98765 }),
+      refreshState: refreshState({
+        source: "deep",
+        duration_ms: 98765,
+        refresh_attempt_id: "refresh_status_internal_123",
+      }),
     }
   );
 
@@ -160,6 +187,6 @@ test("public availability exposes safe health without internal duration or sourc
   assert.match(serialized, /refreshHealth/);
   assert.doesNotMatch(
     serialized,
-    /duration_ms|durationMs|source|deep|refresh_attempt_id|refresh_started_at|attempt_internal/
+    /duration_ms|durationMs|source|deep|refresh_attempt_id|refresh_started_at|attempt_internal|refresh_status_internal/
   );
 });

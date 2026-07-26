@@ -125,7 +125,12 @@ export function buildPublicAvailabilityResponse(
   const lastSuccessfulAt = record.received_at || payload.exported_at || null;
   const payloadDays = payload.days || [];
   const days = payloadDays.map((day) => normalizeDay(day, payload));
-  const refreshHealth = buildPublicRefreshHealth(refreshState, lastSuccessfulAt, now);
+  const refreshHealth = buildPublicRefreshHealth(
+    refreshState,
+    lastSuccessfulAt,
+    now,
+    record.refresh_started_at || lastSuccessfulAt
+  );
 
   return {
     status: 200,

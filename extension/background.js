@@ -35,11 +35,14 @@ const READER_WINDOW_WIDTH = 760;
 const READER_WINDOW_HEIGHT = 900;
 const REFRESH_STATUS_REPORT_TIMEOUT_MS = 2500;
 const REFRESH_ATTEMPT_REQUEST_TIMEOUT_MS = 5000;
+const SYNC_PAYLOAD_REQUEST_TIMEOUT_MS = 15000;
 const REFRESH_SOURCES = new Set(["selected", "stale", "all", "deep", "current_page"]);
 
 const pendingRefreshAttempts = new Set();
 const pendingRefreshTimers = new Map();
 let refreshJobPromise = null;
+let refreshJobStartPromise = null;
+let refreshJobStarting = false;
 let activeRefreshJob = null;
 let refreshReaderWindow = null;
 let refreshReaderWindowPromise = null;
@@ -148,6 +151,14 @@ async function storedVenuePayload(venueId) {
   return stored[key] || null;
 }
 
+function payloadForSync(payload) {
+  if (!payload || !Array.isArray(payload.days)) return payload;
+  return {
+    ...payload,
+    days: payload.days.map(({ raw_slots: _rawSlots, probe_debug: _probeDebug, ...day }) => day),
+  };
+}
+
 function payloadAgeMs(payload) {
   const exportedAt = new Date(payload?.exported_at || "").getTime();
   return Number.isNaN(exportedAt) ? Infinity : Date.now() - exportedAt;
@@ -243,6 +254,8 @@ async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
   }
 
   const endpoint = availabilityEndpoint(backendUrl, venueId);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), SYNC_PAYLOAD_REQUEST_TIMEOUT_MS);
 
   try {
     const headers = { "content-type": "application/json" };
@@ -255,7 +268,8 @@ async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
     const response = await fetch(endpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payloadForSync(payload)),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -281,10 +295,12 @@ async function syncVenuePayload(venueId, payload, refreshAttempt = null) {
     };
     await chrome.storage.local.set({ [syncStatusKey(venueId)]: status });
     return status;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
-async function reportRefreshStatus(venueId, report) {
+async function reportRefreshStatus(venueId, report, refreshAttempt = null) {
   const config = await storedBackendSyncConfig();
   if (!config.enabled || !config.backendUrl || !venueId) return { ok: false, skipped: true };
 
@@ -293,6 +309,10 @@ async function reportRefreshStatus(venueId, report) {
   try {
     const headers = { "content-type": "application/json" };
     if (config.syncToken) headers["x-sync-token"] = config.syncToken;
+    if (refreshAttempt?.attempt_id && refreshAttempt?.started_at) {
+      headers["x-refresh-attempt-id"] = refreshAttempt.attempt_id;
+      headers["x-refresh-started-at"] = refreshAttempt.started_at;
+    }
     const response = await fetch(refreshStatusEndpoint(config.backendUrl, venueId), {
       method: "POST",
       headers,
@@ -317,6 +337,9 @@ function refreshStatusForSync(syncStatus) {
 
 function syncErrorMessage(error, endpoint) {
   const message = error?.message || String(error);
+  if (error?.name === "AbortError") {
+    return `Timed out while syncing to ${endpoint}. The saved extension result is still available locally.`;
+  }
   if (message === "Failed to fetch" || error?.name === "TypeError") {
     return `Failed to reach ${endpoint}. Check the App URL, extension permission, and web app health.`;
   }
@@ -604,11 +627,15 @@ async function continuePendingRefresh(tabId, _reason) {
   if (!session) return;
 
   if (Date.now() > session.expiresAt) {
-    await reportRefreshStatus(session.venueId, {
-      status: "failed",
-      duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Date.now() - Number(session.startedAt || Date.now()))),
-      source: normalizeRefreshSource(session.source, session.scanMode),
-    });
+    await reportRefreshStatus(
+      session.venueId,
+      {
+        status: "failed",
+        duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Date.now() - Number(session.startedAt || Date.now()))),
+        source: normalizeRefreshSource(session.source, session.scanMode),
+      },
+      session.refreshAttempt
+    );
     await clearPendingRefresh(tabId);
     return;
   }
@@ -627,11 +654,15 @@ async function continuePendingRefresh(tabId, _reason) {
     await wait(300);
     const payload = await readTab(Number(tabId), readVenue);
     const syncStatus = await saveVenuePayload(venue.id, payload, session.refreshAttempt);
-    await reportRefreshStatus(venue.id, {
-      status: refreshStatusForSync(syncStatus),
-      duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Date.now() - Number(session.startedAt || Date.now()))),
-      source: normalizeRefreshSource(session.source, session.scanMode),
-    });
+    await reportRefreshStatus(
+      venue.id,
+      {
+        status: refreshStatusForSync(syncStatus),
+        duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Date.now() - Number(session.startedAt || Date.now()))),
+        source: normalizeRefreshSource(session.source, session.scanMode),
+      },
+      session.refreshAttempt
+    );
     await clearPendingRefresh(tabId);
     if (session.closeWhenDone) await closeTab(Number(tabId));
     return { venue, payload, syncStatus };
@@ -650,11 +681,15 @@ async function continuePendingRefresh(tabId, _reason) {
     }
 
     await clearPendingRefresh(tabId);
-    await reportRefreshStatus(session.venueId, {
-      status: "failed",
-      duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Date.now() - Number(session.startedAt || Date.now()))),
-      source: normalizeRefreshSource(session.source, session.scanMode),
-    });
+    await reportRefreshStatus(
+      session.venueId,
+      {
+        status: "failed",
+        duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Date.now() - Number(session.startedAt || Date.now()))),
+        source: normalizeRefreshSource(session.source, session.scanMode),
+      },
+      session.refreshAttempt
+    );
     console.warn(error);
     return null;
   } finally {
@@ -689,7 +724,7 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
     const payload = await readTab(tab.id, readVenue);
     const syncStatus = await saveVenuePayload(venue.id, payload, refreshAttempt);
     if (closeWhenDone) await closeTab(tab.id);
-    return { venue, payload, syncStatus, manualSetupRequired: false };
+    return { venue, payload, syncStatus, manualSetupRequired: false, refreshAttempt };
   } catch (error) {
     let readError = error;
     if (!readError.manualSetupRequired && readVenue.retryActiveOnFailure && tab.id) {
@@ -703,7 +738,7 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
         const payload = await readTab(tab.id, readVenue);
         const syncStatus = await saveVenuePayload(venue.id, payload, refreshAttempt);
         if (closeWhenDone) await closeTab(tab.id);
-        return { venue, payload, syncStatus, manualSetupRequired: false };
+        return { venue, payload, syncStatus, manualSetupRequired: false, refreshAttempt };
       } catch (retryError) {
         readError = retryError.manualSetupRequired
           ? retryError
@@ -713,6 +748,7 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
 
     if (!readError.manualSetupRequired) {
       if (closeWhenDone && tab.id) await closeTab(tab.id);
+      readError.refreshAttempt = refreshAttempt;
       throw readError;
     }
 
@@ -723,6 +759,7 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
         manualSetupRequired: true,
         pendingRefresh: false,
         error: "Manual setup needed, but the booking tab is no longer available.",
+        refreshAttempt,
       };
     }
 
@@ -735,6 +772,7 @@ async function refreshVenueNow(venueId, scanMode = "fast", source = "selected") 
       manualSetupRequired: true,
       pendingRefresh: true,
       error: readError?.message || String(readError),
+      refreshAttempt,
     };
   }
 }
@@ -823,13 +861,16 @@ async function recordRefreshJob(job) {
 
 async function currentRefreshJob() {
   const job = activeRefreshJob || (await storedRefreshJob());
-  if (isActiveRefreshJob(job) && !refreshJobPromise) {
-    return saveRefreshJob({
+  if (isActiveRefreshJob(job) && !refreshJobPromise && !refreshJobStarting) {
+    const interruptedJob = await saveRefreshJob({
       ...job,
       status: "failed",
       error: "Refresh was interrupted. Start it again when you are ready.",
       updatedAt: new Date().toISOString(),
+      finishedAt: new Date().toISOString(),
     });
+    await recordRefreshJob(interruptedJob).catch((error) => console.warn(error));
+    return interruptedJob;
   }
   return job;
 }
@@ -891,8 +932,10 @@ async function refreshVenueForJob(venueId, scanMode, source) {
   const startedAt = Date.now();
   const durationMs = () => Date.now() - startedAt;
   let jobResult;
+  let refreshAttempt = null;
   try {
     const result = await refreshVenueNow(venue.id, scanMode, source);
+    refreshAttempt = result.refreshAttempt || null;
     if (result.manualSetupRequired) {
       jobResult = {
         venueId: venue.id,
@@ -916,6 +959,7 @@ async function refreshVenueForJob(venueId, scanMode, source) {
       };
     }
   } catch (error) {
+    refreshAttempt = error?.refreshAttempt || null;
     jobResult = {
       venueId: venue.id,
       venueName: venueDisplayName(venue),
@@ -925,11 +969,15 @@ async function refreshVenueForJob(venueId, scanMode, source) {
     };
   }
 
-  await reportRefreshStatus(venue.id, {
-    status: refreshReportStatus(jobResult),
-    duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Number(jobResult.durationMs || 0))),
-    source: normalizeRefreshSource(source, scanMode),
-  });
+  await reportRefreshStatus(
+    venue.id,
+    {
+      status: refreshReportStatus(jobResult),
+      duration_ms: Math.min(30 * 60 * 1000, Math.max(0, Number(jobResult.durationMs || 0))),
+      source: normalizeRefreshSource(source, scanMode),
+    },
+    refreshAttempt
+  );
   return jobResult;
 }
 
@@ -1013,30 +1061,49 @@ async function runRefreshJob(initialJob) {
   return finishedJob;
 }
 
-async function startRefreshJob(request = {}) {
+async function startRefreshJobLocked(request = {}) {
   const existingJob = await currentRefreshJob();
   if (isActiveRefreshJob(existingJob) || refreshJobPromise) return { job: existingJob, alreadyRunning: true };
 
   const job = makeRefreshJob(request);
-  await saveRefreshJob(job);
-  refreshJobPromise = runRefreshJob(job)
-    .catch(async (error) => {
-      const failedJob = await updateRefreshJob(job, {
-        status: "failed",
-        error: error?.message || String(error),
-        finishedAt: new Date().toISOString(),
+  refreshJobStarting = true;
+  try {
+    await saveRefreshJob(job);
+    refreshJobPromise = runRefreshJob(job)
+      .catch(async (error) => {
+        const failedJob = await updateRefreshJob(job, {
+          status: "failed",
+          error: error?.message || String(error),
+          finishedAt: new Date().toISOString(),
+        });
+        await recordRefreshJob(failedJob).catch((historyError) => console.warn(historyError));
+        return failedJob;
+      })
+      .finally(async () => {
+        if (job.scanMode !== "deep") {
+          await releaseRefreshReaderWindow().catch((error) => console.warn(error));
+        }
+        refreshJobPromise = null;
       });
-      await recordRefreshJob(failedJob).catch((historyError) => console.warn(historyError));
-      return failedJob;
-    })
-    .finally(async () => {
-      if (job.scanMode !== "deep") {
-        await releaseRefreshReaderWindow().catch((error) => console.warn(error));
-      }
-      refreshJobPromise = null;
-    });
+  } finally {
+    refreshJobStarting = false;
+  }
 
   return { job, alreadyRunning: false };
+}
+
+async function startRefreshJob(request = {}) {
+  if (refreshJobStartPromise) {
+    const result = await refreshJobStartPromise;
+    return { ...result, alreadyRunning: true };
+  }
+
+  refreshJobStartPromise = startRefreshJobLocked(request);
+  try {
+    return await refreshJobStartPromise;
+  } finally {
+    refreshJobStartPromise = null;
+  }
 }
 
 const fallbackVenueForTab = (tab) => ({
@@ -1057,27 +1124,36 @@ async function readActiveTab() {
   const startedAt = Date.now();
   const tab = await activeTab();
   const venue = AvailabilityRegistry.findVenueForUrl(tab.url) || fallbackVenueForTab(tab);
+  let refreshAttempt = null;
   try {
-    const refreshAttempt = venue.id ? await beginRefreshAttempt(venue.id) : null;
+    refreshAttempt = venue.id ? await beginRefreshAttempt(venue.id) : null;
     const payload = await readTab(tab.id, venue);
     const syncStatus = venue.id
       ? await saveVenuePayload(venue.id, payload, refreshAttempt)
       : { ok: false, skipped: true, reason: "Current page is not mapped to a saved venue." };
     if (venue.id) {
-      await reportRefreshStatus(venue.id, {
-        status: refreshStatusForSync(syncStatus),
-        duration_ms: Math.min(30 * 60 * 1000, Date.now() - startedAt),
-        source: "current_page",
-      });
+      await reportRefreshStatus(
+        venue.id,
+        {
+          status: refreshStatusForSync(syncStatus),
+          duration_ms: Math.min(30 * 60 * 1000, Date.now() - startedAt),
+          source: "current_page",
+        },
+        refreshAttempt
+      );
     }
     return { venue, payload, syncStatus };
   } catch (error) {
     if (venue.id) {
-      await reportRefreshStatus(venue.id, {
-        status: error.manualSetupRequired ? "setup_required" : "failed",
-        duration_ms: Math.min(30 * 60 * 1000, Date.now() - startedAt),
-        source: "current_page",
-      });
+      await reportRefreshStatus(
+        venue.id,
+        {
+          status: error.manualSetupRequired ? "setup_required" : "failed",
+          duration_ms: Math.min(30 * 60 * 1000, Date.now() - startedAt),
+          source: "current_page",
+        },
+        refreshAttempt
+      );
     }
     throw error;
   }

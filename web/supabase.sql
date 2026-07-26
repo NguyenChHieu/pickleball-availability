@@ -50,8 +50,8 @@ as $$
         payload = excluded.payload,
         refresh_attempt_id = excluded.refresh_attempt_id,
         refresh_started_at = excluded.refresh_started_at
-    where cache.refresh_started_at is null
-       or cache.refresh_started_at <= excluded.refresh_started_at
+      where cache.refresh_started_at is null
+         or cache.refresh_started_at < excluded.refresh_started_at
     returning
       cache.venue_id,
       cache.received_at,
@@ -96,6 +96,97 @@ create table if not exists public.availability_refresh_state (
 
 alter table public.availability_refresh_state enable row level security;
 revoke all on table public.availability_refresh_state from anon, authenticated;
+
+alter table public.availability_refresh_state
+  add column if not exists refresh_attempt_id text;
+
+create or replace function public.commit_availability_refresh_state(
+  p_venue_id text,
+  p_status text,
+  p_duration_ms integer,
+  p_source text,
+  p_refresh_attempt_id text,
+  p_attempted_at timestamptz
+)
+returns table (
+  accepted boolean,
+  venue_id text,
+  attempted_at timestamptz,
+  status text,
+  duration_ms integer,
+  source text,
+  refresh_attempt_id text
+)
+language sql
+security definer
+set search_path = public
+as $$
+  with committed as (
+    insert into public.availability_refresh_state as current_refresh (
+      venue_id,
+      attempted_at,
+      status,
+      duration_ms,
+      source,
+      refresh_attempt_id
+    )
+    values (
+      p_venue_id,
+      p_attempted_at,
+      p_status,
+      p_duration_ms,
+      p_source,
+      p_refresh_attempt_id
+    )
+    on conflict (venue_id) do update
+    set attempted_at = excluded.attempted_at,
+        status = excluded.status,
+        duration_ms = excluded.duration_ms,
+        source = excluded.source,
+        refresh_attempt_id = excluded.refresh_attempt_id
+    where current_refresh.attempted_at < excluded.attempted_at
+       or (
+         current_refresh.attempted_at = excluded.attempted_at
+         and current_refresh.refresh_attempt_id is not distinct from excluded.refresh_attempt_id
+       )
+    returning
+      current_refresh.venue_id,
+      current_refresh.attempted_at,
+      current_refresh.status,
+      current_refresh.duration_ms,
+      current_refresh.source,
+      current_refresh.refresh_attempt_id
+  )
+  select
+    true,
+    committed.venue_id,
+    committed.attempted_at,
+    committed.status,
+    committed.duration_ms,
+    committed.source,
+    committed.refresh_attempt_id
+  from committed
+  union all
+  select
+    false,
+    current_state.venue_id,
+    current_state.attempted_at,
+    current_state.status,
+    current_state.duration_ms,
+    current_state.source,
+    current_state.refresh_attempt_id
+  from public.availability_refresh_state as current_state
+  where current_state.venue_id = p_venue_id
+    and not exists (select 1 from committed)
+  limit 1;
+$$;
+
+revoke all on function public.commit_availability_refresh_state(
+  text, text, integer, text, text, timestamptz
+) from public, anon, authenticated;
+grant execute on function public.commit_availability_refresh_state(
+  text, text, integer, text, text, timestamptz
+) to service_role;
 
 create table if not exists public.planner_events (
   event_token text primary key,

@@ -124,7 +124,7 @@ export async function saveAvailability(
   const existing = attempt ? await getAvailabilityRecord(venueId) : null;
   if (
     existing?.refresh_started_at &&
-    Date.parse(existing.refresh_started_at) > Date.parse(attempt?.started_at || "")
+    Date.parse(existing.refresh_started_at) >= Date.parse(attempt?.started_at || "")
   ) {
     return { ...existing, accepted: false, superseded: true } satisfies AvailabilitySaveResult;
   }
@@ -182,10 +182,15 @@ export async function getAllAvailabilityRecords() {
   return records;
 }
 
-export async function saveAvailabilityRefreshState(venueId: string, report: AvailabilityRefreshReport) {
+export async function saveAvailabilityRefreshState(
+  venueId: string,
+  report: AvailabilityRefreshReport,
+  attempt: AvailabilityRefreshAttempt | null = null
+) {
   const state = {
     venue_id: safeVenueId(venueId),
-    attempted_at: new Date().toISOString(),
+    attempted_at: attempt?.started_at || new Date().toISOString(),
+    refresh_attempt_id: attempt?.attempt_id || null,
     status: report.status,
     duration_ms: report.duration_ms,
     source: report.source,
@@ -195,8 +200,21 @@ export async function saveAvailabilityRefreshState(venueId: string, report: Avai
 
   assertWritableLocalCache();
   await ensureDataDir();
+  const existing = await getAvailabilityRefreshState(venueId);
+  if (existing && !canReplaceRefreshState(existing, state)) {
+    return { state: existing, persisted: true, accepted: false };
+  }
   await fs.writeFile(refreshStatePath(venueId), `${JSON.stringify(state, null, 2)}\n`, "utf8");
-  return { state, persisted: true };
+  return { state, persisted: true, accepted: true };
+}
+
+function canReplaceRefreshState(existing: AvailabilityRefreshState, next: AvailabilityRefreshState) {
+  const existingTime = Date.parse(existing.attempted_at);
+  const nextTime = Date.parse(next.attempted_at);
+  if (!Number.isFinite(existingTime) || !Number.isFinite(nextTime)) return true;
+  if (nextTime > existingTime) return true;
+  if (nextTime < existingTime) return false;
+  return (existing.refresh_attempt_id || null) === (next.refresh_attempt_id || null);
 }
 
 export async function getAvailabilityRefreshState(venueId: string) {
@@ -267,7 +285,7 @@ function isMissingRefreshStateTable(error: unknown) {
   );
 }
 
-function isMissingConcurrencyFunction(error: unknown) {
+function isMissingRpcFunction(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || "");
   return message.includes("PGRST202");
 }
@@ -281,8 +299,8 @@ async function saveAvailabilityToSupabase(
     try {
       return await saveGuardedAvailabilityToSupabase(venueId, payload, attempt);
     } catch (error) {
-      if (!isMissingConcurrencyFunction(error)) throw error;
-      return saveAvailabilityToSupabase(venueId, payload, null);
+      if (!isMissingRpcFunction(error)) throw error;
+      throw new Error("Supabase concurrency migration is required before availability can sync.");
     }
   }
 
@@ -339,7 +357,9 @@ async function saveGuardedAvailabilityToSupabase(
 async function getAvailabilityRecordFromSupabase(venueId: string) {
   const venue = encodeURIComponent(safeVenueId(venueId));
   const response = await fetch(
-    supabaseEndpoint(`?venue_id=eq.${venue}&select=venue_id,received_at,payload&limit=1`),
+    supabaseEndpoint(
+      `?venue_id=eq.${venue}&select=venue_id,received_at,payload,refresh_attempt_id,refresh_started_at&limit=1`
+    ),
     { headers: supabaseHeaders() }
   );
   const rows = await readSupabaseJson(response);
@@ -347,9 +367,12 @@ async function getAvailabilityRecordFromSupabase(venueId: string) {
 }
 
 async function getAllAvailabilityRecordsFromSupabase() {
-  const response = await fetch(supabaseEndpoint("?select=venue_id,received_at,payload"), {
-    headers: supabaseHeaders(),
-  });
+  const response = await fetch(
+    supabaseEndpoint("?select=venue_id,received_at,payload,refresh_attempt_id,refresh_started_at"),
+    {
+      headers: supabaseHeaders(),
+    }
+  );
   const rows = await readSupabaseJson(response);
   const records: Record<string, AvailabilityRecord | null> = {};
   for (const row of rows || []) {
@@ -360,16 +383,48 @@ async function getAllAvailabilityRecordsFromSupabase() {
 
 async function saveAvailabilityRefreshStateToSupabase(state: AvailabilityRefreshState) {
   try {
+    const response = await fetch(supabaseRpcEndpoint("commit_availability_refresh_state"), {
+      method: "POST",
+      headers: supabaseHeaders({ "content-type": "application/json" }),
+      body: JSON.stringify({
+        p_venue_id: state.venue_id,
+        p_status: state.status,
+        p_duration_ms: state.duration_ms,
+        p_source: state.source,
+        p_refresh_attempt_id: state.refresh_attempt_id || null,
+        p_attempted_at: state.attempted_at,
+      }),
+    });
+    const rows = await readSupabaseJson(response);
+    const row = rows?.[0];
+    if (!row) throw new Error("Supabase guarded refresh-state write returned no record.");
+    const { accepted, ...storedState } = row;
+    return {
+      state: storedState as AvailabilityRefreshState,
+      persisted: true,
+      accepted: Boolean(accepted),
+    };
+  } catch (error) {
+    if (isMissingRefreshStateTable(error)) return { state, persisted: false };
+    if (isMissingRpcFunction(error)) return saveAvailabilityRefreshStateLegacy(state);
+    throw error;
+  }
+}
+
+async function saveAvailabilityRefreshStateLegacy(state: AvailabilityRefreshState) {
+  const legacyState = { ...state };
+  delete legacyState.refresh_attempt_id;
+  try {
     const response = await fetch(`${supabaseRefreshStateEndpoint()}?on_conflict=venue_id`, {
       method: "POST",
       headers: supabaseHeaders({
         "content-type": "application/json",
         prefer: "resolution=merge-duplicates,return=representation",
       }),
-      body: JSON.stringify(state),
+      body: JSON.stringify(legacyState),
     });
     const rows = await readSupabaseJson(response);
-    return { state: (rows?.[0] || state) as AvailabilityRefreshState, persisted: true };
+    return { state: (rows?.[0] || state) as AvailabilityRefreshState, persisted: true, accepted: true };
   } catch (error) {
     if (isMissingRefreshStateTable(error)) return { state, persisted: false };
     throw error;

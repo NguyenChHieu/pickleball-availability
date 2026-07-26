@@ -78,12 +78,14 @@ export function buildDashboardVenue(
   payload: AvailabilityPayload | null | undefined,
   now: Date | number | string = Date.now(),
   refreshState: AvailabilityRefreshState | null = null,
-  receivedAt: string | null = null
+  receivedAt: string | null = null,
+  refreshStartedAt: string | null = null
 ): DashboardVenue {
   const record = payload
     ? {
         venue_id: venue.id,
         received_at: receivedAt || payload.exported_at || new Date(0).toISOString(),
+        refresh_started_at: refreshStartedAt,
         payload,
       }
     : null;

@@ -28,7 +28,8 @@ export default async function DashboardPage() {
       records[venue.id]?.payload,
       now,
       refreshStates[venue.id],
-      records[venue.id]?.received_at
+      records[venue.id]?.received_at,
+      records[venue.id]?.refresh_started_at
     )
   );
 

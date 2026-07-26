@@ -1,4 +1,5 @@
 import { getVenueDefinition } from "@/lib/venues";
+import { parseAvailabilityRefreshAttempt } from "@/server/availabilityAttempt";
 import { parseAvailabilityRefreshReport } from "@/server/availabilityRefresh";
 import { safeVenueId, saveAvailabilityRefreshState } from "@/server/availabilityStore";
 import { API_CORS_HEADERS, apiPreflight, requireSyncToken } from "@/server/security";
@@ -26,11 +27,13 @@ export async function POST(request: Request, { params }: RefreshStatusRouteConte
     }
 
     const report = parseAvailabilityRefreshReport(await request.json());
-    const result = await saveAvailabilityRefreshState(normalizedVenueId, report);
+    const attempt = parseAvailabilityRefreshAttempt(request.headers);
+    const result = await saveAvailabilityRefreshState(normalizedVenueId, report, attempt);
     return Response.json(
       {
         ok: true,
         persisted: result.persisted,
+        accepted: result.accepted !== false,
         venue_id: result.state.venue_id,
         attempted_at: result.state.attempted_at,
       },
@@ -38,7 +41,10 @@ export async function POST(request: Request, { params }: RefreshStatusRouteConte
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const invalidInput = error instanceof SyntaxError || message.startsWith("Invalid refresh") || message === "Missing venue id.";
+    const invalidInput =
+      error instanceof SyntaxError ||
+      message.startsWith("Invalid refresh") ||
+      message === "Missing venue id.";
     return Response.json(
       { error: invalidInput ? message : "Could not save refresh status." },
       { status: invalidInput ? 400 : 500, headers: API_CORS_HEADERS }

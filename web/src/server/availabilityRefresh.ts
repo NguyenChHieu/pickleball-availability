@@ -25,6 +25,7 @@ export type AvailabilityRefreshReport = {
 export type AvailabilityRefreshState = AvailabilityRefreshReport & {
   venue_id: string;
   attempted_at: string;
+  refresh_attempt_id?: string | null;
 };
 
 export type PublicRefreshHealth = {
@@ -84,7 +85,8 @@ export function compactAge(value: string | null, now: Date | number | string = D
 export function buildPublicRefreshHealth(
   refreshState: AvailabilityRefreshState | null | undefined,
   lastSuccessfulAt: string | null,
-  now: Date | number | string = Date.now()
+  now: Date | number | string = Date.now(),
+  lastSuccessfulStartedAt: string | null = lastSuccessfulAt
 ): PublicRefreshHealth {
   if (!refreshState) {
     return { status: "unknown", attemptedAt: null, hasNewerIssue: false, message: "" };
@@ -93,9 +95,14 @@ export function buildPublicRefreshHealth(
   const attemptedAt = refreshState.attempted_at || null;
   const attemptedTime = new Date(attemptedAt || "").getTime();
   const successfulTime = new Date(lastSuccessfulAt || "").getTime();
+  const successfulOrderTime = new Date(lastSuccessfulStartedAt || "").getTime();
   const isIssue = refreshState.status === "failed" || refreshState.status === "setup_required";
   const hasSuccessfulTime = Number.isFinite(successfulTime);
-  const hasNewerIssue = isIssue && Number.isFinite(attemptedTime) && (!hasSuccessfulTime || attemptedTime > successfulTime);
+  const hasSuccessfulOrderTime = Number.isFinite(successfulOrderTime);
+  const hasNewerIssue =
+    isIssue &&
+    Number.isFinite(attemptedTime) &&
+    (!hasSuccessfulOrderTime || attemptedTime > successfulOrderTime);
 
   if (!hasNewerIssue) {
     return { status: refreshState.status, attemptedAt, hasNewerIssue: false, message: "" };

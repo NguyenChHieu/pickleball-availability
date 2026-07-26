@@ -173,7 +173,11 @@ test("server-issued refresh attempts are attached to guarded cache writes", asyn
   };
 
   const attempt = await context.beginRefreshAttempt("propickle");
-  const result = await context.syncVenuePayload("propickle", { venue_id: "propickle", days: [] }, attempt);
+  const payload = {
+    venue_id: "propickle",
+    days: [{ date: "2026-07-24", raw_slots: [{ time: "18:00" }], probe_debug: { court: 4 } }],
+  };
+  const result = await context.syncVenuePayload("propickle", payload, attempt);
 
   assert.deepEqual({ ...attempt }, {
     attempt_id: "attempt_12345678",
@@ -185,6 +189,11 @@ test("server-issued refresh attempts are attached to guarded cache writes", asyn
   assert.match(requests[1].url, /api\/availability\/propickle$/);
   assert.equal(requests[1].options.headers["x-refresh-attempt-id"], attempt.attempt_id);
   assert.equal(requests[1].options.headers["x-refresh-started-at"], attempt.started_at);
+  assert.deepEqual(JSON.parse(requests[1].options.body), {
+    venue_id: "propickle",
+    days: [{ date: "2026-07-24" }],
+  });
+  assert.ok(payload.days[0].raw_slots, "local payload remains unchanged for debugging");
 });
 
 test("pending setup sessions retain their original refresh attempt", () => {
@@ -234,6 +243,15 @@ test("refresh status reporting is best effort and does not throw", async () => {
     source: "selected",
   });
 
+  const attempted = await context.reportRefreshStatus(
+    "propickle",
+    { status: "success", duration_ms: 1500, source: "selected" },
+    { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+  );
+  assert.equal(attempted.ok, true);
+  assert.equal(requests[1].options.headers["x-refresh-attempt-id"], "attempt_12345678");
+  assert.equal(requests[1].options.headers["x-refresh-started-at"], "2026-07-24T10:00:00.000Z");
+
   const failed = loadBackground(async () => {
     throw new Error("offline");
   });
@@ -244,6 +262,79 @@ test("refresh status reporting is best effort and does not throw", async () => {
     source: "selected",
   });
   assert.equal(failedResult.ok, false);
+});
+
+test("payload sync times out without discarding the locally saved result", async () => {
+  const { context, storage } = loadBackground((_url, options) =>
+    new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => {
+        const error = new Error("aborted");
+        error.name = "AbortError";
+        reject(error);
+      });
+    })
+  );
+  storage.backendSyncConfig = {
+    enabled: true,
+    backendUrl: "https://pickleball-availability.vercel.app",
+    syncToken: "test-token",
+  };
+  context.setTimeout = (callback, delay) => setTimeout(callback, Math.min(delay, 5));
+
+  const result = await context.syncVenuePayload("propickle", { venue_id: "propickle", days: [] });
+
+  assert.equal(result.ok, false);
+  assert.match(result.error, /Timed out while syncing/);
+  assert.match(result.error, /still available locally/);
+});
+
+test("simultaneous refresh requests start only one job", async () => {
+  const { context } = loadBackground();
+  context.AvailabilityRegistry.getVenues = () => [{ id: "propickle", name: "ProPickle" }];
+  context.AvailabilityRegistry.getVenue = () => ({ id: "propickle", name: "ProPickle" });
+
+  let finishJob;
+  let runCount = 0;
+  context.runRefreshJob = async (job) => {
+    runCount += 1;
+    await new Promise((resolve) => {
+      finishJob = resolve;
+    });
+    return { ...job, status: "completed" };
+  };
+
+  const [first, second] = await Promise.all([
+    context.startRefreshJob({ venueIds: ["propickle"] }),
+    context.startRefreshJob({ venueIds: ["propickle"] }),
+  ]);
+
+  assert.equal(runCount, 1);
+  assert.equal(first.alreadyRunning, false);
+  assert.equal(second.alreadyRunning, true);
+  assert.equal(first.job.id, second.job.id);
+  finishJob();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+});
+
+test("an interrupted service-worker job is failed, recorded, and restartable", async () => {
+  const { context, storage } = loadBackground();
+  storage.activeRefreshJob = {
+    id: "interrupted-job",
+    status: "running",
+    venueIds: ["propickle"],
+    total: 1,
+    completed: 0,
+    startedAt: "2026-07-24T10:00:00.000Z",
+    updatedAt: "2026-07-24T10:00:00.000Z",
+    results: [],
+  };
+
+  const recovered = await context.currentRefreshJob();
+
+  assert.equal(recovered.status, "failed");
+  assert.match(recovered.error, /interrupted/i);
+  assert.equal(storage.refreshJobHistory.length, 1);
+  assert.equal(storage.refreshJobHistory[0].id, "interrupted-job");
 });
 
 test("fast refresh tabs share one unfocused reader window and clean it up", async () => {

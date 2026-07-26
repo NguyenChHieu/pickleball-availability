@@ -48,6 +48,58 @@ test("refresh-state writes stay separate from the last successful payload", asyn
   }
 });
 
+test("refresh-state ordering uses the server-issued refresh start", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "pbb-refresh-order-"));
+  const previousDirectory = process.env.AVAILABILITY_DATA_DIR;
+  const previousSupabaseUrl = process.env.SUPABASE_URL;
+  const previousSupabaseKey = process.env.SUPABASE_SECRET_KEY;
+  process.env.AVAILABILITY_DATA_DIR = directory;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_SECRET_KEY;
+
+  try {
+    const store = await import(`../src/server/availabilityStore.ts?refresh-order-${Date.now()}`);
+    const saved = await store.saveAvailabilityRefreshState(
+      "propickle",
+      { status: "failed", duration_ms: 2500, source: "selected" },
+      { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+    );
+
+    assert.equal(saved.state.attempted_at, "2026-07-24T10:00:00.000Z");
+    assert.equal(saved.state.refresh_attempt_id, "attempt_12345678");
+
+    const newer = await store.saveAvailabilityRefreshState(
+      "propickle",
+      { status: "failed", duration_ms: 500, source: "selected" },
+      { attempt_id: "attempt_newer_123", started_at: "2026-07-24T10:05:00.000Z" }
+    );
+    const olderFinishedLast = await store.saveAvailabilityRefreshState(
+      "propickle",
+      { status: "success", duration_ms: 9000, source: "selected" },
+      { attempt_id: "attempt_older_123", started_at: "2026-07-24T10:04:00.000Z" }
+    );
+    const sameAttemptRecovered = await store.saveAvailabilityRefreshState(
+      "propickle",
+      { status: "success", duration_ms: 1500, source: "selected" },
+      { attempt_id: "attempt_newer_123", started_at: "2026-07-24T10:05:00.000Z" }
+    );
+
+    assert.equal(newer.accepted, true);
+    assert.equal(olderFinishedLast.accepted, false);
+    assert.equal(olderFinishedLast.state.status, "failed");
+    assert.equal(sameAttemptRecovered.accepted, true);
+    assert.equal(sameAttemptRecovered.state.status, "success");
+  } finally {
+    if (previousDirectory === undefined) delete process.env.AVAILABILITY_DATA_DIR;
+    else process.env.AVAILABILITY_DATA_DIR = previousDirectory;
+    if (previousSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousSupabaseUrl;
+    if (previousSupabaseKey === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = previousSupabaseKey;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("missing Supabase refresh-state migration degrades without breaking cache reads", async () => {
   const previousUrl = process.env.SUPABASE_URL;
   const previousKey = process.env.SUPABASE_SECRET_KEY;
@@ -114,6 +166,11 @@ test("an older-started refresh cannot overwrite a newer cache result", async () 
       { venue_id: "propickle", exported_at: olderAttempt.started_at, days: [] },
       olderAttempt
     );
+    const sameAttemptReplay = await store.saveAvailability(
+      "propickle",
+      { venue_id: "propickle", exported_at: "2026-07-24T10:01:30.000Z", days: [] },
+      newerAttempt
+    );
     const latestAttempt = {
       attempt_id: "latest_attempt_123",
       started_at: "2026-07-24T10:02:00.000Z",
@@ -128,6 +185,8 @@ test("an older-started refresh cannot overwrite a newer cache result", async () 
     assert.equal(newer.accepted, true);
     assert.equal(olderFinishedLater.accepted, false);
     assert.equal(olderFinishedLater.superseded, true);
+    assert.equal(sameAttemptReplay.accepted, false);
+    assert.equal(sameAttemptReplay.superseded, true);
     assert.equal(latestFinishedLater.accepted, true);
     assert.equal(stored?.payload.exported_at, latestAttempt.started_at);
     assert.equal(stored?.refresh_attempt_id, latestAttempt.attempt_id);
@@ -142,7 +201,7 @@ test("an older-started refresh cannot overwrite a newer cache result", async () 
   }
 });
 
-test("missing guarded-write RPC falls back to the existing Supabase upsert", async () => {
+test("missing guarded-write RPC fails closed instead of performing an unguarded upsert", async () => {
   const previousUrl = process.env.SUPABASE_URL;
   const previousKey = process.env.SUPABASE_SECRET_KEY;
   const previousFetch = globalThis.fetch;
@@ -172,17 +231,18 @@ test("missing guarded-write RPC falls back to the existing Supabase upsert", asy
 
   try {
     const store = await import(`../src/server/availabilityStore.ts?missing-concurrency-${Date.now()}`);
-    const result = await store.saveAvailability(
-      "propickle",
-      { venue_id: "propickle", days: [] },
-      { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+    await assert.rejects(
+      () =>
+        store.saveAvailability(
+          "propickle",
+          { venue_id: "propickle", days: [] },
+          { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+        ),
+      /concurrency migration is required/i
     );
 
-    assert.equal(result.accepted, true);
-    assert.equal(result.superseded, false);
-    assert.equal(requests.length, 2);
+    assert.equal(requests.length, 1);
     assert.match(requests[0], /rpc\/commit_availability_refresh$/);
-    assert.match(requests[1], /availability_cache\?on_conflict=venue_id$/);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousUrl === undefined) delete process.env.SUPABASE_URL;
