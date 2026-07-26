@@ -6,6 +6,7 @@ import type {
   AvailabilityPayload,
   AvailabilityPayloadDay,
 } from "./availabilityStore.ts";
+import { parseTimeToMinutes } from "./plannerMatch.ts";
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const MAX_DAYS = 31;
@@ -80,6 +81,12 @@ function sanitizeInterval(value: unknown, label: string): AvailabilityInterval {
   const start = firstText(value, ["start_time", "startTime"], `${label}.start_time`, 32);
   const end = firstText(value, ["end_time", "endTime"], `${label}.end_time`, 32);
   if (!start || !end) invalid(`${label} must include start and end times.`);
+  const startMinutes = parseTimeToMinutes(start);
+  const endMinutes = parseTimeToMinutes(end);
+  if (startMinutes === null || endMinutes === null) invalid(`${label} must use valid clock times.`);
+  if (startMinutes >= 24 * 60) invalid(`${label}.start_time must be before 24:00.`);
+  const isOvernight = startMinutes >= 18 * 60 && endMinutes <= 6 * 60;
+  if (endMinutes <= startMinutes && !isOvernight) invalid(`${label} must end after it starts.`);
   return { start_time: start, end_time: end };
 }
 

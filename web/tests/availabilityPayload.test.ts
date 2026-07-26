@@ -94,6 +94,32 @@ test("sync payloads reject future timestamps and unreasonable collection sizes",
   );
 });
 
+test("sync payloads reject malformed or backwards availability intervals", () => {
+  const payloadWithInterval = (start_time: string, end_time: string) =>
+    validPayload({
+      days: [{ date: "Sunday, July 26", open_intervals: [{ start_time, end_time }] }],
+    });
+
+  assert.throws(
+    () => sanitizeAvailabilityPayload(payloadWithInterval("later", "7:00 PM"), "propickle", { now: NOW }),
+    /valid clock times/i
+  );
+  assert.throws(
+    () => sanitizeAvailabilityPayload(payloadWithInterval("7:00 PM", "6:00 PM"), "propickle", { now: NOW }),
+    /end after it starts/i
+  );
+  assert.throws(
+    () => sanitizeAvailabilityPayload(payloadWithInterval("24:00", "1:00 AM"), "propickle", { now: NOW }),
+    /start_time must be before/i
+  );
+  assert.doesNotThrow(() =>
+    sanitizeAvailabilityPayload(payloadWithInterval("11:00 PM", "1:00 AM"), "propickle", { now: NOW })
+  );
+  assert.doesNotThrow(() =>
+    sanitizeAvailabilityPayload(payloadWithInterval("11:00 PM", "24:00"), "propickle", { now: NOW })
+  );
+});
+
 test("every configured provider host passes the server trust boundary", () => {
   const cases = [
     ["propickle", "https://book.propickle.com.au/book/ProPickle?skip_waivers=true"],

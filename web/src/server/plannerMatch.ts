@@ -35,6 +35,7 @@ export function parseTimeToMinutes(value: unknown) {
   if (twentyFourHourMatch) {
     const hour = Number(twentyFourHourMatch[1]);
     const minute = Number(twentyFourHourMatch[2]);
+    if (hour === 24 && minute === 0) return 24 * 60;
     if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
     return hour * 60 + minute;
   }
