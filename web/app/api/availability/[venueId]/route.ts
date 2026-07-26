@@ -1,5 +1,10 @@
+import { getVenueDefinition } from "@/lib/venues";
 import { parseAvailabilityRefreshAttempt } from "@/server/availabilityAttempt";
-import { saveAvailability, getAvailabilityRecord } from "@/server/availabilityStore";
+import {
+  InvalidAvailabilityPayloadError,
+  readAvailabilityPayload,
+} from "@/server/availabilityPayload";
+import { saveAvailability, getAvailabilityRecord, safeVenueId } from "@/server/availabilityStore";
 import { API_CORS_HEADERS, apiPreflight, requireSyncToken } from "@/server/security";
 
 export const runtime = "nodejs";
@@ -21,6 +26,10 @@ export async function POST(request: Request, { params }: AvailabilityRouteContex
 
   try {
     const { venueId } = await params;
+    const normalizedVenueId = safeVenueId(venueId);
+    if (!getVenueDefinition(normalizedVenueId)) {
+      return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_CORS_HEADERS });
+    }
     const attempt = parseAvailabilityRefreshAttempt(request.headers);
     if (!attempt) {
       return Response.json(
@@ -28,8 +37,8 @@ export async function POST(request: Request, { params }: AvailabilityRouteContex
         { status: 409, headers: API_CORS_HEADERS }
       );
     }
-    const payload = await request.json();
-    const record = await saveAvailability(venueId, payload, attempt);
+    const payload = await readAvailabilityPayload(request, normalizedVenueId);
+    const record = await saveAvailability(normalizedVenueId, payload, attempt);
     return Response.json(
       {
         ok: true,
@@ -42,7 +51,10 @@ export async function POST(request: Request, { params }: AvailabilityRouteContex
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const invalidInput = message.startsWith("Invalid refresh attempt");
+    const invalidInput =
+      error instanceof InvalidAvailabilityPayloadError ||
+      message.startsWith("Invalid refresh attempt") ||
+      message === "Missing venue id.";
     return Response.json(
       { error: invalidInput ? message : "Could not save availability." },
       { status: invalidInput ? 400 : 500, headers: API_CORS_HEADERS }
@@ -56,10 +68,14 @@ export async function GET(request: Request, { params }: AvailabilityRouteContext
 
   try {
     const { venueId } = await params;
-    const record = await getAvailabilityRecord(venueId);
+    const normalizedVenueId = safeVenueId(venueId);
+    if (!getVenueDefinition(normalizedVenueId)) {
+      return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_CORS_HEADERS });
+    }
+    const record = await getAvailabilityRecord(normalizedVenueId);
     if (!record) {
       return Response.json(
-        { error: `No cached availability for ${venueId}` },
+        { error: `No cached availability for ${normalizedVenueId}` },
         { status: 404, headers: API_CORS_HEADERS }
       );
     }
