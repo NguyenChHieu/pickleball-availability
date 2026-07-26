@@ -214,7 +214,17 @@ function canReplaceRefreshState(existing: AvailabilityRefreshState, next: Availa
   if (!Number.isFinite(existingTime) || !Number.isFinite(nextTime)) return true;
   if (nextTime > existingTime) return true;
   if (nextTime < existingTime) return false;
-  return (existing.refresh_attempt_id || null) === (next.refresh_attempt_id || null);
+  if ((existing.refresh_attempt_id || null) !== (next.refresh_attempt_id || null)) return false;
+  return refreshStatusRank(next.status) >= refreshStatusRank(existing.status);
+}
+
+function refreshStatusRank(status: AvailabilityRefreshState["status"]) {
+  return {
+    setup_required: 0,
+    failed: 1,
+    cache_reused: 2,
+    success: 3,
+  }[status];
 }
 
 export async function getAvailabilityRefreshState(venueId: string) {
@@ -405,28 +415,9 @@ async function saveAvailabilityRefreshStateToSupabase(state: AvailabilityRefresh
       accepted: Boolean(accepted),
     };
   } catch (error) {
-    if (isMissingRefreshStateTable(error)) return { state, persisted: false };
-    if (isMissingRpcFunction(error)) return saveAvailabilityRefreshStateLegacy(state);
-    throw error;
-  }
-}
-
-async function saveAvailabilityRefreshStateLegacy(state: AvailabilityRefreshState) {
-  const legacyState = { ...state };
-  delete legacyState.refresh_attempt_id;
-  try {
-    const response = await fetch(`${supabaseRefreshStateEndpoint()}?on_conflict=venue_id`, {
-      method: "POST",
-      headers: supabaseHeaders({
-        "content-type": "application/json",
-        prefer: "resolution=merge-duplicates,return=representation",
-      }),
-      body: JSON.stringify(legacyState),
-    });
-    const rows = await readSupabaseJson(response);
-    return { state: (rows?.[0] || state) as AvailabilityRefreshState, persisted: true, accepted: true };
-  } catch (error) {
-    if (isMissingRefreshStateTable(error)) return { state, persisted: false };
+    if (isMissingRefreshStateTable(error) || isMissingRpcFunction(error)) {
+      return { state, persisted: false, accepted: false };
+    }
     throw error;
   }
 }

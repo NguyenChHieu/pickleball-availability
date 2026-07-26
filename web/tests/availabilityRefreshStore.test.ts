@@ -83,12 +83,19 @@ test("refresh-state ordering uses the server-issued refresh start", async () => 
       { status: "success", duration_ms: 1500, source: "selected" },
       { attempt_id: "attempt_newer_123", started_at: "2026-07-24T10:05:00.000Z" }
     );
+    const delayedSameAttemptFailure = await store.saveAvailabilityRefreshState(
+      "propickle",
+      { status: "failed", duration_ms: 2000, source: "selected" },
+      { attempt_id: "attempt_newer_123", started_at: "2026-07-24T10:05:00.000Z" }
+    );
 
     assert.equal(newer.accepted, true);
     assert.equal(olderFinishedLast.accepted, false);
     assert.equal(olderFinishedLast.state.status, "failed");
     assert.equal(sameAttemptRecovered.accepted, true);
     assert.equal(sameAttemptRecovered.state.status, "success");
+    assert.equal(delayedSameAttemptFailure.accepted, false);
+    assert.equal(delayedSameAttemptFailure.state.status, "success");
   } finally {
     if (previousDirectory === undefined) delete process.env.AVAILABILITY_DATA_DIR;
     else process.env.AVAILABILITY_DATA_DIR = previousDirectory;
@@ -124,8 +131,45 @@ test("missing Supabase refresh-state migration degrades without breaking cache r
     });
 
     assert.equal(saved.persisted, false);
+    assert.equal(saved.accepted, false);
     assert.equal(await store.getAvailabilityRefreshState("propickle"), null);
     assert.deepEqual(await store.getAllAvailabilityRefreshStates(), {});
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousUrl;
+    if (previousKey === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = previousKey;
+  }
+});
+
+test("missing ordered refresh-state RPC drops telemetry instead of using an unordered upsert", async () => {
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousKey = process.env.SUPABASE_SECRET_KEY;
+  const previousFetch = globalThis.fetch;
+  const requests: string[] = [];
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  process.env.SUPABASE_SECRET_KEY = "test-service-key";
+  globalThis.fetch = async (input) => {
+    requests.push(String(input));
+    return new Response(
+      JSON.stringify({ code: "PGRST202", message: "Could not find commit_availability_refresh_state" }),
+      { status: 404, headers: { "content-type": "application/json" } }
+    );
+  };
+
+  try {
+    const store = await import(`../src/server/availabilityStore.ts?missing-refresh-rpc-${Date.now()}`);
+    const saved = await store.saveAvailabilityRefreshState(
+      "propickle",
+      { status: "failed", duration_ms: 100, source: "selected" },
+      { attempt_id: "attempt_12345678", started_at: "2026-07-24T10:00:00.000Z" }
+    );
+
+    assert.equal(saved.persisted, false);
+    assert.equal(saved.accepted, false);
+    assert.equal(requests.length, 1);
+    assert.match(requests[0], /rpc\/commit_availability_refresh_state$/);
   } finally {
     globalThis.fetch = previousFetch;
     if (previousUrl === undefined) delete process.env.SUPABASE_URL;

@@ -148,6 +148,21 @@ as $$
        or (
          current_refresh.attempted_at = excluded.attempted_at
          and current_refresh.refresh_attempt_id is not distinct from excluded.refresh_attempt_id
+         and (
+           case excluded.status
+             when 'setup_required' then 0
+             when 'failed' then 1
+             when 'cache_reused' then 2
+             when 'success' then 3
+           end
+         ) >= (
+           case current_refresh.status
+             when 'setup_required' then 0
+             when 'failed' then 1
+             when 'cache_reused' then 2
+             when 'success' then 3
+           end
+         )
        )
     returning
       current_refresh.venue_id,
