@@ -2,7 +2,7 @@ import { getVenueDefinition } from "@/lib/venues";
 import { parseAvailabilityRefreshAttempt } from "@/server/availabilityAttempt";
 import { parseAvailabilityRefreshReport } from "@/server/availabilityRefresh";
 import { safeVenueId, saveAvailabilityRefreshState } from "@/server/availabilityStore";
-import { API_CORS_HEADERS, apiPreflight, requireSyncToken } from "@/server/security";
+import { API_RESPONSE_HEADERS, apiPreflight, requireSyncToken } from "@/server/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,14 +23,14 @@ export async function POST(request: Request, { params }: RefreshStatusRouteConte
     const { venueId } = await params;
     const normalizedVenueId = safeVenueId(venueId);
     if (!getVenueDefinition(normalizedVenueId)) {
-      return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_CORS_HEADERS });
+      return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_RESPONSE_HEADERS });
     }
 
     const attempt = parseAvailabilityRefreshAttempt(request.headers);
     if (!attempt) {
       return Response.json(
         { error: "Refresh attempt required. Reload the extension and try again." },
-        { status: 409, headers: API_CORS_HEADERS }
+        { status: 409, headers: API_RESPONSE_HEADERS }
       );
     }
     const report = parseAvailabilityRefreshReport(await request.json());
@@ -52,7 +52,7 @@ export async function POST(request: Request, { params }: RefreshStatusRouteConte
         venue_id: result.state.venue_id,
         attempted_at: result.state.attempted_at,
       },
-      { headers: API_CORS_HEADERS }
+      { headers: API_RESPONSE_HEADERS }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -62,7 +62,7 @@ export async function POST(request: Request, { params }: RefreshStatusRouteConte
       message === "Missing venue id.";
     return Response.json(
       { error: invalidInput ? message : "Could not save refresh status." },
-      { status: invalidInput ? 400 : 500, headers: API_CORS_HEADERS }
+      { status: invalidInput ? 400 : 500, headers: API_RESPONSE_HEADERS }
     );
   }
 }

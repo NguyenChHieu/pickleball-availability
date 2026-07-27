@@ -12,6 +12,11 @@ export const NO_STORE_HEADERS = Object.freeze({
   "x-robots-tag": "noindex, nofollow, noarchive",
 });
 
+export const API_RESPONSE_HEADERS = Object.freeze({
+  ...API_CORS_HEADERS,
+  ...NO_STORE_HEADERS,
+});
+
 function isHostedRuntime() {
   return Boolean(process.env.VERCEL || process.env.RENDER);
 }
@@ -43,7 +48,7 @@ export function requireSyncToken(request: Request) {
     { error: "Invalid sync token" },
     {
       status: 401,
-      headers: API_CORS_HEADERS,
+      headers: API_RESPONSE_HEADERS,
     }
   );
 }
