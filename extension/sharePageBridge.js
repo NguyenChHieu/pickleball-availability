@@ -1,4 +1,22 @@
 (() => {
+  const TRUSTED_APP_HOSTS = new Set([
+    "pickleball-availability.vercel.app",
+    "pickleball-availability-tau.vercel.app",
+  ]);
+  const TRUSTED_PREVIEW_HOST =
+    /^pickleball-availability(?:-[a-z0-9-]+)*-henryngs-projects\.vercel\.app$/;
+
+  function isTrustedAppLocation(location) {
+    if (location.protocol === "http:") {
+      return location.hostname === "localhost" && location.port === "3007";
+    }
+    if (location.protocol !== "https:") return false;
+    return TRUSTED_APP_HOSTS.has(location.hostname) || TRUSTED_PREVIEW_HOST.test(location.hostname);
+  }
+
+  // Chrome match patterns cannot target one Vercel project's dynamic preview aliases.
+  // Exit before installing any page bridge on unrelated vercel.app deployments.
+  if (!isTrustedAppLocation(window.location)) return;
   if (globalThis.__pbbSharePageBridgeInstalled) return;
   globalThis.__pbbSharePageBridgeInstalled = true;
 
