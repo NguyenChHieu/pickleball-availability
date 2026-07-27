@@ -8,6 +8,7 @@ const bridgeSource = fs.readFileSync(
   path.join(__dirname, "..", "sharePageBridge.js"),
   "utf8"
 );
+const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "manifest.json"), "utf8"));
 
 function installFor(url) {
   const listeners = [];
@@ -61,4 +62,15 @@ test("does not install on unrelated or lookalike Vercel deployments", () => {
     installFor("https://pickleball-availability-preview-attacker-projects.vercel.app/app").installed,
     false
   );
+});
+
+test("injects dashboard bridge before the app sends its startup ping", () => {
+  const bridgeScript = manifest.content_scripts.find((script) =>
+    Array.isArray(script.js) && script.js.includes("sharePageBridge.js")
+  );
+
+  assert.ok(bridgeScript);
+  assert.equal(bridgeScript.run_at, "document_start");
+  assert.ok(bridgeScript.matches.includes("https://*.vercel.app/app*"));
+  assert.ok(bridgeScript.matches.includes("http://localhost:3007/app*"));
 });

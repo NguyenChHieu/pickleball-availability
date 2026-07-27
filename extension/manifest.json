@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pickleball Availability Reader",
-  "version": "0.4.11",
+  "version": "0.4.12",
   "description": "Read pickleball booking availability by venue and show merged open intervals.",
   "permissions": ["activeTab", "scripting", "storage", "tabs"],
   "host_permissions": [
@@ -53,7 +53,7 @@
         "https://*.vercel.app/app*"
       ],
       "js": ["sharePageBridge.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "options_ui": {
