@@ -142,6 +142,19 @@ button:hover {
   transform: translateY(-1px);
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
+.connection-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: -4px 0 0;
+}
+
 .status {
   color: var(--muted);
   line-height: 1.4;

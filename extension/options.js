@@ -3,6 +3,13 @@ const OLD_LOCAL_BACKEND_URL = "http://localhost:8787";
 const DEFAULT_BACKEND_URL = "http://localhost:3007";
 const DEFAULT_SHARE_URL_BASE = "http://localhost:3007";
 const DEFAULT_SHARE_TOKEN = "dev-share";
+const CONNECTION_TEST_TIMEOUT_MS = 5000;
+const TRUSTED_APP_HOSTS = new Set([
+  "pickleball-availability.vercel.app",
+  "pickleball-availability-tau.vercel.app",
+]);
+const TRUSTED_PREVIEW_HOST =
+  /^pickleball-availability(?:-[a-z0-9-]+)*-henryngs-projects\.vercel\.app$/;
 
 const enabledInput = document.querySelector("#enabled");
 const backendUrlInput = document.querySelector("#backendUrl");
@@ -22,10 +29,51 @@ function normalizeUrl(value, fallback) {
 
 function isValidUrl(value) {
   try {
-    new URL(value);
-    return true;
+    const parsed = new URL(value);
+    if (parsed.username || parsed.password) return false;
+    if (parsed.protocol === "http:") {
+      return ["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname);
+    }
+    if (parsed.protocol !== "https:") return false;
+    return TRUSTED_APP_HOSTS.has(parsed.hostname) || TRUSTED_PREVIEW_HOST.test(parsed.hostname);
   } catch {
     return false;
+  }
+}
+
+function refreshAttemptEndpoint(backendUrl) {
+  const endpoint = new URL(backendUrl);
+  const prefix = endpoint.pathname.replace(/\/+$/, "");
+  endpoint.pathname = `${prefix}/api/availability/propickle/refresh-attempt`;
+  endpoint.search = "";
+  endpoint.hash = "";
+  return endpoint.toString();
+}
+
+async function verifyConnection({ backendUrl, syncToken }) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CONNECTION_TEST_TIMEOUT_MS);
+  try {
+    const headers = {};
+    if (syncToken) headers["x-sync-token"] = syncToken;
+    const response = await fetch(refreshAttemptEndpoint(backendUrl), {
+      method: "POST",
+      headers,
+      signal: controller.signal,
+    });
+    if (response.status === 401) return "Saved, but the sync token was rejected.";
+    if (response.status === 404) return "Saved, but this App URL does not provide availability sync.";
+    if (!response.ok) return `Saved, but the connection check returned ${response.status}.`;
+    const body = await response.json().catch(() => ({}));
+    if (!body?.attempt_id || !body?.started_at) {
+      return "Saved, but the App URL returned an unexpected response.";
+    }
+    return "Saved. Sync connection verified.";
+  } catch (error) {
+    if (error?.name === "AbortError") return "Saved, but the connection check timed out.";
+    return "Saved, but the App URL could not be reached.";
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -43,27 +91,44 @@ async function loadSettings() {
 async function saveSettings() {
   const backendUrl = normalizeUrl(backendUrlInput.value, DEFAULT_BACKEND_URL);
   if (!isValidUrl(backendUrl)) {
-    setStatus("Enter a valid app URL.");
+    setStatus("Use this project's Vercel App URL, or localhost for development.");
     return;
   }
 
   const shareUrlBase = normalizeUrl(shareUrlBaseInput.value, backendUrl);
   if (!isValidUrl(shareUrlBase)) {
-    setStatus("Enter a valid share URL base.");
+    setStatus("Use this project's Vercel Share URL, or localhost for development.");
     return;
   }
 
+  const config = {
+    enabled: enabledInput.checked,
+    backendUrl,
+    syncToken: syncTokenInput.value,
+    shareUrlBase,
+    shareToken: (shareTokenInput.value || DEFAULT_SHARE_TOKEN).trim(),
+  };
   await chrome.storage.local.set({
-    [SYNC_CONFIG_KEY]: {
-      enabled: enabledInput.checked,
-      backendUrl,
-      syncToken: syncTokenInput.value,
-      shareUrlBase,
-      shareToken: (shareTokenInput.value || DEFAULT_SHARE_TOKEN).trim(),
-    },
+    [SYNC_CONFIG_KEY]: config,
   });
-  setStatus("Saved.");
+  if (!config.enabled) {
+    setStatus("Saved. Web app sync is off.");
+    return;
+  }
+
+  setStatus("Saved. Checking connection...");
+  setStatus(await verifyConnection(config));
 }
 
-saveButton.addEventListener("click", saveSettings);
+saveButton.addEventListener("click", async () => {
+  if (saveButton.disabled) return;
+  saveButton.disabled = true;
+  try {
+    await saveSettings();
+  } catch (error) {
+    setStatus(error?.message || String(error));
+  } finally {
+    saveButton.disabled = false;
+  }
+});
 loadSettings().catch((error) => setStatus(error?.message || String(error)));
