@@ -1,3 +1,4 @@
+import { readPlannerRequestJson } from "@/server/plannerRequest";
 import {
   getPlannerEventView,
   PlannerRecoveryRateLimitError,
@@ -17,7 +18,7 @@ type PlannerParticipantRouteContext = Readonly<{
 export async function POST(request: Request, { params }: PlannerParticipantRouteContext) {
   try {
     const { eventToken } = await params;
-    const participant = await upsertPlannerParticipant(eventToken, await request.json());
+    const participant = await upsertPlannerParticipant(eventToken, await readPlannerRequestJson(request));
     if (!participant) {
       return Response.json({ error: "Not found" }, { status: 404, headers: NO_STORE_HEADERS });
     }

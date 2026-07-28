@@ -1,3 +1,4 @@
+import { readPlannerRequestJson } from "@/server/plannerRequest";
 import { createPlannerEvent } from "@/server/plannerStore";
 import { NO_STORE_HEADERS } from "@/server/security";
 
@@ -6,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const event = await createPlannerEvent(await request.json());
+    const event = await createPlannerEvent(await readPlannerRequestJson(request));
     return Response.json(
       {
         ok: true,
