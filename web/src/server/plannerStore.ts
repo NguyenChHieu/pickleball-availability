@@ -86,12 +86,21 @@ export class PlannerRecoveryRateLimitError extends Error {
   }
 }
 
-if (USE_SUPABASE && (!SUPABASE_URL || !SUPABASE_SECRET_KEY)) {
-  throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
-}
-
 function trimTrailingSlash(value: string) {
   return String(value || "").replace(/\/+$/, "");
+}
+
+/**
+ * Called from each Supabase-backed function rather than thrown at module
+ * load: a half-set Supabase config then fails the one request that hits
+ * storage, inside that route's own try/catch, instead of throwing during
+ * module evaluation (which every importer of this module would hit, with
+ * no route-level error handling involved).
+ */
+function assertSupabaseConfigured() {
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
+    throw new Error("Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither.");
+  }
 }
 
 function assertWritableLocalPlannerStore() {
@@ -238,6 +247,7 @@ async function clearSupabaseRecoveryFailures(attemptKey: string) {
 }
 
 function supabaseHeaders(extra: Record<string, string> = {}) {
+  assertSupabaseConfigured();
   const headers: Record<string, string> = {
     apikey: SUPABASE_SECRET_KEY,
     ...extra,

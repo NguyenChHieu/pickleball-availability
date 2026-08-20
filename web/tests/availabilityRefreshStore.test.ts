@@ -295,3 +295,26 @@ test("missing guarded-write RPC fails closed instead of performing an unguarded 
     else process.env.SUPABASE_SECRET_KEY = previousKey;
   }
 });
+
+test("a half-configured Supabase env fails the call that needs it, not module import", async () => {
+  const previousUrl = process.env.SUPABASE_URL;
+  const previousKey = process.env.SUPABASE_SECRET_KEY;
+  process.env.SUPABASE_URL = "https://example.supabase.co";
+  delete process.env.SUPABASE_SECRET_KEY;
+
+  try {
+    // Importing with only SUPABASE_URL set must not throw at module load —
+    // that would fail every route that imports this module, not just the
+    // one hitting storage. The error should surface from the actual call.
+    const store = await import(`../src/server/availabilityStore.ts?half-configured-${Date.now()}`);
+    await assert.rejects(
+      () => store.getAvailabilityRecord("propickle"),
+      /Set SUPABASE_URL and SUPABASE_SECRET_KEY, or neither/
+    );
+  } finally {
+    if (previousUrl === undefined) delete process.env.SUPABASE_URL;
+    else process.env.SUPABASE_URL = previousUrl;
+    if (previousKey === undefined) delete process.env.SUPABASE_SECRET_KEY;
+    else process.env.SUPABASE_SECRET_KEY = previousKey;
+  }
+});
