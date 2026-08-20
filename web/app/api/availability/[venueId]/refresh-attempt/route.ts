@@ -1,7 +1,7 @@
 import { getVenueDefinition } from "@/lib/venues";
 import { createAvailabilityRefreshAttempt } from "@/server/availabilityAttempt";
 import { safeVenueId } from "@/server/availabilityStore";
-import { API_RESPONSE_HEADERS, apiPreflight, requireSyncToken } from "@/server/security";
+import { SYNC_RESPONSE_HEADERS, requireSyncToken, syncPreflight } from "@/server/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ type RefreshAttemptRouteContext = Readonly<{
 }>;
 
 export function OPTIONS() {
-  return apiPreflight();
+  return syncPreflight();
 }
 
 export async function POST(request: Request, { params }: RefreshAttemptRouteContext) {
@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: RefreshAttemptRouteCont
   const { venueId } = await params;
   const normalizedVenueId = safeVenueId(venueId);
   if (!getVenueDefinition(normalizedVenueId)) {
-    return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_RESPONSE_HEADERS });
+    return Response.json({ error: "Unknown venue." }, { status: 400, headers: SYNC_RESPONSE_HEADERS });
   }
 
   return Response.json(
@@ -30,6 +30,6 @@ export async function POST(request: Request, { params }: RefreshAttemptRouteCont
       venue_id: normalizedVenueId,
       ...createAvailabilityRefreshAttempt(),
     },
-    { headers: API_RESPONSE_HEADERS }
+    { headers: SYNC_RESPONSE_HEADERS }
   );
 }

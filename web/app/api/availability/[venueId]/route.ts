@@ -5,7 +5,7 @@ import {
   readAvailabilityPayload,
 } from "@/server/availabilityPayload";
 import { saveAvailability, getAvailabilityRecord, safeVenueId } from "@/server/availabilityStore";
-import { API_RESPONSE_HEADERS, apiPreflight, requireSyncToken } from "@/server/security";
+import { SYNC_RESPONSE_HEADERS, requireSyncToken, syncPreflight } from "@/server/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +17,7 @@ type AvailabilityRouteContext = Readonly<{
 }>;
 
 export function OPTIONS() {
-  return apiPreflight();
+  return syncPreflight();
 }
 
 export async function POST(request: Request, { params }: AvailabilityRouteContext) {
@@ -28,13 +28,13 @@ export async function POST(request: Request, { params }: AvailabilityRouteContex
     const { venueId } = await params;
     const normalizedVenueId = safeVenueId(venueId);
     if (!getVenueDefinition(normalizedVenueId)) {
-      return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_RESPONSE_HEADERS });
+      return Response.json({ error: "Unknown venue." }, { status: 400, headers: SYNC_RESPONSE_HEADERS });
     }
     const attempt = parseAvailabilityRefreshAttempt(request.headers);
     if (!attempt) {
       return Response.json(
         { error: "Refresh attempt required. Reload the extension and try again." },
-        { status: 409, headers: API_RESPONSE_HEADERS }
+        { status: 409, headers: SYNC_RESPONSE_HEADERS }
       );
     }
     const payload = await readAvailabilityPayload(request, normalizedVenueId);
@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: AvailabilityRouteContex
         venue_id: record.venue_id,
         received_at: record.received_at,
       },
-      { headers: API_RESPONSE_HEADERS }
+      { headers: SYNC_RESPONSE_HEADERS }
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -65,7 +65,7 @@ export async function POST(request: Request, { params }: AvailabilityRouteContex
       message === "Missing venue id.";
     return Response.json(
       { error: invalidInput ? message : "Could not save availability." },
-      { status: invalidInput ? 400 : 500, headers: API_RESPONSE_HEADERS }
+      { status: invalidInput ? 400 : 500, headers: SYNC_RESPONSE_HEADERS }
     );
   }
 }
@@ -78,20 +78,20 @@ export async function GET(request: Request, { params }: AvailabilityRouteContext
     const { venueId } = await params;
     const normalizedVenueId = safeVenueId(venueId);
     if (!getVenueDefinition(normalizedVenueId)) {
-      return Response.json({ error: "Unknown venue." }, { status: 400, headers: API_RESPONSE_HEADERS });
+      return Response.json({ error: "Unknown venue." }, { status: 400, headers: SYNC_RESPONSE_HEADERS });
     }
     const record = await getAvailabilityRecord(normalizedVenueId);
     if (!record) {
       return Response.json(
         { error: `No cached availability for ${normalizedVenueId}` },
-        { status: 404, headers: API_RESPONSE_HEADERS }
+        { status: 404, headers: SYNC_RESPONSE_HEADERS }
       );
     }
-    return Response.json(record, { headers: API_RESPONSE_HEADERS });
+    return Response.json(record, { headers: SYNC_RESPONSE_HEADERS });
   } catch {
     return Response.json(
       { error: "Could not load availability." },
-      { status: 500, headers: API_RESPONSE_HEADERS }
+      { status: 500, headers: SYNC_RESPONSE_HEADERS }
     );
   }
 }

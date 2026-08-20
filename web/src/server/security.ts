@@ -19,6 +19,18 @@ export const API_RESPONSE_HEADERS = Object.freeze({
   ...NO_STORE_HEADERS,
 });
 
+/**
+ * Response headers for the sync-token-gated routes (availability write, refresh
+ * attempt/status). These are only ever called by the extension's background
+ * service worker or options page, both of which bypass browser CORS entirely
+ * via the manifest's host_permissions grant — no legitimate cross-origin
+ * browser caller exists for them. Unlike API_CORS_HEADERS/API_RESPONSE_HEADERS
+ * (used by the intentionally public share-availability API), these carry no
+ * Access-Control-Allow-Origin, so a third-party page can't even complete a
+ * CORS preflight against them.
+ */
+export const SYNC_RESPONSE_HEADERS = NO_STORE_HEADERS;
+
 export function isHostedRuntime() {
   return Boolean(process.env.VERCEL || process.env.RENDER);
 }
@@ -59,7 +71,7 @@ export function requireSyncToken(request: Request) {
     { error: "Invalid sync token" },
     {
       status: 401,
-      headers: API_RESPONSE_HEADERS,
+      headers: SYNC_RESPONSE_HEADERS,
     }
   );
 }
@@ -68,6 +80,13 @@ export function apiPreflight() {
   return new Response(null, {
     status: 204,
     headers: API_CORS_HEADERS,
+  });
+}
+
+export function syncPreflight() {
+  return new Response(null, {
+    status: 204,
+    headers: NO_STORE_HEADERS,
   });
 }
 

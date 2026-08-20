@@ -5,7 +5,9 @@ import {
   API_CORS_HEADERS,
   API_RESPONSE_HEADERS,
   NO_STORE_HEADERS,
+  SYNC_RESPONSE_HEADERS,
   apiPreflight,
+  syncPreflight,
   timingSafeEqualStrings,
 } from "../src/server/security.ts";
 
@@ -23,6 +25,19 @@ test("CORS preflight remains separately cacheable and contains no response data 
   assert.equal(response.headers.get("cache-control"), null);
   assert.equal(Object.hasOwn(API_CORS_HEADERS, "cache-control"), false);
   assert.equal(NO_STORE_HEADERS["cache-control"], "private, no-store, max-age=0");
+});
+
+test("sync-token routes (extension-only) never grant wildcard CORS", () => {
+  assert.equal(Object.hasOwn(SYNC_RESPONSE_HEADERS, "access-control-allow-origin"), false);
+  assert.equal(SYNC_RESPONSE_HEADERS["cache-control"], "private, no-store, max-age=0");
+  const response = syncPreflight();
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), null);
+});
+
+test("the public share API keeps its intentional wildcard CORS", () => {
+  assert.equal(API_CORS_HEADERS["access-control-allow-origin"], "*");
+  assert.equal(API_RESPONSE_HEADERS["access-control-allow-origin"], "*");
 });
 
 test("timingSafeEqualStrings matches equal strings", () => {
