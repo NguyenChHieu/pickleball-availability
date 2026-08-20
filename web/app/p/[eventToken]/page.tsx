@@ -1,3 +1,4 @@
+import "@/styles/planner.css";
 import { PlannerEventClient } from "@/components/PlannerEventClient";
 import { getPlannerEventView } from "@/server/plannerStore";
 import type { Metadata } from "next";

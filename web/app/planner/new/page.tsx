@@ -1,3 +1,4 @@
+import "@/styles/planner.css";
 import { PlannerNewForm } from "@/components/PlannerNewForm";
 import { venues } from "@/lib/venues";
 

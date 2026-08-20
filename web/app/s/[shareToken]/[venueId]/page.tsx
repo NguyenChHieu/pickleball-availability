@@ -1,3 +1,4 @@
+import "@/styles/share.css";
 import { AvailabilityPage } from "@/components/AvailabilityPage";
 import { fetchPublicAvailability } from "@/lib/publicAvailability";
 import type { Metadata } from "next";

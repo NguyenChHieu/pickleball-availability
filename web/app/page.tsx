@@ -1,3 +1,4 @@
+import "@/styles/home.css";
 import { HomeLanding } from "@/components/HomeLanding";
 import { venues } from "@/lib/venues";
 import { getAllAvailabilityRecords } from "@/server/availabilityStore";
