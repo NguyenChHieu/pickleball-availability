@@ -442,7 +442,7 @@ export function DashboardClient({ venues }: DashboardClientProps) {
                       <strong>{venue.nextOpening}</strong>
                       <span>{venue.nextOpeningDetail}</span>
                     </div>
-                    <a className={styles.bookingLink} href={venue.fallbackUrl} target="_blank" rel="noreferrer">
+                    <a className={styles.bookingLink} href={venue.fallbackUrl} target="_blank" rel="noopener noreferrer">
                       Booking page <span aria-hidden="true">↗</span>
                     </a>
                   </article>
