@@ -138,8 +138,25 @@ function loadBackground(fetchImpl = fetch) {
     setInterval,
     setTimeout,
   });
-  const source = fs.readFileSync(path.resolve(__dirname, "../background.js"), "utf8");
-  vm.runInContext(source, context, { filename: "background.js" });
+  // background.js and sync.js are real ES modules now (import/export), which
+  // vm.runInContext's classic-script Script can't parse at all - it has no
+  // module support short of the still-experimental vm.SourceTextModule API.
+  // Rather than pull that in, concatenate the real sync.js source (stripped
+  // of its `export` keywords) ahead of background.js's (stripped of its
+  // `import` lines) and run them as one flat script, exactly like before
+  // background.js's sync client was extracted - sync.js's real logic still
+  // runs against this file's chrome/fetch mocks, not a stub.
+  // AvailabilityRegistry stays a plain injected context stub rather than
+  // venues.js's real (frozen) export: several tests below override its
+  // methods per-test (e.g. context.AvailabilityRegistry.getVenues = ...),
+  // which a frozen object would reject.
+  const syncSource = fs
+    .readFileSync(path.resolve(__dirname, "../sync.js"), "utf8")
+    .replace(/^export\s+/gm, "");
+  const backgroundSource = fs
+    .readFileSync(path.resolve(__dirname, "../background.js"), "utf8")
+    .replace(/^import\s+[\s\S]*?;\s*$/gm, "");
+  vm.runInContext(`${syncSource}\n${backgroundSource}`, context, { filename: "background.js" });
   return { alarms, calls, context, storage, tabs, windows };
 }
 

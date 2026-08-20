@@ -1,3 +1,4 @@
+import { AvailabilityRegistry } from "./venues.js";
 const venueSelect = document.querySelector("#venueSelect");
 const refreshVenueButton = document.querySelector("#refreshVenueButton");
 const refreshStaleButton = document.querySelector("#refreshStaleButton");

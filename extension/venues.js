@@ -1,4 +1,3 @@
-(() => {
   const PLAYBYPOINT_PROVIDER_ID = "playbypoint-bookbox";
   const CLUBSPARK_PROVIDER_ID = "clubspark-book-by-date";
   const MINDBODY_PROVIDER_ID = "mindbody-appointments";
@@ -158,7 +157,7 @@
   const findVenueForUrl = (url) =>
     venues.find((venue) => venue.matchUrls.some((pattern) => matchesPattern(url, pattern))) || null;
 
-  globalThis.AvailabilityRegistry = Object.freeze({
+export const AvailabilityRegistry = Object.freeze({
     PLAYBYPOINT_PROVIDER_ID,
     CLUBSPARK_PROVIDER_ID,
     MINDBODY_PROVIDER_ID,
@@ -175,4 +174,3 @@
     },
     venuePayloadKey,
   });
-})();
