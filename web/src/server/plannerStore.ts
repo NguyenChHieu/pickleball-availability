@@ -74,6 +74,8 @@ const MAX_EDIT_PASSWORD_LENGTH = 80;
 const RECOVERY_FAILURE_LIMIT = 5;
 const RECOVERY_WINDOW_MS = 15 * 60 * 1000;
 const RECOVERY_BLOCK_MS = 15 * 60 * 1000;
+const EVENT_CREATION_LIMIT = 20;
+const EVENT_CREATION_WINDOW_MS = 60 * 60 * 1000;
 const PARTICIPANT_ACCESS_ERROR =
   "Could not verify edit access. Check your details or use a different display name.";
 const RECOVERY_RATE_LIMIT_ERROR = "Too many recovery attempts. Try again later.";
@@ -84,6 +86,17 @@ export class PlannerRecoveryRateLimitError extends Error {
   constructor() {
     super(RECOVERY_RATE_LIMIT_ERROR);
     this.name = "PlannerRecoveryRateLimitError";
+  }
+}
+
+export class PlannerEventCreationRateLimitError extends Error {
+  readonly status = 429;
+  readonly retryAfterSeconds: number;
+
+  constructor(retryAfterSeconds = 0) {
+    super("Too many planner events created recently. Try again later.");
+    this.name = "PlannerEventCreationRateLimitError";
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -245,6 +258,27 @@ async function recordSupabaseRecoveryFailure(attemptKey: string): Promise<never>
 
 async function clearSupabaseRecoveryFailures(attemptKey: string) {
   await callSupabaseRpc("planner_recovery_clear", { p_attempt_key: attemptKey });
+}
+
+function isMissingEventCreationRateLimitMigration(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return (
+    message.includes("planner_event_creation_") &&
+    (message.includes("PGRST202") || message.includes("does not exist") || message.includes("schema cache"))
+  );
+}
+
+function eventCreationRateLimitMigrationError() {
+  return new Error(
+    "Planner event-creation rate limiting needs the latest Supabase migration. Run web/supabase.sql, then retry."
+  );
+}
+
+async function checkSupabaseEventCreationLimit(attemptKey: string) {
+  const result = await callSupabaseRpc("planner_event_creation_check_and_record", { p_attempt_key: attemptKey });
+  if (result?.allowed === false) {
+    throw new PlannerEventCreationRateLimitError(Number(result.retryAfterSeconds) || 0);
+  }
 }
 
 function supabaseHeaders(extra: Record<string, string> = {}) {
@@ -444,7 +478,64 @@ async function writeLocalPlannerFile(record: PlannerFileRecord) {
   await fs.writeFile(plannerPath(record.event.eventToken), `${JSON.stringify(record, null, 2)}\n`, "utf8");
 }
 
-export async function createPlannerEvent(input: Partial<PlannerEventInput>) {
+type EventCreationAttempts = Record<string, { count: number; windowStartedAt: string }>;
+
+function eventCreationAttemptsPath() {
+  return path.join(DATA_DIR, "_event_creation_attempts.json");
+}
+
+async function readLocalEventCreationAttempts(): Promise<EventCreationAttempts> {
+  assertWritableLocalPlannerStore();
+  try {
+    return JSON.parse(await fs.readFile(eventCreationAttemptsPath(), "utf8")) as EventCreationAttempts;
+  } catch (error) {
+    if (typeof error === "object" && error && "code" in error && error.code === "ENOENT") return {};
+    throw error;
+  }
+}
+
+async function writeLocalEventCreationAttempts(attempts: EventCreationAttempts) {
+  assertWritableLocalPlannerStore();
+  await ensurePlannerDir();
+  await fs.writeFile(eventCreationAttemptsPath(), `${JSON.stringify(attempts, null, 2)}\n`, "utf8");
+}
+
+async function checkLocalEventCreationLimit(attemptKey: string) {
+  const attempts = await readLocalEventCreationAttempts();
+  const now = Date.now();
+  const existing = attempts[attemptKey];
+  const windowStart = existing ? Date.parse(existing.windowStartedAt) : Number.NaN;
+  const inWindow = Number.isFinite(windowStart) && now - windowStart < EVENT_CREATION_WINDOW_MS;
+  const count = inWindow && existing ? existing.count : 0;
+
+  if (count >= EVENT_CREATION_LIMIT) {
+    const retryAfterSeconds = Math.max(1, Math.ceil((windowStart + EVENT_CREATION_WINDOW_MS - now) / 1000));
+    throw new PlannerEventCreationRateLimitError(retryAfterSeconds);
+  }
+
+  attempts[attemptKey] = {
+    count: count + 1,
+    windowStartedAt: inWindow && existing ? existing.windowStartedAt : new Date(now).toISOString(),
+  };
+  await writeLocalEventCreationAttempts(attempts);
+}
+
+async function checkEventCreationRateLimit(attemptKey: string) {
+  if (USE_SUPABASE) {
+    try {
+      await checkSupabaseEventCreationLimit(attemptKey);
+    } catch (error) {
+      if (error instanceof PlannerEventCreationRateLimitError) throw error;
+      if (isMissingEventCreationRateLimitMigration(error)) throw eventCreationRateLimitMigrationError();
+      throw error;
+    }
+    return;
+  }
+  await checkLocalEventCreationLimit(attemptKey);
+}
+
+export async function createPlannerEvent(input: Partial<PlannerEventInput>, rateLimitKey: string) {
+  await checkEventCreationRateLimit(rateLimitKey);
   const normalized = normalizeEventInput(input);
   const event: PlannerEvent = {
     ...normalized,

@@ -387,3 +387,65 @@ alter table public.planner_events enable row level security;
 alter table public.planner_event_venues enable row level security;
 alter table public.planner_participants enable row level security;
 alter table public.planner_availability_blocks enable row level security;
+
+create table if not exists public.planner_event_creation_attempts (
+  attempt_key text primary key,
+  created_count integer not null default 0,
+  window_started_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.planner_event_creation_attempts enable row level security;
+
+create or replace function public.planner_event_creation_check_and_record(p_attempt_key text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  attempt public.planner_event_creation_attempts%rowtype;
+  event_limit constant integer := 20;
+  event_window constant interval := interval '60 minutes';
+begin
+  insert into public.planner_event_creation_attempts (attempt_key, created_count)
+  values (p_attempt_key, 0)
+  on conflict (attempt_key) do nothing;
+
+  select * into attempt
+  from public.planner_event_creation_attempts
+  where attempt_key = p_attempt_key
+  for update;
+
+  if attempt.window_started_at <= now() - event_window then
+    attempt.created_count := 0;
+    attempt.window_started_at := now();
+  end if;
+
+  if attempt.created_count >= event_limit then
+    update public.planner_event_creation_attempts
+    set window_started_at = attempt.window_started_at,
+        updated_at = now()
+    where attempt_key = p_attempt_key;
+    return jsonb_build_object(
+      'allowed', false,
+      'retryAfterSeconds',
+        greatest(1, ceil(extract(epoch from (attempt.window_started_at + event_window) - now())))::integer
+    );
+  end if;
+
+  attempt.created_count := attempt.created_count + 1;
+
+  update public.planner_event_creation_attempts
+  set created_count = attempt.created_count,
+      window_started_at = attempt.window_started_at,
+      updated_at = now()
+  where attempt_key = p_attempt_key;
+
+  return jsonb_build_object('allowed', true, 'retryAfterSeconds', 0);
+end;
+$$;
+
+revoke all on table public.planner_event_creation_attempts from anon, authenticated;
+revoke all on function public.planner_event_creation_check_and_record(text) from public, anon, authenticated;
+grant execute on function public.planner_event_creation_check_and_record(text) to service_role;

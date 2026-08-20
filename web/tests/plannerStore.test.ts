@@ -27,6 +27,14 @@ after(async () => {
   await fs.rm(availabilityDataDir, { force: true, recursive: true });
 });
 
+// Unique per call so unrelated tests in this file never share a rate-limit
+// bucket - each test simulates a different client.
+let rateLimitKeyCounter = 0;
+function testRateLimitKey() {
+  rateLimitKeyCounter += 1;
+  return `test-client-${rateLimitKeyCounter}`;
+}
+
 function eventInput() {
   return {
     name: "Friday hit",
@@ -53,7 +61,7 @@ test("user-facing validation failures are typed so routes can tell them apart fr
   // 500". If planner validation ever throws a plain Error again, this test
   // catches the regression before the route silently starts leaking internals.
   await assert.rejects(
-    createPlannerEvent({ ...eventInput(), dateStart: "2026-02-31" }),
+    createPlannerEvent({ ...eventInput(), dateStart: "2026-02-31" }, testRateLimitKey()),
     (error) => error instanceof InvalidPlannerRequestError
   );
   await assert.rejects(
@@ -66,22 +74,31 @@ test("user-facing validation failures are typed so routes can tell them apart fr
 });
 
 test("planner event validation rejects impossible dates and deduplicates venues", async () => {
-  await assert.rejects(createPlannerEvent({ ...eventInput(), dateStart: "2026-02-31" }), /valid planner date/);
+  await assert.rejects(
+    createPlannerEvent({ ...eventInput(), dateStart: "2026-02-31" }, testRateLimitKey()),
+    /valid planner date/
+  );
 
-  const event = await createPlannerEvent({ ...eventInput(), venueIds: ["propickle", "propickle"] });
+  const event = await createPlannerEvent(
+    { ...eventInput(), venueIds: ["propickle", "propickle"] },
+    testRateLimitKey()
+  );
   assert.deepEqual(event.venueIds, ["propickle"]);
 
-  const normalizedTimes = await createPlannerEvent({
-    ...eventInput(),
-    preferredStartTime: "6pm",
-    preferredEndTime: "10pm",
-  });
+  const normalizedTimes = await createPlannerEvent(
+    {
+      ...eventInput(),
+      preferredStartTime: "6pm",
+      preferredEndTime: "10pm",
+    },
+    testRateLimitKey()
+  );
   assert.equal(normalizedTimes.preferredStartTime, "18:00");
   assert.equal(normalizedTimes.preferredEndTime, "22:00");
 });
 
 test("new planner participants can save without an edit password", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   const created = await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     availabilityBlocks: block(18 * 60, 20 * 60),
@@ -92,7 +109,7 @@ test("new planner participants can save without an edit password", async () => {
 });
 
 test("same browser edit token updates without re-entering password", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   const created = await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     availabilityBlocks: block(18 * 60, 19 * 60),
@@ -110,7 +127,7 @@ test("same browser edit token updates without re-entering password", async () =>
 });
 
 test("valid local edit tokens keep working after recovery attempts are rate limited", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   const created = await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     editPassword: "court123",
@@ -148,7 +165,7 @@ test("valid local edit tokens keep working after recovery attempts are rate limi
 });
 
 test("passwordless participant cannot be reclaimed from another browser", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     availabilityBlocks: block(18 * 60, 19 * 60),
@@ -165,7 +182,7 @@ test("passwordless participant cannot be reclaimed from another browser", async 
 });
 
 test("same name and password can reclaim a participant from another browser", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   const created = await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     editPassword: "court123",
@@ -185,7 +202,7 @@ test("same name and password can reclaim a participant from another browser", as
 });
 
 test("recovering a participant loads identity without overwriting availability", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   const created = await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     editPassword: "court123",
@@ -205,7 +222,7 @@ test("recovering a participant loads identity without overwriting availability",
 });
 
 test("participant availability must stay inside event dates and hours", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
 
   await assert.rejects(
     upsertPlannerParticipant(event.eventToken, {
@@ -224,7 +241,7 @@ test("participant availability must stay inside event dates and hours", async ()
 });
 
 test("same name with wrong or missing password is rejected", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     editPassword: "court123",
@@ -290,7 +307,7 @@ test("legacy localStorage-token participants can set a password on next save", a
 });
 
 test("authenticated participants change recovery password without changing availability", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   const created = await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     editPassword: "court123",
@@ -318,7 +335,7 @@ test("authenticated participants change recovery password without changing avail
 });
 
 test("public planner view never exposes edit tokens or password hashes", async () => {
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     editPassword: "court123",
@@ -347,7 +364,7 @@ test("planner venue matches use normal ProPickle open intervals without a deep s
       },
     ],
   });
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     availabilityBlocks: block(19 * 60, 21 * 60),
@@ -374,7 +391,7 @@ test("planner venue matches accept legacy ProPickle date labels", async () => {
       },
     ],
   });
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     availabilityBlocks: block(19 * 60, 21 * 60),
@@ -404,7 +421,7 @@ test("planner venue matches keep broad venue availability when same-court data i
       },
     ],
   });
-  const event = await createPlannerEvent(eventInput());
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
   await upsertPlannerParticipant(event.eventToken, {
     displayName: "Hieu",
     availabilityBlocks: block(18 * 60, 22 * 60),
@@ -415,4 +432,23 @@ test("planner venue matches keep broad venue availability when same-court data i
   assert.equal(view?.recommendations[0].startMinute, 18 * 60);
   assert.equal(view?.recommendations[0].endMinute, 22 * 60);
   assert.equal(view?.recommendations[0].confidence, "any-court");
+});
+
+test("planner event creation is rate limited per client key, independent of other keys", async () => {
+  const { PlannerEventCreationRateLimitError } = await import("../src/server/plannerStore.ts");
+  const key = `rate-limit-probe-${Date.now()}`;
+
+  // EVENT_CREATION_LIMIT in plannerStore.ts is 20; the 21st create for the
+  // same key in the same window must be rejected.
+  for (let i = 0; i < 20; i += 1) {
+    await createPlannerEvent(eventInput(), key);
+  }
+  await assert.rejects(
+    createPlannerEvent(eventInput(), key),
+    (error) => error instanceof PlannerEventCreationRateLimitError && error.retryAfterSeconds > 0
+  );
+
+  // A different key is a separate bucket and is unaffected.
+  const event = await createPlannerEvent(eventInput(), testRateLimitKey());
+  assert.ok(event.eventToken);
 });

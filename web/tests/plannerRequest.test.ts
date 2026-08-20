@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  clientRateLimitKey,
   InvalidPlannerRequestError,
   readPlannerRequestJson,
 } from "../src/server/plannerRequest.ts";
@@ -64,4 +65,23 @@ test("rejects an empty body as invalid JSON rather than silently defaulting", as
     () => readPlannerRequestJson(request),
     (error: unknown) => error instanceof InvalidPlannerRequestError
   );
+});
+
+test("clientRateLimitKey prefers the first x-forwarded-for entry", () => {
+  const request = new Request("https://example.com/api/planner/events", {
+    headers: { "x-forwarded-for": "203.0.113.5, 10.0.0.1" },
+  });
+  assert.equal(clientRateLimitKey(request), "203.0.113.5");
+});
+
+test("clientRateLimitKey falls back to x-real-ip when x-forwarded-for is absent", () => {
+  const request = new Request("https://example.com/api/planner/events", {
+    headers: { "x-real-ip": "203.0.113.9" },
+  });
+  assert.equal(clientRateLimitKey(request), "203.0.113.9");
+});
+
+test("clientRateLimitKey falls back to a shared bucket when no identifying header is present", () => {
+  const request = new Request("https://example.com/api/planner/events");
+  assert.equal(clientRateLimitKey(request), "unknown");
 });

@@ -42,3 +42,21 @@ export async function readPlannerRequestJson(request: Request): Promise<Record<s
 
   return parsed as Record<string, unknown>;
 }
+
+/**
+ * Best-effort caller identifier for rate limiting, not authentication. On
+ * Vercel, x-forwarded-for's first entry is the original client; x-real-ip is
+ * a fallback for other proxies. Requests with neither (e.g. local dev without
+ * a proxy in front) share one "unknown" bucket rather than bypassing the
+ * limiter entirely.
+ */
+export function clientRateLimitKey(request: Request): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const firstForwarded = forwardedFor?.split(",")[0]?.trim();
+  if (firstForwarded) return firstForwarded;
+
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  return "unknown";
+}
