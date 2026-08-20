@@ -17,6 +17,12 @@ progress:
 
 Last activity: 2026-07-02
 
+> **2026-08-20 note:** This file's phase/plan tracking stops at PBB-01 (2026-07-02), but `main` has since
+> received substantial untracked work (web dashboard, planner, second/third venues, sync-concurrency
+> guards, trust-boundary hardening — see `git log --oneline main` and the merged branch list). No GSD
+> phase was opened for that work, so the `progress` block above under-reports actual completion. Treat
+> git history, not this file, as the source of truth for what shipped until a new phase is opened here.
+
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-06-30)

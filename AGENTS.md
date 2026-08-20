@@ -34,6 +34,9 @@ Run these checks after relevant changes:
 npm.cmd --prefix web run typecheck
 npm.cmd --prefix web run lint
 npm.cmd --prefix web run build
+npm.cmd --prefix web run test:fixtures
+npm.cmd run test:extension
+npm.cmd run test:scripts
 node --check extension\background.js
 node --check extension\contentScript.js
 node --check extension\popup.js

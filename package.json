@@ -1,0 +1,10 @@
+{
+  "name": "pickleball-availability-buddy",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Repo-root scripts for the extension and probe checks; the web app lives in web/.",
+  "scripts": {
+    "test:extension": "node --test extension/tests/*.test.js",
+    "test:scripts": "node --test scripts/*.test.js"
+  }
+}

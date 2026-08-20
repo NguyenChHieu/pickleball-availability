@@ -3,9 +3,10 @@
 ## Current Snapshot
 
 - Path: `C:\Users\nguye\Downloads\propickle-buddy`
-- Git branch: `codex/web-dashboard`
-- Git status: web dashboard implementation and local QA passed; publish a Vercel preview and do not merge before user review.
+- Git branch: `main` (this doc was last refreshed from `chore/repo-cleanup-and-security-fixes`, branched off `main` at `b3cf032`)
+- Git status: `codex/web-dashboard` and every other feature branch listed below have merged to `main`; this snapshot previously described a pending-review state that no longer applies.
 - Local instructions: `AGENTS.md` plus `.ai/agent-router.md`.
+- 2026-08-20 cleanup: removed 17 corrupted `.lock.stale.` ref files and a phantom locked worktree from `.git/`; 13 fully-merged remote branches (`codex/*`, `feature/*`, `henry/*`) were identified as deletable but left on `origin` pending manual review — see git branch list on GitHub.
 
 ## Stack
 
@@ -41,6 +42,8 @@
 | typecheck web | `npm.cmd --prefix web run typecheck` | `tsc --noEmit`. |
 | health route | `curl http://localhost:3007/health` | Returns `{ "ok": true }` when the Next dev server is running. |
 | check extension | `node --check extension\background.js` | Repeat for listed extension scripts after changes. |
+| test extension | `npm.cmd run test:extension` | Root `package.json`; runs `extension/tests/*.test.js` via `node --test`. Previously unwired — no script called it. |
+| test scripts | `npm.cmd run test:scripts` | Runs `scripts/*.test.js` (propickle-probes). |
 | validate manifest | `python -m json.tool extension\manifest.json` | MV3 manifest JSON validity. |
 | format | none | No formatter script is configured. |
 
@@ -129,4 +132,4 @@ Web dashboard branch checked on July 23 before preview publication:
 
 ## Next Exploration Step
 
-Publish the web-dashboard branch to a Vercel preview, review `/app` on the preview, then reload the unpacked extension and smoke-test one local selected refresh before requesting merge approval.
+Web dashboard is merged and live on `main`. Next: review the repo cleanup/security-fix branch (`chore/repo-cleanup-and-security-fixes`) — messenger webhook signature verification, timing-safe token comparisons, dependency pinning, and a minimal CI workflow — then decide on the `globals.css` and `background.js` decomposition discussed separately.
