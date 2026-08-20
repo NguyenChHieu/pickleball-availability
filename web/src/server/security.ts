@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "node:crypto";
+
 export const API_CORS_HEADERS = Object.freeze({
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -17,8 +19,16 @@ export const API_RESPONSE_HEADERS = Object.freeze({
   ...NO_STORE_HEADERS,
 });
 
-function isHostedRuntime() {
+export function isHostedRuntime() {
   return Boolean(process.env.VERCEL || process.env.RENDER);
+}
+
+/** Constant-time string comparison so secret checks don't leak timing info via early mismatch. */
+export function timingSafeEqualStrings(a: string, b: string) {
+  const bufA = Buffer.from(a, "utf8");
+  const bufB = Buffer.from(b, "utf8");
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
 }
 
 function configuredShareToken() {
@@ -37,13 +47,14 @@ function configuredSyncToken() {
 
 export function validShareToken(shareToken: string) {
   const token = configuredShareToken();
-  return Boolean(token && shareToken && shareToken === token);
+  return Boolean(token && shareToken && timingSafeEqualStrings(shareToken, token));
 }
 
 export function requireSyncToken(request: Request) {
   const token = configuredSyncToken();
   if (!token) return null;
-  if (request.headers.get("x-sync-token") === token) return null;
+  const provided = request.headers.get("x-sync-token") || "";
+  if (provided && timingSafeEqualStrings(provided, token)) return null;
   return Response.json(
     { error: "Invalid sync token" },
     {

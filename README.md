@@ -108,6 +108,8 @@ On Vercel, import the repo with `web` as the root directory. Set the same `AVAIL
 
 For deployed cache persistence, use Supabase by setting `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in Vercel. The schema is in `web/supabase.sql`.
 
+If the Messenger webhook (`/webhook/messenger`) is enabled, set `MESSENGER_APP_SECRET` to the Meta app's secret in Vercel — it's required in deployed mode so inbound webhook deliveries can be verified against `X-Hub-Signature-256`. Without it, `POST /webhook/messenger` fails closed in production; in local dev it's optional and verification is skipped.
+
 ## Compatibility
 
 This extension targets venue-specific public/readable booking widgets through small providers:

@@ -6,6 +6,7 @@ import {
   API_RESPONSE_HEADERS,
   NO_STORE_HEADERS,
   apiPreflight,
+  timingSafeEqualStrings,
 } from "../src/server/security.ts";
 
 test("protected API responses are private and never cached", () => {
@@ -22,4 +23,16 @@ test("CORS preflight remains separately cacheable and contains no response data 
   assert.equal(response.headers.get("cache-control"), null);
   assert.equal(Object.hasOwn(API_CORS_HEADERS, "cache-control"), false);
   assert.equal(NO_STORE_HEADERS["cache-control"], "private, no-store, max-age=0");
+});
+
+test("timingSafeEqualStrings matches equal strings", () => {
+  assert.equal(timingSafeEqualStrings("dev-share", "dev-share"), true);
+});
+
+test("timingSafeEqualStrings rejects different strings of the same length", () => {
+  assert.equal(timingSafeEqualStrings("dev-share", "dev-sharx"), false);
+});
+
+test("timingSafeEqualStrings rejects strings of different length without throwing", () => {
+  assert.equal(timingSafeEqualStrings("short", "a-much-longer-value"), false);
 });
