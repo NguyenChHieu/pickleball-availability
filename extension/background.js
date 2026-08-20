@@ -39,7 +39,6 @@ const SYNC_PAYLOAD_REQUEST_TIMEOUT_MS = 15000;
 const REFRESH_SOURCES = new Set(["selected", "stale", "all", "deep", "current_page"]);
 
 const pendingRefreshAttempts = new Set();
-const pendingRefreshTimers = new Map();
 let refreshJobPromise = null;
 let refreshJobStartPromise = null;
 let refreshJobStarting = false;
@@ -518,33 +517,44 @@ async function pendingRefreshForTab(tabId) {
   return pendingRefreshes[pendingTabKey(tabId)] || null;
 }
 
-function clearPendingRefreshTimer(tabId) {
-  const timer = pendingRefreshTimers.get(Number(tabId));
-  if (timer) clearTimeout(timer);
-  pendingRefreshTimers.delete(Number(tabId));
+const PENDING_REFRESH_ALARM_PREFIX = "pbb-pending-refresh-";
+
+function pendingRefreshAlarmName(tabId) {
+  return `${PENDING_REFRESH_ALARM_PREFIX}${Number(tabId)}`;
 }
 
-function schedulePendingRefresh(tabId, delayMs = PENDING_REFRESH_RETRY_MS) {
-  clearPendingRefreshTimer(tabId);
-  const timer = setTimeout(() => {
-    pendingRefreshTimers.delete(Number(tabId));
-    continuePendingRefresh(tabId, "timer").catch((error) => console.warn(error));
-  }, delayMs);
-  pendingRefreshTimers.set(Number(tabId), timer);
+function tabIdFromPendingRefreshAlarm(alarmName) {
+  if (!alarmName.startsWith(PENDING_REFRESH_ALARM_PREFIX)) return null;
+  const tabId = Number(alarmName.slice(PENDING_REFRESH_ALARM_PREFIX.length));
+  return Number.isFinite(tabId) ? tabId : null;
+}
+
+async function clearPendingRefreshTimer(tabId) {
+  await chrome.alarms.clear(pendingRefreshAlarmName(tabId));
+}
+
+// ponytail: chrome.alarms (not setTimeout) because MV3 service workers can be
+// suspended mid-wait and an in-memory setTimeout dies with them silently -
+// alarms are tracked by Chrome independent of the worker and always fire.
+// Trade-off: alarms clamp sub-minute delays to ~30s even for unpacked/dev
+// extensions, so a retry that used to fire in 8s now fires in up to ~30s.
+async function schedulePendingRefresh(tabId, delayMs = PENDING_REFRESH_RETRY_MS) {
+  await clearPendingRefreshTimer(tabId);
+  chrome.alarms.create(pendingRefreshAlarmName(tabId), { delayInMinutes: delayMs / 60000 });
 }
 
 async function clearPendingRefresh(tabId) {
   const pendingRefreshes = await loadPendingRefreshes();
   delete pendingRefreshes[pendingTabKey(tabId)];
   await savePendingRefreshes(pendingRefreshes);
-  clearPendingRefreshTimer(tabId);
+  await clearPendingRefreshTimer(tabId);
 }
 
 async function savePendingRefresh(session) {
   const pendingRefreshes = await loadPendingRefreshes();
   pendingRefreshes[pendingTabKey(session.tabId)] = session;
   await savePendingRefreshes(pendingRefreshes);
-  schedulePendingRefresh(session.tabId);
+  await schedulePendingRefresh(session.tabId);
 }
 
 function pendingRefreshSession(tabId, venue, closeWhenDone, error, refreshAttempt = null) {
@@ -629,7 +639,7 @@ async function returnPendingRefreshToVenueStart(tabId, venue, session, error) {
     returnedToStartAt: Date.now(),
   };
   await savePendingRefreshes(pendingRefreshes);
-  clearPendingRefreshTimer(tabId);
+  await clearPendingRefreshTimer(tabId);
   await chrome.tabs.update(Number(tabId), { url: venue.startUrl });
 }
 
@@ -644,7 +654,7 @@ async function touchPendingRefresh(tabId, error) {
     lastError: error?.message || String(error || ""),
   };
   await savePendingRefreshes(pendingRefreshes);
-  schedulePendingRefresh(tabId);
+  await schedulePendingRefresh(tabId);
 }
 
 async function continuePendingRefresh(tabId, _reason) {
@@ -1197,6 +1207,12 @@ async function readActiveTab() {
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status !== "complete") return;
   continuePendingRefresh(tabId, "tab-complete").catch((error) => console.warn(error));
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  const tabId = tabIdFromPendingRefreshAlarm(alarm.name);
+  if (tabId === null) return;
+  continuePendingRefresh(tabId, "alarm").catch((error) => console.warn(error));
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

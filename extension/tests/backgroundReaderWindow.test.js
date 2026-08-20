@@ -11,6 +11,7 @@ function loadBackground(fetchImpl = fetch) {
   const windows = new Map();
   const tabs = new Map();
   const calls = { createdWindows: 0, removedWindows: [] };
+  const alarms = { created: new Map(), listeners: [] };
 
   function addTab(windowId, url, active) {
     const tab = { id: nextTabId++, windowId, url, active, status: "complete" };
@@ -108,6 +109,19 @@ function loadBackground(fetchImpl = fetch) {
     },
     scripting: { async executeScript() {} },
     runtime: { onMessage: { addListener() {} } },
+    alarms: {
+      create(name, options) {
+        alarms.created.set(name, options);
+      },
+      async clear(name) {
+        return alarms.created.delete(name);
+      },
+      onAlarm: {
+        addListener(fn) {
+          alarms.listeners.push(fn);
+        },
+      },
+    },
   };
 
   const context = vm.createContext({
@@ -126,7 +140,7 @@ function loadBackground(fetchImpl = fetch) {
   });
   const source = fs.readFileSync(path.resolve(__dirname, "../background.js"), "utf8");
   vm.runInContext(source, context, { filename: "background.js" });
-  return { calls, context, storage, tabs, windows };
+  return { alarms, calls, context, storage, tabs, windows };
 }
 
 test("refresh status reports use allowlisted source fallbacks", () => {
@@ -458,4 +472,36 @@ test("setup tabs survive cleanup and open only after an explicit request", async
   await context.openPendingSetupWindow("setup");
   assert.equal(windows.get(setupTab.windowId).focused, true);
   assert.equal(tabs.get(setupTab.id).active, true);
+});
+
+test("pending refresh retries are scheduled and cleared through chrome.alarms, not setTimeout", async () => {
+  // MV3 service workers can be suspended mid-wait, silently dropping an
+  // in-memory setTimeout. chrome.alarms is tracked by Chrome independent of
+  // the worker's lifecycle, so this locks in that the retry path actually
+  // goes through chrome.alarms.create/clear and that the alarm name round
+  // trips back to the right tabId when it fires.
+  const { alarms, context } = loadBackground();
+
+  const alarmName = context.pendingRefreshAlarmName(42);
+  assert.equal(context.tabIdFromPendingRefreshAlarm(alarmName), 42);
+  assert.equal(context.tabIdFromPendingRefreshAlarm("not-a-pending-refresh-alarm"), null);
+
+  await context.schedulePendingRefresh(42, 8000);
+  assert.ok(alarms.created.has(alarmName));
+  assert.equal(alarms.created.get(alarmName).delayInMinutes, 8000 / 60000);
+
+  await context.clearPendingRefreshTimer(42);
+  assert.equal(alarms.created.has(alarmName), false);
+
+  assert.equal(alarms.listeners.length, 1);
+  let continuedTabId = null;
+  let continuedReason = null;
+  context.continuePendingRefresh = async (tabId, reason) => {
+    continuedTabId = tabId;
+    continuedReason = reason;
+  };
+  alarms.listeners[0]({ name: alarmName });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(continuedTabId, 42);
+  assert.equal(continuedReason, "alarm");
 });

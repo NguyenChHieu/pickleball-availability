@@ -3,7 +3,7 @@
   "name": "Pickleball Availability Reader",
   "version": "0.4.12",
   "description": "Read pickleball booking availability by venue and show merged open intervals.",
-  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "permissions": ["activeTab", "alarms", "scripting", "storage", "tabs"],
   "host_permissions": [
     "https://book.propickle.com.au/*",
     "https://clubspark.au/Broadway/*",
