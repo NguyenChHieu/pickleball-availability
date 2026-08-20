@@ -1,4 +1,4 @@
-import { readPlannerRequestJson } from "@/server/plannerRequest";
+import { InvalidPlannerRequestError, readPlannerRequestJson } from "@/server/plannerRequest";
 import {
   getPlannerEventView,
   PlannerRecoveryRateLimitError,
@@ -37,12 +37,16 @@ export async function POST(request: Request, { params }: PlannerParticipantRoute
       { headers: NO_STORE_HEADERS }
     );
   } catch (error) {
+    if (error instanceof PlannerRecoveryRateLimitError) {
+      return Response.json({ error: error.message }, { status: 429, headers: NO_STORE_HEADERS });
+    }
+    if (error instanceof InvalidPlannerRequestError) {
+      return Response.json({ error: error.message }, { status: 400, headers: NO_STORE_HEADERS });
+    }
+    console.error("Could not save planner participant.", error);
     return Response.json(
-      { error: error instanceof Error ? error.message : "Could not save availability." },
-      {
-        status: error instanceof PlannerRecoveryRateLimitError ? 429 : 400,
-        headers: NO_STORE_HEADERS,
-      }
+      { error: "Could not save availability." },
+      { status: 500, headers: NO_STORE_HEADERS }
     );
   }
 }

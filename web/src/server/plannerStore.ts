@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import { InvalidPlannerRequestError } from "./plannerRequest.ts";
 import { getVenueDefinition, venues } from "../lib/venues.ts";
 import {
   getAvailabilityRecord,
@@ -115,7 +116,7 @@ function plannerPath(eventToken: string) {
 
 function safeToken(token: unknown) {
   const normalized = String(token || "");
-  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(normalized)) throw new Error("Missing or invalid planner token.");
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(normalized)) throw new InvalidPlannerRequestError("Missing or invalid planner token.");
   return normalized;
 }
 
@@ -133,10 +134,10 @@ export function normalizeDisplayNameKey(displayName: string) {
 function normalizeEditPassword(value: unknown) {
   const password = String(value || "").trim();
   if (password && password.length < MIN_EDIT_PASSWORD_LENGTH) {
-    throw new Error(`Edit password must be at least ${MIN_EDIT_PASSWORD_LENGTH} characters.`);
+    throw new InvalidPlannerRequestError(`Edit password must be at least ${MIN_EDIT_PASSWORD_LENGTH} characters.`);
   }
   if (password.length > MAX_EDIT_PASSWORD_LENGTH) {
-    throw new Error(`Edit password can be up to ${MAX_EDIT_PASSWORD_LENGTH} characters.`);
+    throw new InvalidPlannerRequestError(`Edit password can be up to ${MAX_EDIT_PASSWORD_LENGTH} characters.`);
   }
   return password;
 }
@@ -192,7 +193,7 @@ async function recordLocalRecoveryFailure(record: PlannerFileRecord, attemptKey:
   attempts[attemptKey] = next;
   await writeLocalPlannerFile(record);
   if (next.blockedUntil) throw new PlannerRecoveryRateLimitError();
-  throw new Error(PARTICIPANT_ACCESS_ERROR);
+  throw new InvalidPlannerRequestError(PARTICIPANT_ACCESS_ERROR);
 }
 
 async function clearLocalRecoveryFailures(record: PlannerFileRecord, attemptKey: string) {
@@ -239,7 +240,7 @@ async function checkSupabaseRecoveryLimit(attemptKey: string) {
 async function recordSupabaseRecoveryFailure(attemptKey: string): Promise<never> {
   const result = await callSupabaseRpc("planner_recovery_fail", { p_attempt_key: attemptKey });
   if (result?.blocked) throw new PlannerRecoveryRateLimitError();
-  throw new Error(PARTICIPANT_ACCESS_ERROR);
+  throw new InvalidPlannerRequestError(PARTICIPANT_ACCESS_ERROR);
 }
 
 async function clearSupabaseRecoveryFailures(attemptKey: string) {
@@ -315,22 +316,22 @@ function normalizeEventInput(input: Partial<PlannerEventInput>): PlannerEventInp
     : [];
 
   if (!isIsoDate(dateStart) || !isIsoDate(dateEnd) || dateStart > dateEnd) {
-    throw new Error("Choose a valid planner date range.");
+    throw new InvalidPlannerRequestError("Choose a valid planner date range.");
   }
   if (daysBetweenInclusive(dateStart, dateEnd) > MAX_PLANNER_DAYS) {
-    throw new Error(`Planner events can cover up to ${MAX_PLANNER_DAYS} days.`);
+    throw new InvalidPlannerRequestError(`Planner events can cover up to ${MAX_PLANNER_DAYS} days.`);
   }
   if (
     preferredStartMinutes === null ||
     preferredEndMinutes === null ||
     preferredStartMinutes >= preferredEndMinutes
   ) {
-    throw new Error("Preferred end time must be after preferred start time.");
+    throw new InvalidPlannerRequestError("Preferred end time must be after preferred start time.");
   }
   if (!Number.isInteger(minimumDurationMinutes) || minimumDurationMinutes < 30 || minimumDurationMinutes > 240) {
-    throw new Error("Minimum duration must be between 30 and 240 minutes.");
+    throw new InvalidPlannerRequestError("Minimum duration must be between 30 and 240 minutes.");
   }
-  if (!venueIds.length) throw new Error("Choose at least one venue.");
+  if (!venueIds.length) throw new InvalidPlannerRequestError("Choose at least one venue.");
 
   return {
     name,
@@ -350,7 +351,7 @@ function formatTimeValue(minutes: number) {
 function normalizeBlocks(blocks: unknown): PlannerAvailabilityBlock[] {
   if (!Array.isArray(blocks)) return [];
   if (blocks.length > MAX_PARTICIPANT_BLOCKS) {
-    throw new Error("Too many availability blocks.");
+    throw new InvalidPlannerRequestError("Too many availability blocks.");
   }
   return mergeBlocks(
     blocks
@@ -389,7 +390,7 @@ function validateBlocksForEvent(blocks: PlannerAvailabilityBlock[], event: Plann
       block.endMinute > preferredEnd
   );
   if (isOutsideEvent) {
-    throw new Error("Availability must use 30-minute slots inside the planner dates and hours.");
+    throw new InvalidPlannerRequestError("Availability must use 30-minute slots inside the planner dates and hours.");
   }
   return blocks;
 }
@@ -618,16 +619,16 @@ async function readSupabaseParticipants(token: string) {
 
 export async function upsertPlannerParticipant(eventToken: string, input: Partial<ParticipantInput>) {
   const displayName = String(input.displayName || "").trim().slice(0, 60);
-  if (!displayName) throw new Error("Enter a display name.");
+  if (!displayName) throw new InvalidPlannerRequestError("Enter a display name.");
   const displayNameKey = normalizeDisplayNameKey(displayName);
-  if (!displayNameKey) throw new Error("Enter a display name.");
+  if (!displayNameKey) throw new InvalidPlannerRequestError("Enter a display name.");
   const requestedBlocks = normalizeBlocks(input.availabilityBlocks);
   const editToken = input.editToken ? safeToken(input.editToken) : "";
   const editPassword = normalizeEditPassword(input.editPassword);
   const recoverOnly = input.recoverOnly === true;
   const updatePasswordOnly = input.updatePasswordOnly === true;
   if (updatePasswordOnly && (!editToken || !editPassword)) {
-    throw new Error(PARTICIPANT_ACCESS_ERROR);
+    throw new InvalidPlannerRequestError(PARTICIPANT_ACCESS_ERROR);
   }
 
   if (USE_SUPABASE) {
@@ -645,7 +646,7 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
       if (error instanceof PlannerRecoveryRateLimitError) throw error;
       if (isMissingRecoveryRateLimitMigration(error)) throw recoveryRateLimitMigrationError();
       if (isMissingPlannerPasswordColumns(error)) throw plannerPasswordMigrationError();
-      if (isSupabaseUniqueViolation(error)) throw new Error(PARTICIPANT_ACCESS_ERROR);
+      if (isSupabaseUniqueViolation(error)) throw new InvalidPlannerRequestError(PARTICIPANT_ACCESS_ERROR);
       if (isSupabasePlannerError(error)) {
         console.error("Could not save planner participant in Supabase.", error);
         throw new Error("Could not save availability.");
@@ -677,7 +678,7 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
     } else {
       if (recoverOnly) return recordLocalRecoveryFailure(record, attemptKey);
       if (record.participants.length >= MAX_PARTICIPANTS_PER_EVENT) {
-        throw new Error("This planner has reached its participant limit.");
+        throw new InvalidPlannerRequestError("This planner has reached its participant limit.");
       }
       participant = {
         participantId: randomToken(12),
@@ -691,7 +692,7 @@ export async function upsertPlannerParticipant(eventToken: string, input: Partia
       record.participants.push(participant);
     }
   } else if (participantByName && participantByName.participantId !== participant.participantId) {
-    throw new Error(PARTICIPANT_ACCESS_ERROR);
+    throw new InvalidPlannerRequestError(PARTICIPANT_ACCESS_ERROR);
   }
 
   if (recoverOnly) return participant;
@@ -754,7 +755,7 @@ async function upsertPlannerParticipantSupabase(
     } else {
       if (input.recoverOnly) return recordSupabaseRecoveryFailure(attemptKey);
       if (event.participants.length >= MAX_PARTICIPANTS_PER_EVENT) {
-        throw new Error("This planner has reached its participant limit.");
+        throw new InvalidPlannerRequestError("This planner has reached its participant limit.");
       }
       const editPasswordHash = input.editPassword ? await hashEditPassword(input.editPassword) : undefined;
       participant = {
@@ -785,7 +786,7 @@ async function upsertPlannerParticipantSupabase(
       );
     }
   } else if (participantByName && participantByName.participantId !== participant.participantId) {
-    throw new Error(PARTICIPANT_ACCESS_ERROR);
+    throw new InvalidPlannerRequestError(PARTICIPANT_ACCESS_ERROR);
   } else {
     participant.displayName = input.displayName;
     participant.displayNameKey = input.displayNameKey;

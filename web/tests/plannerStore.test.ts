@@ -19,6 +19,7 @@ const {
   PlannerRecoveryRateLimitError,
   upsertPlannerParticipant,
 } = await import("../src/server/plannerStore.ts");
+const { InvalidPlannerRequestError } = await import("../src/server/plannerRequest.ts");
 const { saveAvailability } = await import("../src/server/availabilityStore.ts");
 
 after(async () => {
@@ -44,6 +45,24 @@ function block(startMinute: number, endMinute: number) {
 
 test("normalizes display names for duplicate detection", () => {
   assert.equal(normalizeDisplayNameKey("  Hieu   Nguyen "), "hieu nguyen");
+});
+
+test("user-facing validation failures are typed so routes can tell them apart from internal errors", async () => {
+  // The API routes rely on this: InvalidPlannerRequestError means "safe to show
+  // the message and return 400"; a plain Error means "log it, return a generic
+  // 500". If planner validation ever throws a plain Error again, this test
+  // catches the regression before the route silently starts leaking internals.
+  await assert.rejects(
+    createPlannerEvent({ ...eventInput(), dateStart: "2026-02-31" }),
+    (error) => error instanceof InvalidPlannerRequestError
+  );
+  await assert.rejects(
+    upsertPlannerParticipant("missing-event-token-does-not-matter-here", {
+      displayName: "",
+      availabilityBlocks: [],
+    }),
+    (error) => error instanceof InvalidPlannerRequestError
+  );
 });
 
 test("planner event validation rejects impossible dates and deduplicates venues", async () => {
