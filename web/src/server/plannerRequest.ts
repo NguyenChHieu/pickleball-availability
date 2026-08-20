@@ -12,12 +12,18 @@ function invalid(message: string): never {
 }
 
 /**
- * Reads and parses a planner request body with a byte-size ceiling enforced
- * before JSON.parse runs, so an oversized body is rejected cheaply instead of
- * being fully buffered and parsed. Field-level bounds (name length, date
+ * Reads and parses a planner request body with a byte-size ceiling. A declared
+ * Content-Length over the ceiling is rejected before the body is read at all;
+ * a body that lies about its length (or omits Content-Length) is still caught
+ * after buffering, as a backstop. Field-level bounds (name length, date
  * ranges, block counts, etc.) remain the responsibility of plannerStore.
  */
 export async function readPlannerRequestJson(request: Request): Promise<Record<string, unknown>> {
+  const declaredLength = Number(request.headers.get("content-length") || "");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    invalid("Request body is too large.");
+  }
+
   const raw = await request.text();
   if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
     invalid("Request body is too large.");

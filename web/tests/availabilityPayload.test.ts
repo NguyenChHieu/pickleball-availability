@@ -157,3 +157,13 @@ test("sync request bodies are bounded before parsing and persistence", async () 
 
   await assert.rejects(() => readAvailabilityPayload(request, "propickle"), /too large/i);
 });
+
+test("a declared Content-Length over the ceiling is rejected without reading the body", async () => {
+  const request = new Request("https://example.test/api/availability/propickle", {
+    method: "POST",
+    body: "{}",
+    headers: { "content-length": String(5 * 1024 * 1024) },
+  });
+
+  await assert.rejects(() => readAvailabilityPayload(request, "propickle"), /too large/i);
+});

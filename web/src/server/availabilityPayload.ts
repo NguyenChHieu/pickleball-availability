@@ -226,6 +226,11 @@ export function sanitizeAvailabilityPayload(
 }
 
 export async function readAvailabilityPayload(request: Request, venueId: string) {
+  const declaredLength = Number(request.headers.get("content-length") || "");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    invalid("body is too large.");
+  }
+
   const raw = await request.text();
   if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
     invalid("body is too large.");

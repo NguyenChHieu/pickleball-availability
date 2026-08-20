@@ -46,6 +46,18 @@ test("rejects JSON that is not a plain object", async () => {
   }
 });
 
+test("rejects a declared Content-Length over the ceiling without reading the body", async () => {
+  const request = new Request("https://example.com/api/planner/events", {
+    method: "POST",
+    body: "{}",
+    headers: { "content-length": String(200_000) },
+  });
+  await assert.rejects(
+    () => readPlannerRequestJson(request),
+    (error: unknown) => error instanceof InvalidPlannerRequestError && /too large/i.test(error.message)
+  );
+});
+
 test("rejects an empty body as invalid JSON rather than silently defaulting", async () => {
   const request = requestWithBody("");
   await assert.rejects(
