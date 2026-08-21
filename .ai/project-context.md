@@ -3,10 +3,11 @@
 ## Current Snapshot
 
 - Path: `C:\Users\nguye\Downloads\propickle-buddy`
-- Git branch: `main` (this doc was last refreshed from `chore/repo-cleanup-and-security-fixes`, branched off `main` at `b3cf032`)
-- Git status: `codex/web-dashboard` and every other feature branch listed below have merged to `main`; this snapshot previously described a pending-review state that no longer applies.
+- Git branch: `main` (this doc last refreshed 2026-08-21, at commit `00a86fd`)
+- Git status: `main` only. No open feature branches, local or remote.
 - Local instructions: `AGENTS.md` plus `.ai/agent-router.md`.
-- 2026-08-20 cleanup: removed 17 corrupted `.lock.stale.` ref files and a phantom locked worktree from `.git/`; 13 fully-merged remote branches (`codex/*`, `feature/*`, `henry/*`) were identified as deletable but left on `origin` pending manual review — see git branch list on GitHub.
+- 2026-08-20 cleanup: removed 17 corrupted `.lock.stale.` ref files and a phantom locked worktree from `.git/`.
+- 2026-08-21: the 13 fully-merged remote branches (`codex/*`, `feature/*`, `henry/*`) flagged during the 2026-08-20 cleanup were reviewed and deleted from `origin`. `main` is the only branch now.
 
 ## Stack
 
@@ -19,7 +20,7 @@
 
 ## Directory Map
 
-- `extension/`: MV3 popup/options/background/content scripts, venue config, refresh orchestration, booking deep-link helper.
+- `extension/`: MV3 popup/options/content scripts, venue config, booking deep-link helper. `background.js` is a thin message-router/lifecycle-listener orchestrator (~143 lines) importing from `sync.js` (backend sync client), `tabReader.js` (tab reads, cache-first logic), `readerWindow.js` (reader-window/tab lifecycle), `pendingRefresh.js` (retry state machine, `chrome.alarms`-based), and `refreshJob.js` (the multi-venue refresh job engine) — all real ES modules (`"type":"module"` in manifest.json).
 - `extension/providers/`: Playbypoint, ClubSpark, Mindbody, Playtomic, PodPlay, and Hamlet readers.
 - `web/app/`: Next.js routes, `/app` dashboard, share page, API routes, webhook routes, and global styles.
 - `web/src/components/`: homepage, availability, and planner UI components.
@@ -132,4 +133,6 @@ Web dashboard branch checked on July 23 before preview publication:
 
 ## Next Exploration Step
 
-Web dashboard is merged and live on `main`. Next: review the repo cleanup/security-fix branch (`chore/repo-cleanup-and-security-fixes`) — messenger webhook signature verification, timing-safe token comparisons, dependency pinning, and a minimal CI workflow — then decide on the `globals.css` and `background.js` decomposition discussed separately.
+The 2026-08-20/21 audit-and-fix round is closed: Messenger webhook signature verification, timing-safe comparisons, CORS wildcard fix, request body size limits, dependency pinning, CI workflow, `globals.css` split, and the `background.js` decomposition (into `sync.js`/`tabReader.js`/`readerWindow.js`/`pendingRefresh.js`/`refreshJob.js`) are all merged to `main`. See `.ai/worklog/2026-08.jsonl` for the full session-by-session record and `.ai/decisions.md` for the two ADR-worthy calls (Supabase-backed rate limiting; full ES module conversion for the extension split).
+
+No open exploration item right now. Deliberately deferred, not urgent: 4 `npm audit` CVEs (postgres/nanoid/sharp, transitive through `next`) assessed as low real-world risk given actual usage — will clear on the next Next.js patch.
