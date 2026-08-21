@@ -49,7 +49,7 @@ async function injectReader(tabId, providerId) {
 export async function readTab(tabId, venue) {
   await injectReader(tabId, venue.providerId);
   const response = await chrome.tabs.sendMessage(tabId, {
-    type: MESSAGE.READ_CURRENT_PAGE,
+    type: "AVAILABILITY_READ_CURRENT_PAGE",
     providerId: venue.providerId,
     venue,
     readinessTimeoutMs: venue.readinessTimeoutMs || 0,

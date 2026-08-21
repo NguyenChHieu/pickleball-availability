@@ -124,6 +124,38 @@ test("cacheFirstPayload runs through a real import without a ReferenceError from
   }
 });
 
+test("readTab sends the message type contentScript.js expects, without a ReferenceError from a stale MESSAGE reference", async () => {
+  // Regression test for a real bug shipped past every other check: readTab
+  // used MESSAGE.READ_CURRENT_PAGE, but MESSAGE is a const local to
+  // background.js - never exported, never imported here. node --check
+  // doesn't catch it (valid syntax), the concatenated vm harness doesn't
+  // catch it (background.js's MESSAGE const is still in scope in that flat
+  // script), and no other test here called readTab. It only surfaced at
+  // runtime, when a real "Refresh selected" click actually reached this
+  // line. Fixed by inlining the literal string, matching the same
+  // constraint contentScript.js already lives under (it can't import from
+  // background.js either, so it hardcodes the matching string itself).
+  const previousChrome = globalThis.chrome;
+  let sentMessage = null;
+  globalThis.chrome = {
+    scripting: { executeScript: async () => {} },
+    tabs: {
+      sendMessage: async (_tabId, message) => {
+        sentMessage = message;
+        return { ok: true, payload: { days: [] } };
+      },
+    },
+  };
+  try {
+    const { readTab } = await import(`../tabReader.js?esmSmoke=${Date.now()}`);
+    await readTab(1, { providerId: "playbypoint-bookbox" });
+    assert.equal(sentMessage.type, "AVAILABILITY_READ_CURRENT_PAGE");
+  } finally {
+    if (previousChrome === undefined) delete globalThis.chrome;
+    else globalThis.chrome = previousChrome;
+  }
+});
+
 test("background.js's import graph resolves (fails only on the missing chrome global, not on imports)", async () => {
   await assert.rejects(
     () => import("../background.js"),
