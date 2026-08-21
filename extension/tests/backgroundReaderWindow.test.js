@@ -138,25 +138,38 @@ function loadBackground(fetchImpl = fetch) {
     setInterval,
     setTimeout,
   });
-  // background.js and sync.js are real ES modules now (import/export), which
-  // vm.runInContext's classic-script Script can't parse at all - it has no
-  // module support short of the still-experimental vm.SourceTextModule API.
-  // Rather than pull that in, concatenate the real sync.js source (stripped
-  // of its `export` keywords) ahead of background.js's (stripped of its
-  // `import` lines) and run them as one flat script, exactly like before
-  // background.js's sync client was extracted - sync.js's real logic still
-  // runs against this file's chrome/fetch mocks, not a stub.
-  // AvailabilityRegistry stays a plain injected context stub rather than
-  // venues.js's real (frozen) export: several tests below override its
-  // methods per-test (e.g. context.AvailabilityRegistry.getVenues = ...),
-  // which a frozen object would reject.
-  const syncSource = fs
-    .readFileSync(path.resolve(__dirname, "../sync.js"), "utf8")
-    .replace(/^export\s+/gm, "");
-  const backgroundSource = fs
-    .readFileSync(path.resolve(__dirname, "../background.js"), "utf8")
-    .replace(/^import\s+[\s\S]*?;\s*$/gm, "");
-  vm.runInContext(`${syncSource}\n${backgroundSource}`, context, { filename: "background.js" });
+  // background.js and every module it imports are real ES modules now
+  // (import/export), which vm.runInContext's classic-script Script can't
+  // parse at all - it has no module support short of the still-experimental
+  // vm.SourceTextModule API. Rather than pull that in, concatenate each
+  // real module source (stripped of `export`) in dependency order, ahead of
+  // background.js's own source (stripped of its `import` lines), and run
+  // them all as one flat script - exactly the pre-extraction behavior, so
+  // every module's real logic still runs against this file's chrome/fetch
+  // mocks rather than being stubbed away. Function declarations hoist and
+  // nothing here calls another module's binding until a test or a chrome.*
+  // event fires (i.e. after the whole flat script has finished evaluating),
+  // so concatenation order doesn't actually matter for correctness - listed
+  // in dependency order anyway for readability. venues.js is the one
+  // exception: AvailabilityRegistry stays a plain injected context stub
+  // rather than venues.js's real (frozen) export, since several tests below
+  // override its methods per-test (e.g. context.AvailabilityRegistry.getVenues
+  // = ...), which a frozen object would reject.
+  const stripModuleSyntax = (source) =>
+    source.replace(/^import\s+[\s\S]*?;\s*$/gm, "").replace(/^export\s+/gm, "");
+  const moduleSource = (name) =>
+    stripModuleSyntax(fs.readFileSync(path.resolve(__dirname, `../${name}`), "utf8"));
+  const source = [
+    "sync.js",
+    "tabReader.js",
+    "readerWindow.js",
+    "pendingRefresh.js",
+    "refreshJob.js",
+    "background.js",
+  ]
+    .map(moduleSource)
+    .join("\n");
+  vm.runInContext(source, context, { filename: "background.js" });
   return { alarms, calls, context, storage, tabs, windows };
 }
 
