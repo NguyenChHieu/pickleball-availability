@@ -6,9 +6,8 @@ import { AvailabilityRegistry } from "../../extension/venues.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const TIME_ZONE = "Australia/Sydney";
-const GUEST_VENUES = [
+export const SCHEDULED_VENUES = [
   "broadway",
-  "sydneyracquet",
   "houseofpickle-darlingharbour",
   "wotso-pyrmont",
 ];
@@ -77,7 +76,6 @@ async function readVenue(browser, venue, today, singleDay) {
     if (response && response.status() >= 400) throw new Error(`Venue page returned HTTP ${response.status()}.`);
     await page.addScriptTag({ path: path.join(ROOT, "extension", "providers", `${{
       broadway: "clubsparkBookByDate",
-      sydneyracquet: "playtomicAvailability",
       "houseofpickle-darlingharbour": "podplayDom",
       "wotso-pyrmont": "hamletExperience",
     }[venue.id]}.js`) });
@@ -192,10 +190,10 @@ async function main() {
   const dryRun = probe || args.includes("--dry-run");
   const venueIndex = args.indexOf("--venue");
   const selectedId = venueIndex >= 0 ? args[venueIndex + 1] : "";
-  if (venueIndex >= 0 && !GUEST_VENUES.includes(selectedId)) {
-    throw new Error("Unknown guest venue. Use --venue with a supported venue ID.");
+  if (venueIndex >= 0 && !SCHEDULED_VENUES.includes(selectedId)) {
+    throw new Error("Unknown scheduled venue. Use --venue with a supported venue ID.");
   }
-  const selected = (selectedId ? [selectedId] : GUEST_VENUES).map((id) => AvailabilityRegistry.getVenue(id));
+  const selected = (selectedId ? [selectedId] : SCHEDULED_VENUES).map((id) => AvailabilityRegistry.getVenue(id));
   const url = process.env.AVAILABILITY_BACKEND_URL;
   const token = process.env.AVAILABILITY_SYNC_TOKEN;
   if (!dryRun && (!url || !token)) {
@@ -209,7 +207,7 @@ async function main() {
     }
   }
   const today = sydneyDate();
-  console.log(`Checking guest venues for ${today} (${TIME_ZONE}). ProPickle and North Ryde need manual refresh.`);
+  console.log(`Checking scheduled venues for ${today} (${TIME_ZONE}). ProPickle, North Ryde, and Sydney Racquet Club need extension refresh.`);
   if (backend) {
     // This also makes a real Supabase read even when every guest venue is unavailable.
     try {
