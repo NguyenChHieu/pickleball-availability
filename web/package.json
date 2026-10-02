@@ -8,7 +8,7 @@
     "build": "next build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:fixtures": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/*.test.ts"
+    "test:fixtures": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test tests/*.test.ts scripts/*.test.mjs"
   },
   "dependencies": {
     "next": "^16.2.12",
@@ -21,6 +21,7 @@
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.12",
+    "playwright": "^1.63.0",
     "typescript": "^6.0.3"
   }
 }
