@@ -12,18 +12,23 @@ const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "manifest
 
 function installFor(url) {
   const listeners = [];
+  const runtimeMessages = [];
+  const responses = [];
   const location = new URL(url);
   const window = {
     location,
     addEventListener(type, listener) {
       listeners.push({ type, listener });
     },
-    postMessage() {},
+    postMessage(message) { responses.push(message); },
   };
   window.window = window;
 
   const context = {
-    chrome: { runtime: { sendMessage: async () => ({ ok: true }) } },
+    chrome: { runtime: { sendMessage: async (message) => {
+      runtimeMessages.push(message);
+      return { ok: true };
+    } } },
     clearTimeout,
     console,
     Date,
@@ -33,8 +38,31 @@ function installFor(url) {
   };
   vm.createContext(context);
   vm.runInContext(bridgeSource, context);
-  return { installed: Boolean(context.__pbbSharePageBridgeInstalled), listeners };
+  return { installed: Boolean(context.__pbbSharePageBridgeInstalled), listeners, runtimeMessages, responses, window };
 }
+
+test("dashboard availability action delegates to the extension without exposing a token", async () => {
+  const page = installFor("https://pickleball-availability-tau.vercel.app/app");
+  for (const { type, listener } of page.listeners) {
+    if (type !== "message") continue;
+    listener({
+      source: page.window,
+      origin: page.window.location.origin,
+      data: {
+        source: "pbb-dashboard",
+        type: "PBB_DASHBOARD_BRIDGE_REQUEST",
+        requestId: "availability-test",
+        action: "openAvailability",
+        payload: { venueId: "broadway" },
+      },
+    });
+  }
+  await new Promise(setImmediate);
+  assert.equal(page.runtimeMessages[0]?.type, "AVAILABILITY_OPEN_AVAILABILITY_PAGE");
+  assert.equal(page.runtimeMessages[0]?.venueId, "broadway");
+  assert.equal(page.responses.find((message) => message.requestId === "availability-test")?.ok, true);
+  assert.doesNotMatch(JSON.stringify(page.responses), /shareToken|private-share/);
+});
 
 test("installs on this project's stable branch Preview alias", () => {
   const result = installFor(

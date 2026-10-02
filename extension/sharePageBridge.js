@@ -28,6 +28,7 @@
   const GET_REFRESH_JOB = "AVAILABILITY_GET_REFRESH_JOB";
   const GET_REFRESH_HISTORY = "AVAILABILITY_GET_REFRESH_HISTORY";
   const OPEN_SETUP_WINDOW = "AVAILABILITY_OPEN_SETUP_WINDOW";
+  const OPEN_AVAILABILITY_PAGE = "AVAILABILITY_OPEN_AVAILABILITY_PAGE";
   const DASHBOARD_PAGE_SOURCE = "pbb-dashboard";
   const DASHBOARD_REQUEST_TYPE = "PBB_DASHBOARD_BRIDGE_REQUEST";
   const DASHBOARD_RESPONSE_TYPE = "PBB_DASHBOARD_BRIDGE_RESPONSE";
@@ -113,6 +114,13 @@
       const venueId = typeof payload.venueId === "string" ? payload.venueId : "";
       if (!venueId) throw new Error("Missing venue setup target.");
       await runtimeMessage({ type: OPEN_SETUP_WINDOW, venueId });
+      return { opened: true };
+    }
+
+    if (action === "openAvailability") {
+      const venueId = typeof payload.venueId === "string" ? payload.venueId : "";
+      if (!venueId) throw new Error("Missing availability venue.");
+      await runtimeMessage({ type: OPEN_AVAILABILITY_PAGE, venueId });
       return { opened: true };
     }
 

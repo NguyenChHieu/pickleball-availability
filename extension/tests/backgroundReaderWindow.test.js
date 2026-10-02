@@ -182,6 +182,30 @@ test("refresh status reports use allowlisted source fallbacks", () => {
   assert.equal(context.normalizeRefreshSource("", "fast", "Refresh selected"), "selected");
 });
 
+test("availability pages open from trusted dashboards without returning the share token", async () => {
+  const { context, storage } = loadBackground();
+  context.AvailabilityRegistry.getVenues = () => [{ id: "broadway" }];
+  storage.backendSyncConfig = { shareToken: "private-share" };
+  let openedUrl = "";
+  context.chrome.tabs.create = async ({ url }) => { openedUrl = url; };
+
+  const result = await context.openAvailabilityPage(
+    "broadway",
+    "https://pickleball-availability-tau.vercel.app/app"
+  );
+  assert.deepEqual({ ...result }, { opened: true });
+  assert.equal(openedUrl, "https://pickleball-availability-tau.vercel.app/s/private-share/broadway");
+  assert.doesNotMatch(JSON.stringify(result), /private-share/);
+  await assert.rejects(
+    context.openAvailabilityPage("unknown", "https://pickleball-availability-tau.vercel.app/app"),
+    /Unknown availability venue/
+  );
+  await assert.rejects(
+    context.openAvailabilityPage("broadway", "https://unrelated.vercel.app/app"),
+    /Pickleball Buddy dashboard/
+  );
+});
+
 test("refresh status keeps sync failures above cache reuse", () => {
   const { context } = loadBackground();
 

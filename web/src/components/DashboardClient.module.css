@@ -322,7 +322,7 @@
   --venue-list-gap: 10px;
   display: grid;
   gap: var(--venue-list-gap);
-  max-height: calc((104px * 3) + (var(--venue-list-gap) * 2) + 2px);
+  max-height: calc((120px * 3) + (var(--venue-list-gap) * 2) + 2px);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 1px 8px 1px 0;
@@ -358,7 +358,7 @@
   display: grid;
   gap: 16px;
   grid-template-columns: 28px minmax(170px, 1.25fr) minmax(140px, 0.9fr) minmax(140px, 0.9fr) auto;
-  min-height: 104px;
+  min-height: 120px;
   padding: 14px 18px 14px 14px;
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
 }
@@ -472,7 +472,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-.bookingLink {
+.venueActions {
+  display: grid;
+  justify-items: start;
+}
+
+.venueActions button,
+.venueActions a {
   align-items: center;
   border-bottom: 1px solid #656c67;
   color: #cbd1cd;
@@ -484,8 +490,20 @@
   white-space: nowrap;
 }
 
-.bookingLink:hover,
-.bookingLink:focus-visible {
+.venueActions button {
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  color: var(--venue-accent);
+  cursor: pointer;
+  padding: 0;
+}
+
+.venueActions button:hover,
+.venueActions button:focus-visible,
+.venueActions a:hover,
+.venueActions a:focus-visible {
   border-color: var(--venue-accent);
   color: var(--venue-accent);
 }
@@ -906,7 +924,7 @@
   }
 
   .venueList {
-    max-height: calc((198px * 3) + (var(--venue-list-gap) * 2) + 2px);
+    max-height: calc((224px * 3) + (var(--venue-list-gap) * 2) + 2px);
   }
 
   .venueIdentity {
@@ -934,9 +952,11 @@
     padding-top: 12px;
   }
 
-  .bookingLink {
+  .venueActions {
     grid-column: 2 / -1;
-    justify-self: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 16px;
   }
 
   .activity {
