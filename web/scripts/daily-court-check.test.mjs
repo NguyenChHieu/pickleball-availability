@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { sydneyDate, validateRead } from "./daily-court-check.mjs";
+import { SCHEDULED_VENUES, sydneyDate, validateRead } from "./daily-court-check.mjs";
+
+test("the hosted scan only includes venues supported by the GitHub runner", () => {
+  assert.deepEqual(SCHEDULED_VENUES, ["broadway", "houseofpickle-darlingharbour", "wotso-pyrmont"]);
+});
 
 test("Sydney date follows daylight saving changes", () => {
   assert.equal(sydneyDate(new Date("2026-10-03T21:00:00Z")), "2026-10-04");

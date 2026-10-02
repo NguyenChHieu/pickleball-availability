@@ -112,9 +112,9 @@ For deployed cache persistence, use Supabase by setting `SUPABASE_URL` and `SUPA
 
 ## Daily guest court check
 
-GitHub Actions runs **Daily court check** at 7:00 AM in the `Australia/Sydney` timezone (including daylight saving time). It reads the public guest schedules for Broadway, Sydney Racquet Club, House of Pickle DH, and WOTSO Pyrmont, then syncs the full available date range to the existing cache. It records today's intervals in the Actions log. A failed read leaves that venue's last successful cache in place. ProPickle needs your logged-in Chrome session; North Ryde's current Mindbody guest markup is not recognized by the reader, so those two venues still need manual refresh.
+GitHub Actions runs **Daily court check** at 7:00 AM in the `Australia/Sydney` timezone (including daylight saving time). It reads the public guest schedules for Broadway, House of Pickle DH, and WOTSO Pyrmont, then syncs the full available date range to the existing cache. It records today's intervals in the Actions log. A failed read leaves that venue's last successful cache in place. ProPickle needs your logged-in Chrome session; North Ryde's current Mindbody guest markup is not recognized by the reader. Sydney Racquet Club's guest page returned HTTP 403 to the GitHub runner, so those three venues still need extension refresh.
 
-Before enabling the workflow on `main`, configure the repository under **Settings > Secrets and variables > Actions**:
+The workflow needs these repository settings under **Settings > Secrets and variables > Actions**:
 
 - Variable `AVAILABILITY_BACKEND_URL`: your production Vercel app base URL, such as `https://your-app.vercel.app`.
 - Secret `AVAILABILITY_SYNC_TOKEN`: the same value configured in Vercel for the existing extension sync API. Never commit it.
