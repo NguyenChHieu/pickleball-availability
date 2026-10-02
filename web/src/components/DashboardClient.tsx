@@ -315,6 +315,22 @@ export function DashboardClient({ venues }: DashboardClientProps) {
     }
   }
 
+  async function openAvailability(venueId: string) {
+    if (connection !== "connected") {
+      setNotice("Open the extension and use View Availability to access your secret link.");
+      return;
+    }
+    try {
+      await bridgeRequest("openAvailability", { venueId }, 4000);
+      setNotice("Opened the availability page.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setNotice(message === "Unknown dashboard extension action."
+        ? "Reload the unpacked extension to enable View availability."
+        : message);
+    }
+  }
+
   const progress = job?.total ? Math.min(100, Math.round(((job.completed || 0) / job.total) * 100)) : 0;
 
   return (
@@ -389,6 +405,7 @@ export function DashboardClient({ venues }: DashboardClientProps) {
           <aside className={styles.bridgeNotice} aria-live="polite">
             <strong>Cached results are still available.</strong>
             <span>Reload the unpacked extension, then reload this page to enable refresh controls.</span>
+            {notice ? <span>{notice}</span> : null}
           </aside>
         ) : notice ? (
           <p className={styles.notice} aria-live="polite">{notice}</p>
@@ -442,9 +459,14 @@ export function DashboardClient({ venues }: DashboardClientProps) {
                       <strong>{venue.nextOpening}</strong>
                       <span>{venue.nextOpeningDetail}</span>
                     </div>
-                    <a className={styles.bookingLink} href={venue.fallbackUrl} target="_blank" rel="noopener noreferrer">
-                      Booking page <span aria-hidden="true">↗</span>
-                    </a>
+                    <div className={styles.venueActions}>
+                      <button type="button" onClick={() => openAvailability(venue.id)}>
+                        View availability
+                      </button>
+                      <a href={venue.fallbackUrl} target="_blank" rel="noopener noreferrer">
+                        Booking page <span aria-hidden="true">↗</span>
+                      </a>
+                    </div>
                   </article>
                 );
               })}

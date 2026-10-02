@@ -19,6 +19,7 @@ const MESSAGE = Object.freeze({
   GET_REFRESH_JOB: "AVAILABILITY_GET_REFRESH_JOB",
   GET_REFRESH_HISTORY: "AVAILABILITY_GET_REFRESH_HISTORY",
   OPEN_SETUP_WINDOW: "AVAILABILITY_OPEN_SETUP_WINDOW",
+  OPEN_AVAILABILITY_PAGE: "AVAILABILITY_OPEN_AVAILABILITY_PAGE",
   READ_ACTIVE_TAB: "AVAILABILITY_READ_ACTIVE_TAB",
   READ_CURRENT_PAGE: "AVAILABILITY_READ_CURRENT_PAGE",
 });
@@ -46,6 +47,28 @@ async function setSelectedVenue(venueId) {
   const venue = AvailabilityRegistry.getVenue(venueId);
   await chrome.storage.local.set({ [AvailabilityRegistry.SELECTED_VENUE_KEY]: venue.id });
   return { venue };
+}
+
+async function openAvailabilityPage(venueId, senderUrl) {
+  if (!AvailabilityRegistry.getVenues().some((venue) => venue.id === venueId)) {
+    throw new Error("Unknown availability venue.");
+  }
+  const sender = new URL(senderUrl || "");
+  const trustedPreview = /^pickleball-availability(?:-[a-z0-9-]+)*-henryngs-projects\.vercel\.app$/.test(sender.hostname);
+  const trustedProduction = ["pickleball-availability.vercel.app", "pickleball-availability-tau.vercel.app"].includes(sender.hostname);
+  const trustedLocal = sender.protocol === "http:" && sender.hostname === "localhost" && sender.port === "3007";
+  if (!trustedLocal && !(sender.protocol === "https:" && (trustedPreview || trustedProduction))) {
+    throw new Error("Open availability from the Pickleball Buddy dashboard.");
+  }
+  const stored = await chrome.storage.local.get("backendSyncConfig");
+  const config = stored.backendSyncConfig || {};
+  const shareToken = config.shareToken?.trim();
+  if (!shareToken) throw new Error("Set the share token in extension options first.");
+  const shareBase = (config.shareUrlBase || "http://localhost:3007").trim().replace(/\/+$/, "");
+  await chrome.tabs.create({
+    url: `${shareBase}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`,
+  });
+  return { opened: true };
 }
 
 const fallbackVenueForTab = (tab) => ({
@@ -121,7 +144,7 @@ chrome.windows.onRemoved.addListener((windowId) => {
   forgetReaderWindow(windowId);
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     if (message?.type === MESSAGE.LIST_VENUES) return listVenues();
     if (message?.type === MESSAGE.GET_VENUE_PAYLOAD) return getVenuePayload(message.venueId);
@@ -132,6 +155,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
     if (message?.type === MESSAGE.GET_REFRESH_HISTORY) return { history: await storedRefreshHistory() };
     if (message?.type === MESSAGE.OPEN_SETUP_WINDOW) return openPendingSetupWindow(message.venueId);
+    if (message?.type === MESSAGE.OPEN_AVAILABILITY_PAGE) return openAvailabilityPage(message.venueId, sender.url);
     if (message?.type === MESSAGE.READ_ACTIVE_TAB) return readActiveTab();
     throw new Error("Unknown availability message.");
   })()
