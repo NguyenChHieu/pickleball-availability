@@ -102,7 +102,8 @@
     if (!response.ok) throw new Error(`Playtomic availability failed: ${response.status}`);
 
     const body = await response.json();
-    return Array.isArray(body) ? body : [];
+    if (!Array.isArray(body)) throw new Error("Playtomic availability returned an invalid response.");
+    return body;
   };
 
   const normalizeSlot = (slot, dayDateIso, resource, venue) => {

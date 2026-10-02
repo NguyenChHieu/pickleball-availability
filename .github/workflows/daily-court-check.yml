@@ -1,0 +1,33 @@
+name: Daily court check
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+      timezone: Australia/Sydney
+  workflow_dispatch:
+
+concurrency:
+  group: daily-court-check
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  read-guest-venues:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: npm exec --prefix web -- playwright install --with-deps chromium
+      - name: Read public court availability
+        env:
+          AVAILABILITY_BACKEND_URL: ${{ vars.AVAILABILITY_BACKEND_URL }}
+          AVAILABILITY_SYNC_TOKEN: ${{ secrets.AVAILABILITY_SYNC_TOKEN }}
+        run: node web/scripts/daily-court-check.mjs

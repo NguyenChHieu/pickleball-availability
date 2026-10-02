@@ -11,7 +11,9 @@ It can refresh configured venues such as ProPickle, Broadway Pickleball, North R
 - You log in and accept any required waiver manually in normal Chrome.
 - The extension only clicks visible day tabs in the booking calendar strip.
 - Venue refreshes are user-directed; opening the popup shows saved data without surprise refreshes.
-- No scheduled background polling.
+- The extension does not schedule background polling.
+
+The hosted guest-venue check described below runs once each morning; the extension itself still only refreshes when requested.
 
 ## Install
 
@@ -107,6 +109,17 @@ AVAILABILITY_SYNC_TOKEN=dev-secret SHARE_TOKEN=dev-share npm run dev -- --port 3
 On Vercel, import the repo with `web` as the root directory. Set the same `AVAILABILITY_SYNC_TOKEN` and `SHARE_TOKEN`, then set the extension Backend URL and Share URL base to the Vercel app URL.
 
 For deployed cache persistence, use Supabase by setting `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in Vercel. The schema is in `web/supabase.sql`.
+
+## Daily guest court check
+
+GitHub Actions runs **Daily court check** at 7:00 AM in the `Australia/Sydney` timezone (including daylight saving time). It reads the public guest schedules for Broadway, Sydney Racquet Club, House of Pickle DH, and WOTSO Pyrmont, then syncs the full available date range to the existing cache. It records today's intervals in the Actions log. A failed read leaves that venue's last successful cache in place. ProPickle needs your logged-in Chrome session; North Ryde's current Mindbody guest markup is not recognized by the reader, so those two venues still need manual refresh.
+
+Before enabling the workflow on `main`, configure the repository under **Settings > Secrets and variables > Actions**:
+
+- Variable `AVAILABILITY_BACKEND_URL`: your production Vercel app base URL, such as `https://your-app.vercel.app`.
+- Secret `AVAILABILITY_SYNC_TOKEN`: the same value configured in Vercel for the existing extension sync API. Never commit it.
+
+To verify the reader without changing the cache: run `npm ci --prefix web`, `npm exec --prefix web -- playwright install chromium`, then `node web/scripts/daily-court-check.mjs --dry-run`. Use `--probe --venue broadway` for a one-day check of one venue. After the workflow reaches `main`, use **Actions > Daily court check > Run workflow** once and inspect the per-venue log and dashboard freshness. The runner makes a real cached-availability read through the Next app each morning, which exercises the Supabase connection. Scheduled GitHub runs can be delayed or dropped, and GitHub can disable schedules in inactive public repositories; do not treat this as a guaranteed uptime service.
 
 If the Messenger webhook (`/webhook/messenger`) is enabled, set `MESSENGER_APP_SECRET` to the Meta app's secret in Vercel — it's required in deployed mode so inbound webhook deliveries can be verified against `X-Hub-Signature-256`. Without it, `POST /webhook/messenger` fails closed in production; in local dev it's optional and verification is skipped.
 
