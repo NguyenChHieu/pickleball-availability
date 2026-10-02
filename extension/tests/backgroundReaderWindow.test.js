@@ -185,13 +185,16 @@ test("refresh status reports use allowlisted source fallbacks", () => {
 test("availability pages open from trusted dashboards without returning the share token", async () => {
   const { context, storage } = loadBackground();
   context.AvailabilityRegistry.getVenues = () => [{ id: "broadway" }];
-  storage.backendSyncConfig = { shareToken: "private-share" };
+  storage.backendSyncConfig = {
+    shareToken: "private-share",
+    shareUrlBase: "https://pickleball-availability-tau.vercel.app",
+  };
   let openedUrl = "";
   context.chrome.tabs.create = async ({ url }) => { openedUrl = url; };
 
   const result = await context.openAvailabilityPage(
     "broadway",
-    "https://pickleball-availability-tau.vercel.app/app"
+    "https://pickleball-availability-git-codex-dash-5cf10c-henryngs-projects.vercel.app/app"
   );
   assert.deepEqual({ ...result }, { opened: true });
   assert.equal(openedUrl, "https://pickleball-availability-tau.vercel.app/s/private-share/broadway");

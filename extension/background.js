@@ -61,10 +61,12 @@ async function openAvailabilityPage(venueId, senderUrl) {
     throw new Error("Open availability from the Pickleball Buddy dashboard.");
   }
   const stored = await chrome.storage.local.get("backendSyncConfig");
-  const shareToken = stored.backendSyncConfig?.shareToken?.trim();
+  const config = stored.backendSyncConfig || {};
+  const shareToken = config.shareToken?.trim();
   if (!shareToken) throw new Error("Set the share token in extension options first.");
+  const shareBase = (config.shareUrlBase || "http://localhost:3007").trim().replace(/\/+$/, "");
   await chrome.tabs.create({
-    url: `${sender.origin}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`,
+    url: `${shareBase}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`,
   });
   return { opened: true };
 }
