@@ -8,7 +8,7 @@ test("Sydney date follows daylight saving changes", () => {
   assert.equal(sydneyDate(new Date("2027-04-03T20:00:00Z")), "2027-04-04");
 });
 
-test("rejects a stale or empty scheduled read before it can replace the cache", () => {
+test("accepts fully booked and shorter windows but rejects stale or incomplete reads", () => {
   const day = (date, intervals = [{ start_time: "09:00", end_time: "10:00" }]) => ({
     booking_date: date,
     open_intervals: intervals,
@@ -18,16 +18,8 @@ test("rejects a stale or empty scheduled read before it can replace the cache", 
     day(`2026-10-${String(offset + 2).padStart(2, "0")}`)
   );
   assert.equal(validateRead({ venue_id: "broadway", days: fullWeek }, "broadway", today), 1);
-  assert.throws(
-    () => validateRead({ venue_id: "broadway", days: [day("2026-10-01")] }, "broadway", today, true),
-    /wrong dates/
-  );
-  assert.throws(
-    () => validateRead({ venue_id: "broadway", days: fullWeek.map((entry) => day(entry.booking_date, [])) }, "broadway", today),
-    /no open intervals/
-  );
-  assert.throws(
-    () => validateRead({ venue_id: "broadway", days: [day(today)] }, "broadway", today),
-    /too few days/
-  );
+  assert.equal(validateRead({ venue_id: "broadway", days: [day(today, [])] }, "broadway", today), 0);
+  assert.throws(() => validateRead({ venue_id: "broadway", days: [day("2026-10-01")] }, "broadway", today), /wrong dates/);
+  assert.throws(() => validateRead({ venue_id: "broadway", days: [day(today), day(today)] }, "broadway", today), /wrong dates/);
+  assert.throws(() => validateRead({ venue_id: "broadway", days: [{ booking_date: today }] }, "broadway", today), /incomplete day/);
 });

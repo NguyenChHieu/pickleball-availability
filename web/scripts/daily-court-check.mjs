@@ -29,19 +29,19 @@ export function sydneyDate(now = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-export function validateRead(payload, venueId, today, probe = false) {
+export function validateRead(payload, venueId, today) {
   if (payload?.venue_id !== venueId || !Array.isArray(payload.days) || !payload.days.length) {
     throw new Error("The reader returned no venue days.");
   }
-  if (!probe && payload.days.length < 7) {
-    throw new Error("The reader returned too few days for the shared cache.");
-  }
   const dates = payload.days.map((day) => day.booking_date);
-  if (dates[0] !== today || new Set(dates).size !== dates.length) {
+  if (
+    dates[0] !== today ||
+    dates.some((date, index) => !/^\d{4}-\d{2}-\d{2}$/.test(date) || (index > 0 && date <= dates[index - 1]))
+  ) {
     throw new Error("The reader returned the wrong dates.");
   }
-  if (payload.days.every((day) => !day.open_intervals?.length)) {
-    throw new Error("The reader returned no open intervals; keeping the last successful cache.");
+  if (payload.days.some((day) => !Array.isArray(day.open_intervals))) {
+    throw new Error("The reader returned an incomplete day.");
   }
   return payload.days[0].open_intervals.length;
 }
@@ -91,7 +91,7 @@ async function readVenue(browser, venue, today, singleDay) {
         timeoutId = setTimeout(() => reject(new Error("Venue read timed out.")), READ_TIMEOUT_MS);
       }),
     ]).finally(() => clearTimeout(timeoutId));
-    validateRead(payload, venue.id, today, singleDay);
+    validateRead(payload, venue.id, today);
     return cleanPayload(payload);
   } finally {
     await context.close();
