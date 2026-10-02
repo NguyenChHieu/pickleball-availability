@@ -19,6 +19,8 @@ test("accepts fully booked and shorter windows but rejects stale or incomplete r
   );
   assert.equal(validateRead({ venue_id: "broadway", days: fullWeek }, "broadway", today), 1);
   assert.equal(validateRead({ venue_id: "broadway", days: [day(today, [])] }, "broadway", today), 0);
+  assert.equal(validateRead({ venue_id: "houseofpickle-darlingharbour", days: [day(today), day("2026-10-03")] }, "houseofpickle-darlingharbour", today, 2), 1);
+  assert.throws(() => validateRead({ venue_id: "houseofpickle-darlingharbour", days: [day(today)] }, "houseofpickle-darlingharbour", today, 2), /too few days/);
   assert.throws(() => validateRead({ venue_id: "broadway", days: [day("2026-10-01")] }, "broadway", today), /wrong dates/);
   assert.throws(() => validateRead({ venue_id: "broadway", days: [day(today), day(today)] }, "broadway", today), /wrong dates/);
   assert.throws(() => validateRead({ venue_id: "broadway", days: [{ booking_date: today }] }, "broadway", today), /incomplete day/);

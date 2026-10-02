@@ -29,9 +29,12 @@ export function sydneyDate(now = new Date()) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-export function validateRead(payload, venueId, today) {
+export function validateRead(payload, venueId, today, minimumDays = 1) {
   if (payload?.venue_id !== venueId || !Array.isArray(payload.days) || !payload.days.length) {
     throw new Error("The reader returned no venue days.");
+  }
+  if (payload.days.length < minimumDays) {
+    throw new Error("The reader returned too few days for this venue.");
   }
   const dates = payload.days.map((day) => day.booking_date);
   if (
@@ -91,7 +94,7 @@ async function readVenue(browser, venue, today, singleDay) {
         timeoutId = setTimeout(() => reject(new Error("Venue read timed out.")), READ_TIMEOUT_MS);
       }),
     ]).finally(() => clearTimeout(timeoutId));
-    validateRead(payload, venue.id, today);
+    validateRead(payload, venue.id, today, venue.id === "houseofpickle-darlingharbour" && !singleDay ? 2 : 1);
     return cleanPayload(payload);
   } finally {
     await context.close();
