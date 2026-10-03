@@ -1009,16 +1009,26 @@ async function copyProbeSummary() {
 }
 
 async function selectVenue(venueId) {
-  renderEmpty("Loading saved venue result...");
-  const response = await sendMessage({
-    type: MESSAGE.SET_SELECTED_VENUE,
-    venueId,
-  });
-  if (!response?.ok) throw new Error(response?.error || "Could not select venue.");
-  selectedVenueId = response.venue.id;
-  venueSelect.value = selectedVenueId;
-  syncDeepScanButton();
-  await loadSavedPayload();
+  copyShareLinkButton.disabled = true;
+  viewAvailabilityButton.disabled = true;
+  try {
+    const response = await sendMessage({
+      type: MESSAGE.SET_SELECTED_VENUE,
+      venueId,
+    });
+    if (!response?.ok) throw new Error(response?.error || "Could not select venue.");
+    selectedVenueId = response.venue.id;
+    venueSelect.value = selectedVenueId;
+    renderEmpty("Loading saved venue result...");
+    syncDeepScanButton();
+    await loadSavedPayload();
+  } catch (error) {
+    venueSelect.value = selectedVenueId;
+    throw error;
+  } finally {
+    copyShareLinkButton.disabled = false;
+    viewAvailabilityButton.disabled = false;
+  }
 }
 
 function confirmDeepScan() {

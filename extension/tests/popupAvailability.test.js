@@ -19,7 +19,10 @@ test("View Availability remains visible and opens shared cache without a local p
     AvailabilityRegistry: {},
     URL,
     chrome: {
-      runtime: { openOptionsPage() {} },
+      runtime: {
+        openOptionsPage() {},
+        async sendMessage() { return { ok: false, error: "Selection failed" }; },
+      },
       storage: { local: { async get() {
         return { backendSyncConfig: {
           shareUrlBase: "https://pickleball-availability-tau.vercel.app",
@@ -51,4 +54,10 @@ test("View Availability remains visible and opens shared cache without a local p
   vm.runInContext('selectedVenueId = "propickle"; syncActions();', context);
   assert.equal(nodes.get("#copyShareLinkButton").hidden, true);
   await assert.rejects(context.shareLink(), /Sync to the web app first/);
+
+  vm.runInContext('selectedVenueId = "broadway"; syncActions();', context);
+  await assert.rejects(context.selectVenue("propickle"), /Selection failed/);
+  assert.equal(nodes.get("#venueSelect").value, "broadway");
+  assert.equal(nodes.get("#copyShareLinkButton").hidden, false);
+  assert.equal(nodes.get("#copyShareLinkButton").disabled, false);
 });
