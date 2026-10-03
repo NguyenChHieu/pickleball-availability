@@ -59,7 +59,7 @@ function setStatus(message) {
 }
 
 function syncActions() {
-  const canCopy = Boolean(latestPayload && latestSyncStatus?.ok);
+  const canCopy = Boolean(latestPayload?.venue_id === selectedVenueId && latestSyncStatus?.ok);
   copyShareLinkButton.hidden = !canCopy;
   actionsElement.classList.toggle("has-copy", canCopy);
 }
@@ -481,10 +481,12 @@ function renderVenueStatusList() {
 }
 
 async function loadSavedPayload() {
+  const venueId = selectedVenueId;
   const response = await sendMessage({
     type: MESSAGE.GET_VENUE_PAYLOAD,
-    venueId: selectedVenueId,
+    venueId,
   });
+  if (venueId !== selectedVenueId) return false;
   if (!response?.ok) throw new Error(response?.error || "Could not load saved availability.");
 
   if (!response.payload) {
@@ -495,7 +497,8 @@ async function loadSavedPayload() {
     return false;
   }
 
-  const syncStatus = await storedSyncStatus(selectedVenueId);
+  const syncStatus = await storedSyncStatus(venueId);
+  if (venueId !== selectedVenueId) return false;
   rememberPayload(response.payload, syncStatus?.ok ? syncStatus : null);
   setStatus(savedPayloadStatus(response.payload, syncStatus));
   await refreshVenueStatusList();
@@ -883,10 +886,10 @@ async function availabilityLink(venueId) {
 }
 
 async function shareLink() {
-  if (!latestPayload || !latestSyncStatus?.ok) {
+  if (latestPayload?.venue_id !== selectedVenueId || !latestSyncStatus?.ok) {
     throw new Error("Sync to the web app first, then copy an availability link.");
   }
-  return availabilityLink(latestPayload.venue_id || selectedVenueId);
+  return availabilityLink(selectedVenueId);
 }
 
 async function viewAvailability() {
@@ -1006,6 +1009,7 @@ async function copyProbeSummary() {
 }
 
 async function selectVenue(venueId) {
+  renderEmpty("Loading saved venue result...");
   const response = await sendMessage({
     type: MESSAGE.SET_SELECTED_VENUE,
     venueId,

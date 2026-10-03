@@ -45,4 +45,10 @@ test("View Availability remains visible and opens shared cache without a local p
   assert.equal(nodes.get("#copyShareLinkButton").hidden, true);
   await context.viewAvailability();
   assert.deepEqual(opened, ["https://pickleball-availability-tau.vercel.app/s/test-share/broadway"]);
+
+  vm.runInContext('latestPayload = { venue_id: "broadway" }; latestSyncStatus = { ok: true }; syncActions();', context);
+  assert.equal(nodes.get("#copyShareLinkButton").hidden, false);
+  vm.runInContext('selectedVenueId = "propickle"; syncActions();', context);
+  assert.equal(nodes.get("#copyShareLinkButton").hidden, true);
+  await assert.rejects(context.shareLink(), /Sync to the web app first/);
 });
