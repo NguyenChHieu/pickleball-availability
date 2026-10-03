@@ -63,8 +63,10 @@ async function openAvailabilityPage(venueId, senderUrl) {
   const stored = await chrome.storage.local.get("backendSyncConfig");
   const config = stored.backendSyncConfig || {};
   const shareToken = config.shareToken?.trim();
-  if (!shareToken) throw new Error("Set the share token in extension options first.");
-  const shareBase = (config.shareUrlBase || "http://localhost:3007").trim().replace(/\/+$/, "");
+  if (!config.shareUrlBase || !shareToken) {
+    throw new Error("Set Share URL base and Share token in extension Settings first.");
+  }
+  const shareBase = config.shareUrlBase.trim().replace(/\/+$/, "");
   await chrome.tabs.create({
     url: `${shareBase}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`,
   });
