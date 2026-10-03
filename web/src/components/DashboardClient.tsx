@@ -317,7 +317,7 @@ export function DashboardClient({ venues }: DashboardClientProps) {
 
   async function openAvailability(venueId: string) {
     if (connection !== "connected") {
-      setNotice("This browser cannot open your private availability link. Open this dashboard in Chrome with the updated extension, or use View Availability in its popup.");
+      setNotice("The secret link is in the extension. Open its popup and click View Availability, or open this dashboard in Chrome with the updated extension.");
       return;
     }
     try {
@@ -403,9 +403,8 @@ export function DashboardClient({ venues }: DashboardClientProps) {
 
         {connection === "disconnected" ? (
           <aside className={styles.bridgeNotice} aria-live="polite">
-            <strong>Cached results are still available.</strong>
-            <span>Private availability links and refresh controls need the extension in this browser. If it is installed, reload the extension and this page.</span>
-            {notice ? <span>{notice}</span> : null}
+            <strong>Extension not connected.</strong>
+            <span>{notice || "Cached results remain visible. Open this dashboard in Chrome with the updated extension for private links and refresh."}</span>
           </aside>
         ) : notice ? (
           <p className={styles.notice} aria-live="polite">{notice}</p>
