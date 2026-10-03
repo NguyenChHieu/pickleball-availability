@@ -9,6 +9,7 @@ const viewAvailabilityButton = document.querySelector("#viewAvailabilityButton")
 const copyShareLinkButton = document.querySelector("#copyShareLinkButton");
 const createPlannerButton = document.querySelector("#createPlannerButton");
 const copyProbeSummaryButton = document.querySelector("#copyProbeSummaryButton");
+const settingsButton = document.querySelector("#settingsButton");
 const venueStatusListElement = document.querySelector("#venueStatusList");
 const venueSearchElement = document.querySelector("#venueSearch");
 const toggleVenueListButton = document.querySelector("#toggleVenueListButton");
@@ -35,7 +36,6 @@ const MESSAGE = Object.freeze({
 const SYNC_CONFIG_KEY = "backendSyncConfig";
 const DEFAULT_BACKEND_URL = "http://localhost:3007";
 const DEFAULT_SHARE_URL_BASE = "http://localhost:3007";
-const DEFAULT_SHARE_TOKEN = "dev-share";
 const DEFAULT_STALE_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_VISIBLE_VENUES = 3;
 
@@ -59,7 +59,9 @@ function setStatus(message) {
 }
 
 function syncActions() {
-  actionsElement.hidden = !latestPayload || !latestSyncStatus?.ok;
+  const canCopy = Boolean(latestPayload && latestSyncStatus?.ok);
+  copyShareLinkButton.hidden = !canCopy;
+  actionsElement.classList.toggle("has-copy", canCopy);
 }
 
 function syncDeepScanButton() {
@@ -243,7 +245,7 @@ function savedPayloadStatus(payload, syncStatus) {
   const age = formatAge(payload);
   const shareHint = syncStatus?.ok
     ? "View Availability and Copy Availability Link are ready."
-    : "Tick venues above and use Refresh Selected, or use Read Current Page to update the availability page.";
+    : "View Availability opens the shared cache. Refresh Selected updates it from this browser.";
   const timeText = age || exportedAt ? ` Last read ${age || exportedAt}.` : "";
   return `Showing saved ${sourceLabel(payload)} result.${timeText} ${shareHint}`;
 }
@@ -867,27 +869,29 @@ function normalizeShareUrlBase(value) {
   return normalized;
 }
 
-async function shareLink() {
-  if (!latestPayload) return;
-
-  if (!latestSyncStatus?.ok) {
-    throw new Error("Sync to the web app first, then use the availability page.");
-  }
-
+async function availabilityLink(venueId) {
   const stored = await chrome.storage.local.get(SYNC_CONFIG_KEY);
   const config = stored[SYNC_CONFIG_KEY] || {};
-  const venueId = latestPayload.venue_id || selectedVenueId;
   if (!venueId) throw new Error("Select a venue before opening an availability link.");
+  if (!config.shareUrlBase || !config.shareToken) {
+    throw new Error("Set Share URL base and Share token in Settings first.");
+  }
 
   const base = normalizeShareUrlBase(config.shareUrlBase);
-  const shareToken = (config.shareToken || DEFAULT_SHARE_TOKEN).trim();
+  const shareToken = config.shareToken.trim();
   return `${base}/s/${encodeURIComponent(shareToken)}/${encodeURIComponent(venueId)}`;
+}
+
+async function shareLink() {
+  if (!latestPayload || !latestSyncStatus?.ok) {
+    throw new Error("Sync to the web app first, then copy an availability link.");
+  }
+  return availabilityLink(latestPayload.venue_id || selectedVenueId);
 }
 
 async function viewAvailability() {
   try {
-    const link = await shareLink();
-    if (!link) return;
+    const link = await availabilityLink(selectedVenueId);
     await chrome.tabs.create({ url: link });
     setStatus("Opened availability page.");
   } catch (error) {
@@ -1093,6 +1097,7 @@ refreshAllButton.addEventListener("click", () => refreshAllVenues());
 deepScanVenueButton.addEventListener("click", () => deepScanVenue());
 readCurrentPageButton.addEventListener("click", readCurrentPage);
 viewAvailabilityButton.addEventListener("click", viewAvailability);
+settingsButton.addEventListener("click", () => chrome.runtime.openOptionsPage());
 copyShareLinkButton.addEventListener("click", copyShareLink);
 createPlannerButton.addEventListener("click", createGroupPlanner);
 copyProbeSummaryButton.addEventListener("click", copyProbeSummary);
