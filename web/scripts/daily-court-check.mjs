@@ -1,7 +1,5 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFile } from "node:fs/promises";
-import { runInNewContext } from "node:vm";
 
 import { chromium } from "playwright";
 import { AvailabilityRegistry } from "../../extension/venues.js";
@@ -68,25 +66,7 @@ function startUrl(venue, today) {
   return `${venue.bookingUrlBase}#?date=${today}&role=guest`;
 }
 
-export async function readPlaytomicVenue(venue, fetchImpl = fetch) {
-  // This provider only needs the public API, not the club's HTML page.
-  const source = await readFile(path.join(ROOT, "extension/providers/playtomicAvailability.js"), "utf8");
-  const sandbox = {
-    URL,
-    window: { location: { href: venue.startUrl } },
-    fetch: (url, options) => fetchImpl(url, { ...options, signal: AbortSignal.timeout(15_000) }),
-  };
-  runInNewContext(source, sandbox);
-  return sandbox.AvailabilityProviders[venue.providerId].readAvailability(venue);
-}
-
 async function readVenue(browser, venue, today, singleDay) {
-  const readerVenue = { ...venue, readDays: singleDay ? 1 : venue.readDays || 9 };
-  if (venue.providerId === "playtomic-availability") {
-    const payload = await readPlaytomicVenue(readerVenue);
-    validateRead(payload, venue.id, today);
-    return cleanPayload(payload);
-  }
   const context = await browser.newContext({ timezoneId: TIME_ZONE });
   try {
     const page = await context.newPage();
@@ -97,6 +77,7 @@ async function readVenue(browser, venue, today, singleDay) {
     if (response && response.status() >= 400) throw new Error(`Venue page returned HTTP ${response.status()}.`);
     await page.addScriptTag({ path: path.join(ROOT, "extension", "providers", `${{
       broadway: "clubsparkBookByDate",
+      sydneyracquet: "playtomicAvailability",
       "houseofpickle-darlingharbour": "podplayDom",
       "wotso-pyrmont": "hamletExperience",
     }[venue.id]}.js`) });
@@ -105,6 +86,7 @@ async function readVenue(browser, venue, today, singleDay) {
       venue.providerId,
       { timeout: venue.readinessTimeoutMs || 15_000 }
     );
+    const readerVenue = { ...venue, readDays: singleDay ? 1 : venue.readDays || 9 };
     let timeoutId;
     const payload = await Promise.race([
       page.evaluate((config) => globalThis.AvailabilityProviders[config.providerId].readAvailability(config), readerVenue),
@@ -236,11 +218,10 @@ async function main() {
       if (!String(error).includes("HTTP 404")) throw error;
     }
   }
-  const needsBrowser = selected.some((venue) => venue.providerId !== "playtomic-availability");
-  const browser = needsBrowser ? await chromium.launch({
+  const browser = await chromium.launch({
     headless: true,
     ...(process.env.PLAYWRIGHT_BROWSER_CHANNEL ? { channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL } : {}),
-  }) : null;
+  });
   try {
     let next = 0;
     const results = await Promise.all(
@@ -255,7 +236,7 @@ async function main() {
     );
     if (results.flat().some((ok) => !ok)) process.exitCode = 1;
   } finally {
-    await browser?.close();
+    await browser.close();
   }
 }
 

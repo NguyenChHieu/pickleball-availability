@@ -186,7 +186,7 @@
     if (!venue.tenantId) throw new Error("Playtomic venue is missing tenantId.");
 
     const readDays = Number(venue.readDays || DEFAULT_READ_DAYS);
-    const startDate = dateTimeInZone(new Date(), venue.timezone || DEFAULT_TIMEZONE).dateIso;
+    const startDate = localDateIso();
     const bookingUrl = bookingUrlForVenue(venue);
     const days = [];
 
