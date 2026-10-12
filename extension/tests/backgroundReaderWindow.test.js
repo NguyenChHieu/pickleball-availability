@@ -207,6 +207,11 @@ test("availability pages open from trusted dashboards without returning the shar
     context.openAvailabilityPage("broadway", "https://unrelated.vercel.app/app"),
     /Pickleball Buddy dashboard/
   );
+  storage.backendSyncConfig = { shareToken: "private-share" };
+  await assert.rejects(
+    context.openAvailabilityPage("broadway", "https://pickleball-availability-tau.vercel.app/app"),
+    /Share URL base/
+  );
 });
 
 test("refresh status keeps sync failures above cache reuse", () => {

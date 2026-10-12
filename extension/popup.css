@@ -766,8 +766,12 @@ button:disabled {
 .actions {
   display: grid;
   gap: 8px;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   margin-top: 8px;
+}
+
+.actions.has-copy {
+  grid-template-columns: 1fr 1fr;
 }
 
 .actions button {
@@ -790,7 +794,8 @@ button:disabled {
   }
 
   .toolbar,
-  .actions {
+  .actions,
+  .actions.has-copy {
     grid-template-columns: 1fr;
   }
 

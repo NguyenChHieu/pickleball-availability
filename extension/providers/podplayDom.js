@@ -117,11 +117,17 @@
     return String(base || "").replace(/#.*$/, "");
   };
 
-  const dateButtons = () =>
-    Array.from(document.querySelectorAll("button")).filter((button) => {
+  const dateButtons = () => {
+    const seenDates = new Set();
+    return Array.from(document.querySelectorAll("button")).filter((button, index) => {
       const text = normalizeWhitespace(button.innerText || button.textContent || "");
-      return /^today$/i.test(text) || /^[A-Za-z]{3},\s*\d{1,2}\/\d{1,2}$/.test(text);
+      if (!/^today$/i.test(text) && !/^[A-Za-z]{3},\s*\d{1,2}\/\d{1,2}$/.test(text)) return false;
+      const date = dateIsoFromButtonText(text, index);
+      if (seenDates.has(date)) return false;
+      seenDates.add(date);
+      return true;
     });
+  };
 
   const candidateElements = () => {
     const elements = Array.from(
