@@ -6,9 +6,8 @@ import { AvailabilityRegistry } from "../../extension/venues.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const TIME_ZONE = "Australia/Sydney";
-const GUEST_VENUES = [
+export const GUEST_VENUES = [
   "broadway",
-  "sydneyracquet",
   "houseofpickle-darlingharbour",
   "wotso-pyrmont",
 ];
@@ -77,7 +76,6 @@ async function readVenue(browser, venue, today, singleDay) {
     if (response && response.status() >= 400) throw new Error(`Venue page returned HTTP ${response.status()}.`);
     await page.addScriptTag({ path: path.join(ROOT, "extension", "providers", `${{
       broadway: "clubsparkBookByDate",
-      sydneyracquet: "playtomicAvailability",
       "houseofpickle-darlingharbour": "podplayDom",
       "wotso-pyrmont": "hamletExperience",
     }[venue.id]}.js`) });
@@ -209,7 +207,7 @@ async function main() {
     }
   }
   const today = sydneyDate();
-  console.log(`Checking guest venues for ${today} (${TIME_ZONE}). ProPickle and North Ryde need manual refresh.`);
+  console.log(`Checking guest venues for ${today} (${TIME_ZONE}). ProPickle, North Ryde, and Sydney Racquet Club need manual extension refresh.`);
   if (backend) {
     // This also makes a real Supabase read even when every guest venue is unavailable.
     try {

@@ -112,7 +112,7 @@ For deployed cache persistence, use Supabase by setting `SUPABASE_URL` and `SUPA
 
 ## Daily guest court check
 
-GitHub Actions runs **Daily court check** at 7:00 AM in the `Australia/Sydney` timezone (including daylight saving time). It reads the public guest schedules for Broadway, Sydney Racquet Club, House of Pickle DH, and WOTSO Pyrmont, then syncs the full available date range to the existing cache. It records today's intervals in the Actions log. A failed read leaves that venue's last successful cache in place. ProPickle needs your logged-in Chrome session; North Ryde's current Mindbody guest markup is not recognized by the reader, so those two venues still need manual refresh.
+GitHub Actions runs **Daily court check** at 7:00 AM in the `Australia/Sydney` timezone (including daylight saving time). It reads the public guest schedules for Broadway, House of Pickle DH, and WOTSO Pyrmont, then syncs the full available date range to the existing cache. It records today's intervals in the Actions log. A failed read leaves that venue's last successful cache in place. ProPickle needs your logged-in Chrome session; North Ryde's current Mindbody guest markup is not recognized by the reader; Sydney Racquet Club's Playtomic page and public API return HTTP 403 from the hosted runner. Those three venues still need manual extension refresh, and their existing cache is preserved by the daily job.
 
 Before enabling the workflow on `main`, configure the repository under **Settings > Secrets and variables > Actions**:
 
